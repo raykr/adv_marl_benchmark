@@ -7,8 +7,8 @@ class FootballLogger(BaseLogger):
     def get_task_name(self):
         return self.env_args["env_name"]
 
-    def eval_init(self):
-        super().eval_init()
+    def eval_init(self, n_eval_rollout_threads):
+        super().eval_init(n_eval_rollout_threads)
         self.eval_episode_cnt = 0
         self.eval_score_cnt = 0
 
@@ -40,3 +40,21 @@ class FootballLogger(BaseLogger):
             + "\n"
         )
         self.log_file.flush()
+
+    def eval_log_adv(self, eval_episode):
+        self.eval_episode_rewards = np.concatenate(
+            [rewards for rewards in self.eval_episode_rewards if rewards]
+        )
+        eval_score_rate = self.eval_score_cnt / self.eval_episode_cnt
+        eval_env_infos = {
+            "eval_adv_return_mean": self.eval_episode_rewards,
+            "eval_adv_return_std": [np.std(self.eval_episode_rewards)],
+            "eval_adv_score_rate": [eval_score_rate],
+        }
+        self.log_env(eval_env_infos)
+        eval_avg_rew = np.mean(self.eval_episode_rewards)
+        print(
+            "Evaluation adv average episode reward is {}, evaluation adv score rate is {}.\n".format(
+                eval_avg_rew, eval_score_rate
+            )
+        )

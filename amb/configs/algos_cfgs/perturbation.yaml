@@ -1,0 +1,63 @@
+# This is the configuration file for the MADDPG algorithm.
+seed:
+  # whether to use the specified seed
+  seed_specify: True
+  # seed
+  seed: 1
+device:
+  # whether to use CUDA
+  cuda: True
+  # whether to set CUDA deterministic
+  cuda_deterministic: True
+  # arg to torch.set_num_threads
+  torch_threads: 4
+train:
+  # number of parallel environments for perturbation
+  n_rollout_threads: 10
+  # episodes of perturbation
+  perturb_episodes: 20
+render:
+  # whether to use render
+  use_render: False
+  # number of episodes to render
+  render_episodes: 10
+victim:
+  # victim algorithm agent
+  algo: maddpg
+  # if set, load models from this directory; otherwise, randomly initialise the models
+  model_dir: ~
+  # network parameters
+  # hidden sizes for mlp module in the network
+  hidden_sizes: [128, 128]
+  # activation function, choose from sigmoid, tanh, relu, leaky_relu, selu
+  activation_func: relu
+  # final activation function, choose from sigmoid, tanh, relu, leaky_relu, selu
+  final_activation_func: tanh
+  # whether to use feature normalization
+  use_feature_normalization: True
+  # initialization method for network parameters, choose from xavier_uniform_, orthogonal_, ...
+  initialization_method: orthogonal_
+  # gain of the output layer of the network.
+  gain: 0.01
+  # parameters of diagonal Gaussian distribution
+  std_x_coef: 1
+  # parameters of diagonal Gaussian distribution
+  std_y_coef: 0.5
+  # recurrent parameters
+  # whether to use rnn policy (data is chunked for training)
+  use_recurrent_policy: False
+  # number of recurrent layers
+  recurrent_n: 1
+  # DDPG exploration noise
+  expl_noise: 0.1
+  # whether to share parameter among actors
+  share_param: False
+attack:
+  perturb_epsilon: 0.2
+  perturb_iters: 10
+  adaptive_alpha: False
+  perturb_alpha: 0.05
+  criterion: default
+logger:
+  # logging directory
+  log_dir: "./results"

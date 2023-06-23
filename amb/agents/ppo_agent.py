@@ -29,7 +29,7 @@ class PPOAgent(BaseAgent):
     @torch.no_grad()
     def perform(self, obs, rnn_states, masks, available_actions=None, deterministic=False):
         action_dist, rnn_states = self.actor(obs, rnn_states, masks, available_actions)
-        actions = (action_dist.mode() if deterministic else action_dist.sample())
+        actions = (action_dist.mode if deterministic else action_dist.sample())
 
         return actions, rnn_states
     

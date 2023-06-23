@@ -108,8 +108,8 @@ class SMACLogger(BaseLogger):
             )
         )
 
-    def eval_init(self):
-        super().eval_init()
+    def eval_init(self, n_eval_rollout_threads):
+        super().eval_init(n_eval_rollout_threads)
         self.eval_battles_won = 0
 
     def eval_thread_done(self, tid):
@@ -138,3 +138,20 @@ class SMACLogger(BaseLogger):
             + "\n"
         )
         self.log_file.flush()
+
+    def eval_log_adv(self, eval_episode):
+        self.eval_episode_rewards = np.concatenate(
+            [rewards for rewards in self.eval_episode_rewards if rewards])
+        eval_win_rate = self.eval_battles_won / eval_episode
+        eval_env_infos = {
+            "eval_adv_return_mean": self.eval_episode_rewards,
+            "eval_adv_return_std": [np.std(self.eval_episode_rewards)],
+            "eval_adv_win_rate": [eval_win_rate],
+        }
+        self.log_env(eval_env_infos)
+        eval_avg_rew = np.mean(self.eval_episode_rewards)
+        print(
+            "Evaluation adv win rate is {}, evaluation adv average episode reward is {}.\n".format(
+                eval_win_rate, eval_avg_rew
+            )
+        )

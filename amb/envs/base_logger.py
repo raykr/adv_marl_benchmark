@@ -87,11 +87,12 @@ class BaseLogger:
             self.writter.add_scalar("env/train_episode_rewards", aver_episode_rewards, self.timestep)
             self.done_episodes_rewards = []
 
-    def eval_init(self):
+    def eval_init(self, n_eval_rollout_threads):
         """Initialize the logger for evaluation."""
         self.eval_episode_rewards = []
         self.one_episode_rewards = []
-        for eval_i in range(self.algo_args["eval"]["n_eval_rollout_threads"]):
+        self.n_eval_rollout_threads = n_eval_rollout_threads
+        for eval_i in range(n_eval_rollout_threads):
             self.one_episode_rewards.append([])
             self.eval_episode_rewards.append([])
 
@@ -105,7 +106,7 @@ class BaseLogger:
             eval_infos,
             eval_available_actions,
         ) = eval_data
-        for eval_i in range(self.algo_args["eval"]["n_eval_rollout_threads"]):
+        for eval_i in range(self.n_eval_rollout_threads):
             self.one_episode_rewards[eval_i].append(eval_rewards[eval_i])
         self.eval_infos = eval_infos
 
@@ -130,6 +131,19 @@ class BaseLogger:
             ",".join(map(str, [self.timestep, eval_avg_rew])) + "\n"
         )
         self.log_file.flush()
+
+    def eval_log_adv(self, eval_episode):
+        """Log evaluation information."""
+        self.eval_episode_rewards = np.concatenate(
+            [rewards for rewards in self.eval_episode_rewards if rewards]
+        )
+        eval_env_infos = {
+            "eval_adv_return_mean": self.eval_episode_rewards,
+            "eval_adv_return_std": [np.std(self.eval_episode_rewards)],
+        }
+        self.log_env(eval_env_infos)
+        eval_avg_rew = np.mean(self.eval_episode_rewards)
+        print("Evaluation adv average episode reward is {}.\n".format(eval_avg_rew))
 
     def log_train(self, actor_train_infos, critic_train_info):
         """Log training information."""

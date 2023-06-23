@@ -61,6 +61,9 @@ class OffPolicyRunner(BaseRunner):
 
     def run(self):
         """Run the training (or rendering) pipeline."""
+        if self.algo_args['render']['use_render'] is True:
+            self.render()
+            return
         update_num = int(  # update number per train
             self.algo_args['train']['update_per_train'] * self.algo_args['train']['train_interval']
         )
@@ -70,8 +73,8 @@ class OffPolicyRunner(BaseRunner):
         self.eval()
 
         while self.current_timestep < self.algo_args['train']['num_env_steps']:
-            obs, share_obs, available_actions = self.init_batch()
             self.logger.episode_init(self.current_timestep)  # logger callback at the beginning of each episode
+            obs, share_obs, available_actions = self.init_batch()
             self.algo.prep_rollout()
             rnn_states = np.zeros((self.n_rollout_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
             masks = np.ones((self.n_rollout_threads, self.num_agents, 1), dtype=np.float32)

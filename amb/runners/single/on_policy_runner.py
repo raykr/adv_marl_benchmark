@@ -62,9 +62,9 @@ class OnPolicyRunner(BaseRunner):
 
     def run(self):
         """Run the training (or rendering) pipeline."""
-        # if self.algo_args['render']['use_render'] is True:
-        #     self.render()
-        #     return
+        if self.algo_args['render']['use_render'] is True:
+            self.render()
+            return
         print("start running")
         self.init_batch()
 

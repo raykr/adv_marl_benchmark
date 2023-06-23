@@ -1,8 +1,10 @@
+import os
 import time
 import torch
 import numpy as np
 import setproctitle
 from amb.algorithms import ALGO_REGISTRY
+from amb.algorithms.perturbation import Perturbation
 from amb.envs import LOGGER_REGISTRY
 from amb.utils.trans_utils import _t2n
 from amb.utils.env_utils import (
@@ -18,7 +20,7 @@ from amb.utils.config_utils import init_dir, save_config, get_task_name
 
 class BaseRunner:
     def __init__(self, args, algo_args, env_args):
-        """Initialize the single/BaseRunner class.
+        """Initialize the perturbation/BaseRunner class.
         Args:
             args: command-line arguments parsed by argparse. Three keys: algo, env, exp_name.
             algo_args: arguments related to algo, loaded from config file and updated with unparsed command-line arguments.
@@ -28,15 +30,12 @@ class BaseRunner:
         self.algo_args = algo_args
         self.env_args = env_args
 
-        self.hidden_sizes = algo_args["model"]["hidden_sizes"]
+        self.hidden_sizes = algo_args["victim"]["hidden_sizes"]
         self.rnn_hidden_size = self.hidden_sizes[-1]
-        self.recurrent_n = algo_args["model"]["recurrent_n"]
-        
-        self.episode_length = algo_args["train"]["episode_length"]
-        self.n_rollout_threads = algo_args["train"]["n_rollout_threads"]
-        self.n_eval_rollout_threads = algo_args['eval']['n_eval_rollout_threads']
+        self.recurrent_n = algo_args["victim"]["recurrent_n"]
+        self.share_param = algo_args["victim"]['share_param']
 
-        self.share_param = algo_args["algo"]['share_param']
+        self.n_rollout_threads = algo_args["train"]["n_rollout_threads"]
 
         set_seed(algo_args["seed"])
         self.device = init_device(algo_args["device"])
@@ -52,7 +51,7 @@ class BaseRunner:
             )
             save_config(args, algo_args, env_args, self.run_dir)
         setproctitle.setproctitle(
-            str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"])
+            str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"]) + "-" + "perturbation"
         )
 
         # set the config of env
@@ -69,16 +68,6 @@ class BaseRunner:
                 algo_args["seed"]["seed"],
                 algo_args["train"]["n_rollout_threads"],
                 env_args,
-            )
-            self.eval_envs = (
-                make_eval_env(
-                    args["env"],
-                    algo_args["seed"]["seed"],
-                    algo_args["eval"]["n_eval_rollout_threads"],
-                    env_args,
-                )
-                if algo_args["eval"]["use_eval"]
-                else None
             )
         self.num_agents = get_num_agents(args["env"], env_args, self.envs)
         self.action_type = self.envs.action_space[0].__class__.__name__
@@ -102,36 +91,53 @@ class BaseRunner:
                     self.envs.action_space[agent_id] == self.envs.action_space[0]
                 ), "Agents have heterogeneous action spaces, parameter sharing is not valid."
 
-        self.algo = ALGO_REGISTRY[args["algo"]](
-            {**algo_args["model"], **algo_args["algo"], **algo_args["train"]},
-            self.num_agents,
-            self.envs.observation_space,
-            self.envs.share_observation_space[0],
-            self.envs.action_space,
-            device=self.device,
-        )
+        self.agents = []
+        self.attacks = []
+        if self.share_param:
+            agent = ALGO_REGISTRY[algo_args["victim"]["algo"]].create_agent(
+                algo_args["victim"],
+                self.envs.observation_space[0],
+                self.envs.action_space[0],
+                device=self.device,
+            )
+            attack = Perturbation(algo_args["attack"], self.envs.action_space[0], self.device)
+            for agent_id in range(self.num_agents):
+                self.agents.append(agent)
+                self.attacks.append(attack)
+        else:
+            for agent_id in range(self.num_agents):
+                agent = ALGO_REGISTRY[algo_args["victim"]["algo"]].create_agent(
+                    algo_args["victim"],
+                    self.envs.observation_space[agent_id],
+                    self.envs.action_space[agent_id],
+                    device=self.device,
+                )
+                attack = Perturbation(algo_args["attack"], self.envs.action_space[agent_id], self.device)
+                self.agents.append(agent)
+                self.attacks.append(attack)
 
-        self.agents = self.algo.agents
-        self.critic = self.algo.critic
-
-        if self.algo_args['train']['model_dir'] is not None:  # restore model
+        if self.algo_args['victim']['model_dir'] is not None:  # restore model
             self.restore()
 
     def run(self):
-        raise NotImplementedError
+        print("start perturbation-based attack")
+        self.logger.episode_init(0)
+        self.eval()
+        self.eval_adv()
 
     @torch.no_grad()
     def eval(self):
         """Evaluate the model. All algorithms should fit this evaluation pipeline."""
-        self.algo.prep_rollout()
+        for agent in self.agents:
+            agent.prep_rollout()
 
-        self.logger.eval_init(self.n_eval_rollout_threads)  # logger callback at the beginning of evaluation
+        self.logger.eval_init(self.n_rollout_threads)  # logger callback at the beginning of evaluation
         eval_episode = 0
 
-        eval_obs, eval_share_obs, eval_available_actions = self.eval_envs.reset()
+        eval_obs, eval_share_obs, eval_available_actions = self.envs.reset()
 
-        eval_rnn_states = np.zeros((self.n_eval_rollout_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
-        eval_masks = np.ones((self.n_eval_rollout_threads, self.num_agents, 1), dtype=np.float32)
+        eval_rnn_states = np.zeros((self.n_rollout_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
+        eval_masks = np.ones((self.n_rollout_threads, self.num_agents, 1), dtype=np.float32)
 
         while True:
             eval_actions_collector = []
@@ -149,7 +155,7 @@ class BaseRunner:
 
             eval_actions = np.array(eval_actions_collector).transpose(1, 0, 2)
 
-            eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions = self.eval_envs.step(eval_actions)
+            eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions = self.envs.step(eval_actions)
 
             eval_data = (
                 eval_obs,
@@ -165,16 +171,82 @@ class BaseRunner:
 
             eval_rnn_states[eval_dones_env == True] = 0
 
-            eval_masks = np.ones((self.n_eval_rollout_threads, self.num_agents, 1), dtype=np.float32)
+            eval_masks = np.ones((self.n_rollout_threads, self.num_agents, 1), dtype=np.float32)
             eval_masks[eval_dones_env == True] = 0
 
-            for eval_i in range(self.n_eval_rollout_threads):
+            for eval_i in range(self.n_rollout_threads):
                 if eval_dones_env[eval_i]:
                     eval_episode += 1
                     self.logger.eval_thread_done(eval_i)  # logger callback when an episode is done
 
-            if eval_episode >= self.algo_args["eval"]["eval_episodes"]:
+            if eval_episode >= self.algo_args["train"]["perturb_episodes"]:
                 self.logger.eval_log(eval_episode)  # logger callback at the end of evaluation
+                break
+
+    def eval_adv(self):
+        """Evaluate the adversarial attacks. All algorithms should fit this evaluation pipeline."""
+        for agent in self.agents:
+            agent.prep_rollout()
+
+        self.logger.eval_init(self.n_rollout_threads)  # logger callback at the beginning of evaluation
+        eval_episode = 0
+
+        eval_obs, eval_share_obs, eval_available_actions = self.envs.reset()
+
+        eval_rnn_states = np.zeros((self.n_rollout_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
+        eval_masks = np.ones((self.n_rollout_threads, self.num_agents, 1), dtype=np.float32)
+
+        while True:
+            eval_actions_collector = []
+            for agent_id in range(self.num_agents):
+                eval_obs_adv = self.attacks[agent_id].perturb(
+                    self.agents[agent_id],
+                    eval_obs[:, agent_id],
+                    eval_rnn_states[:, agent_id],
+                    eval_masks[:, agent_id],
+                    eval_available_actions[:, agent_id]
+                    if eval_available_actions[0] is not None else None,
+                )
+
+                eval_actions, temp_rnn_state = self.agents[agent_id].perform(
+                    eval_obs_adv,
+                    eval_rnn_states[:, agent_id],
+                    eval_masks[:, agent_id],
+                    eval_available_actions[:, agent_id]
+                    if eval_available_actions[0] is not None else None,
+                    deterministic=True,
+                )
+                eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
+                eval_actions_collector.append(_t2n(eval_actions))
+
+            eval_actions = np.array(eval_actions_collector).transpose(1, 0, 2)
+
+            eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions = self.envs.step(eval_actions)
+
+            eval_data = (
+                eval_obs,
+                eval_share_obs,
+                eval_rewards,
+                eval_dones,
+                eval_infos,
+                eval_available_actions,
+            )
+            self.logger.eval_per_step(eval_data)  # logger callback at each step of evaluation
+
+            eval_dones_env = np.all(eval_dones, axis=1)
+
+            eval_rnn_states[eval_dones_env == True] = 0
+
+            eval_masks = np.ones((self.n_rollout_threads, self.num_agents, 1), dtype=np.float32)
+            eval_masks[eval_dones_env == True] = 0
+
+            for eval_i in range(self.n_rollout_threads):
+                if eval_dones_env[eval_i]:
+                    eval_episode += 1
+                    self.logger.eval_thread_done(eval_i)  # logger callback when an episode is done
+
+            if eval_episode >= self.algo_args["train"]["perturb_episodes"]:
+                self.logger.eval_log_adv(eval_episode)  # logger callback at the end of evaluation
                 break
 
     @torch.no_grad()
@@ -225,20 +297,26 @@ class BaseRunner:
 
     def restore(self):
         """Restore the model"""
-        self.algo.restore(str(self.algo_args['train']['model_dir']))
+        if self.share_param:
+            self.agents[0].restore(self.algo_args['victim']['model_dir'])
+        else:
+            for agent_id in range(self.num_agents):
+                self.agents[agent_id].restore(os.path.join(self.algo_args['victim']['model_dir'], str(agent_id)))
 
     def save(self):
         """Save the model"""
-        self.algo.save(str(self.save_dir))
+        if self.share_param:
+            self.agents[0].save(self.algo_args['victim']['model_dir'])
+        else:
+            for agent_id in range(self.num_agents):
+                self.agents[agent_id].save(os.path.join(self.algo_args['victim']['model_dir'], str(agent_id)))
 
     def close(self):
-        """Close environment, writter, and log file."""
+        """Close environment."""
         if self.algo_args['render']['use_render']:
             self.envs.close()
         else:
             self.envs.close()
-            if self.algo_args["eval"]["use_eval"] and self.eval_envs is not self.envs:
-                self.eval_envs.close()
             self.writter.export_scalars_to_json(str(self.log_dir + "/summary.json"))
             self.writter.close()
             self.logger.close()
