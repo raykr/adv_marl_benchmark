@@ -14,9 +14,11 @@ RNN的输入x是(T*N, V)，而hidden_state和masks是(N, V)
 最后返回的输出的形式依然是(T*N,V)
 
 MADDPG所有interval的单位都改成了timesteps，但是buffer size是episodic，这些参数的意义和HARL不同，不能直接复制！
-关于offpolicy nstep reward再想想办法
-不share param时，obs的shape也得相同，暂时没想支持obs shape不同的环境
+不share param时，obs和action的shape也得相同，暂时没想支持shape不同的环境，很麻烦
 
-下一步打算实现runners中的traitor、perturbation等
-perturbation支持最小化最大概率的扰动、minq扰动、读取特定target的扰动
-traitor支持单方面对抗策略的训练
+perturbation的目标攻击和minq攻击还没有实现
+
+mode函数只有pytorch版本在1.12及以上时才有
+
+杀掉服务器上所有的星际进程：
+ps -A | grep Main_Thread | awk '{print $1}' | xargs kill -9

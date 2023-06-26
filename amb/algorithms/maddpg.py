@@ -90,6 +90,7 @@ class MADDPG:
         share_obs = sample["share_obs"]
         actions = sample["actions_onehot"]
         rewards = sample["rewards"]
+        gammas = sample["gammas"]
         next_obs = sample["next_obs"]
         next_share_obs = sample["next_share_obs"]
         rnn_states_actor = sample["rnn_states_actor"]
@@ -107,6 +108,7 @@ class MADDPG:
             next_available_actions = sample["next_available_actions"]
 
         rewards = check(rewards).to(**self.tpdv)
+        gammas = check(gammas).to(**self.tpdv)
         actions = check(actions).to(**self.tpdv)
         dones_env = check(dones_env).to(**self.tpdv)
         active_masks = check(active_masks).to(**self.tpdv)
@@ -155,7 +157,7 @@ class MADDPG:
             q_values.append(q_out)
         q_values = torch.stack(q_values, dim=1)
             
-        q_targets = rewards + self.gamma * next_q_values * (1 - dones_env)
+        q_targets = rewards + (self.gamma ** gammas) * next_q_values * (1 - dones_env)
 
         # print(torch.stack([q_values[:, 0, 0], q_targets[:, 0, 0]], dim=1))
         critic_loss = (q_values - q_targets) ** 2 

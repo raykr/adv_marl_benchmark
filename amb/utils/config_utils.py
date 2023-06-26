@@ -6,7 +6,7 @@ import yaml
 from uu import Error
 
 
-def get_defaults_yaml_args(algo, env):
+def get_defaults_yaml_args(algo, env, victim=None):
     """Load config file for user-specified algo and env.
     Args:
         algo: (str) Algorithm name.
@@ -23,26 +23,42 @@ def get_defaults_yaml_args(algo, env):
         algo_args = yaml.load(file, Loader=yaml.FullLoader)
     with open(env_cfg_path, "r", encoding="utf-8") as file:
         env_args = yaml.load(file, Loader=yaml.FullLoader)
-    return algo_args, env_args
+
+    victim_args = {}
+    if victim is not None:
+        victim_cfg_path = os.path.join(base_path, "configs", "algos_cfgs", f"{victim}.yaml")
+        with open(victim_cfg_path, "r", encoding="utf-8") as file:
+            _victim_args = yaml.load(file, Loader=yaml.FullLoader)
+        # "flatten" the victim args
+        def update_dict(dict1, dict2):
+            for k in dict2:
+                if type(dict2[k]) is dict:
+                    update_dict(dict1, dict2[k])
+                else:
+                    dict1[k] = dict2[k]
+        update_dict(victim_args, _victim_args)
+
+    return algo_args, env_args, victim_args
 
 
-def update_args(unparsed_dict, *args):
+def update_args(unparsed_dict, **kwargs):
     """Update loaded config with unparsed command-line arguments.
     Args:
         unparsed_dict: (dict) Unparsed command-line arguments.
         *args: (list[dict]) argument dicts to be updated.
     """
 
-    def update_dict(dict1, dict2):
+    def update_dict(name, dict1, dict2):
         for k in dict2:
             if type(dict2[k]) is dict:
-                update_dict(dict1, dict2[k])
+                update_dict(name, dict1, dict2[k])
             else:
-                if k in dict1:
-                    dict2[k] = dict1[k]
+                if f"{name}.{k}" in dict1:
+                    dict2[k] = dict1[f"{name}.{k}"]
 
-    for args_dict in args:
-        update_dict(unparsed_dict, args_dict)
+    for name in kwargs:
+        update_dict(name, unparsed_dict, kwargs[name])
+    
 
 def get_task_name(env, env_args):
     """Get task name."""
@@ -66,12 +82,12 @@ def get_task_name(env, env_args):
     return task
 
 
-def init_dir(env, env_args, algo, exp_name, seed, logger_path):
+def init_dir(env, env_args, algo, exp_name, run_name, seed, logger_path):
     """Init directory for saving results."""
     task = get_task_name(env, env_args)
     hms_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())
     results_path = os.path.join(
-        logger_path, env, task, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time])
+        logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time])
     )
     log_path = os.path.join(results_path, 'logs')
     os.makedirs(log_path, exist_ok=True)

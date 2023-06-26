@@ -26,7 +26,7 @@ class DDPGAgent(BaseAgent):
             actions = action_dist.mode if deterministic else action_dist.sample()
             actions = actions.argmax(dim=-1, keepdim=True)
         elif self.actor.action_type == "Box":
-            actions = action_dist.mode
+            actions = action_dist.mean
 
         return actions, rnn_states
     

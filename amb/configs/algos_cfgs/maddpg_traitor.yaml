@@ -87,6 +87,9 @@ algo:
   share_param: True
   # whether to use policy active masks
   use_policy_active_masks: True
+  # adversarial policy parameters
+  # the id of adversarial agents
+  adv_agent_ids: [0]
 logger:
   # logging directory
   log_dir: "./results"

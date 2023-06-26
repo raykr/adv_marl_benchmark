@@ -15,11 +15,7 @@ class SMACLogger(BaseLogger):
         return self.env_args["map_name"]
 
     def init(self):
-        self.start = time.time()
-        self.episode_lens = []
-        self.one_episode_len = np.zeros(
-            self.algo_args["train"]["n_rollout_threads"], dtype=np.int
-        )
+        super().init()
         self.last_battles_game = np.zeros(
             self.algo_args["train"]["n_rollout_threads"], dtype=np.float32
         )
@@ -28,32 +24,20 @@ class SMACLogger(BaseLogger):
         )
 
     def per_step(self, data):
-        dones = data["dones"]
+        super().per_step(data)
         infos = data["infos"]
         filled = data["filled"]
-        # [n_rollout_threads, vshape]
-        done_env = np.all(dones, axis=1) * filled
+        if len(filled.shape) > 1:
+            filled = filled[:, 0]
         for i in range(self.algo_args["train"]["n_rollout_threads"]):
             if filled[i]:
                 self.infos[i] = infos[i]
-                self.one_episode_len[i] += 1
-            if done_env[i]:
-                self.episode_lens.append(self.one_episode_len[i].copy())
-                self.one_episode_len[i] = 0
 
     def episode_log(self, actor_train_infos, critic_train_info, buffers):
-        self.end = time.time()
-        print(
-            "[Env] {} [Task] {} [Algo] {} [Exp] {}. Total timesteps {}/{}, FPS {}.".format(
-                self.args["env"],
-                self.task_name,
-                self.args["algo"],
-                self.args["exp_name"],
-                self.timestep,
-                self.algo_args['train']['num_env_steps'],
-                int(self.timestep / (self.end - self.start)),
-            )
-        )
+        for agent_id in range(len(buffers)):
+            actor_train_infos[agent_id]["dead_ratio"] = 1 - buffers[agent_id].data["active_masks"].sum() / (
+                len(buffers) * reduce(lambda x, y: x * y, list(buffers[agent_id].data["active_masks"].shape)))
+        super().episode_log(actor_train_infos, critic_train_info, buffers)
 
         battles_won = []
         battles_game = []
@@ -72,39 +56,16 @@ class SMACLogger(BaseLogger):
                     info[0]["battles_game"] - self.last_battles_game[i]
                 )
 
-        incre_win_rate = (
-            np.sum(incre_battles_won) / np.sum(incre_battles_game)
-            if np.sum(incre_battles_game) > 0
-            else 0.0
-        )
-        self.writter.add_scalar(
-            "env/incre_win_rate", incre_win_rate, self.timestep
-        )
+        incre_win_rate = np.sum(incre_battles_won) / np.sum(incre_battles_game) if np.sum(incre_battles_game) > 0 else 0.0
+        self.writter.add_scalar("env/incre_win_rate", incre_win_rate, self.timestep)
 
         self.last_battles_game = battles_game
         self.last_battles_won = battles_won
 
-        average_episode_len = (
-            np.mean(self.episode_lens) if len(self.episode_lens) > 0 else 0.0
-        )
-        self.episode_lens = []
-
-        self.writter.add_scalar("env/ep_length_mean", average_episode_len, self.timestep)
-
-        for agent_id in range(len(buffers)):
-            actor_train_infos[agent_id]["dead_ratio"] = 1 - buffers[agent_id].data["active_masks"].sum() / (
-                len(buffers) * reduce(lambda x, y: x * y, list(buffers[agent_id].data["active_masks"].shape)))
-            
-        critic_train_info["average_step_rewards"] = np.mean(buffers[0].data["rewards"])
-        self.log_train(actor_train_infos, critic_train_info)
-
         print(
-            "Increase games {:.4f}, win rate on these games is {:.4f}, average step reward is {:.4f}, average episode length is {:.4f}, average episode reward is {:.4f}.\n".format(
+            "Increase games {:.4f}, win rate on these games is {:.4f}".format(
                 np.sum(incre_battles_game),
                 incre_win_rate,
-                critic_train_info["average_step_rewards"],
-                average_episode_len,
-                average_episode_len * critic_train_info["average_step_rewards"],
             )
         )
 

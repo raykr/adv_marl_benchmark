@@ -4,11 +4,9 @@ import torch
 import numpy as np
 import setproctitle
 from amb.algorithms import ALGO_REGISTRY
-from amb.algorithms.perturbation import Perturbation
 from amb.envs import LOGGER_REGISTRY
 from amb.utils.trans_utils import _t2n
 from amb.utils.env_utils import (
-    make_eval_env,
     make_train_env,
     make_render_env,
     set_seed,
@@ -44,8 +42,9 @@ class BaseRunner:
             self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
                 args["env"],
                 env_args,
-                args["algo"],
+                args["victim"],
                 args["exp_name"],
+                args["run"],
                 algo_args["seed"]["seed"],
                 logger_path=algo_args["logger"]["log_dir"],
             )
@@ -94,25 +93,25 @@ class BaseRunner:
         self.agents = []
         self.attacks = []
         if self.share_param:
-            agent = ALGO_REGISTRY[algo_args["victim"]["algo"]].create_agent(
+            agent = ALGO_REGISTRY[args["victim"]].create_agent(
                 algo_args["victim"],
                 self.envs.observation_space[0],
                 self.envs.action_space[0],
                 device=self.device,
             )
-            attack = Perturbation(algo_args["attack"], self.envs.action_space[0], self.device)
+            attack = ALGO_REGISTRY[args["algo"]](algo_args["attack"], self.envs.action_space[0], self.device)
             for agent_id in range(self.num_agents):
                 self.agents.append(agent)
                 self.attacks.append(attack)
         else:
             for agent_id in range(self.num_agents):
-                agent = ALGO_REGISTRY[algo_args["victim"]["algo"]].create_agent(
+                agent = ALGO_REGISTRY[args["victim"]].create_agent(
                     algo_args["victim"],
                     self.envs.observation_space[agent_id],
                     self.envs.action_space[agent_id],
                     device=self.device,
                 )
-                attack = Perturbation(algo_args["attack"], self.envs.action_space[agent_id], self.device)
+                attack = ALGO_REGISTRY[args["algo"]](algo_args["attack"], self.envs.action_space[agent_id], self.device)
                 self.agents.append(agent)
                 self.attacks.append(attack)
 
@@ -157,14 +156,7 @@ class BaseRunner:
 
             eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions = self.envs.step(eval_actions)
 
-            eval_data = (
-                eval_obs,
-                eval_share_obs,
-                eval_rewards,
-                eval_dones,
-                eval_infos,
-                eval_available_actions,
-            )
+            eval_data = (eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions)
             self.logger.eval_per_step(eval_data)  # logger callback at each step of evaluation
 
             eval_dones_env = np.all(eval_dones, axis=1)
@@ -223,14 +215,7 @@ class BaseRunner:
 
             eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions = self.envs.step(eval_actions)
 
-            eval_data = (
-                eval_obs,
-                eval_share_obs,
-                eval_rewards,
-                eval_dones,
-                eval_infos,
-                eval_available_actions,
-            )
+            eval_data = (eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions)
             self.logger.eval_per_step(eval_data)  # logger callback at each step of evaluation
 
             eval_dones_env = np.all(eval_dones, axis=1)
@@ -249,7 +234,6 @@ class BaseRunner:
                 self.logger.eval_log_adv(eval_episode)  # logger callback at the end of evaluation
                 break
 
-    @torch.no_grad()
     def render(self):
         """Render the model"""
         print("start rendering")
@@ -266,8 +250,17 @@ class BaseRunner:
             while True:
                 eval_actions_collector = []
                 for agent_id in range(self.num_agents):
-                    eval_actions, temp_rnn_state = self.agents[agent_id].perform(
+                    eval_obs_adv = self.attacks[agent_id].perturb(
+                        self.agents[agent_id],
                         eval_obs[:, agent_id],
+                        eval_rnn_states[:, agent_id],
+                        eval_masks[:, agent_id],
+                        eval_available_actions[:, agent_id]
+                        if eval_available_actions[0] is not None else None,
+                    )
+                    
+                    eval_actions, temp_rnn_state = self.agents[agent_id].perform(
+                        eval_obs_adv,
                         eval_rnn_states[:, agent_id],
                         eval_masks[:, agent_id],
                         eval_available_actions[:, agent_id]

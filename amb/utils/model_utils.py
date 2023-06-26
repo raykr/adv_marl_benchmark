@@ -15,6 +15,7 @@ def init_device(args):
         print("choose to use gpu...")
         device = torch.device("cuda:0")
         if args["cuda_deterministic"]:
+            torch.backends.cudnn.enabled = False
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
     else:

@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 
 def _t2n(value):
@@ -27,3 +28,18 @@ def _ma_cast(value):
     Then it combines the first three dimensions into one dimension.
     """
     return value.transpose(1, 2, 0, 3).reshape(-1, *value.shape[3:])
+
+
+def _dimalign(a, b):
+    r = np.zeros_like(b)
+    a = a.reshape(a.shape + (1,) * (b.ndim - a.ndim))
+    r[:] = a
+    return r
+
+def gather(a, b, axis):
+    b = b.reshape(b.shape + (1,) * (a.ndim - b.ndim))
+    return np.take_along_axis(a, b, axis=axis)
+
+def scatter(a, b, value, axis):
+    b = b.reshape(b.shape + (1,) * (a.ndim - b.ndim))
+    return np.put_along_axis(a, b, value, axis=axis)

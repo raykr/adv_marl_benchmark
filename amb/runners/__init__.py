@@ -1,9 +1,18 @@
-from amb.runners.single.off_policy_runner import OffPolicyRunner
-from amb.runners.single.on_policy_runner import OnPolicyRunner
-from amb.runners.perturbation.base_runner import BaseRunner as PerturbationRunner
-
-RUNNER_REGISTRY = {
-    "mappo": OnPolicyRunner,
-    "maddpg": OffPolicyRunner,
-    "perturbation": PerturbationRunner,
-}
+def get_runner(run, algo):
+    if run == "single":
+        if algo == "mappo":
+            from amb.runners.single.on_policy_runner import OnPolicyRunner
+            return OnPolicyRunner
+        elif algo == "maddpg":
+            from amb.runners.single.off_policy_runner import OffPolicyRunner
+            return OffPolicyRunner
+    if run == "perturbation":
+        from amb.runners.perturbation.base_runner import BaseRunner
+        return BaseRunner
+    if run == "traitor":
+        if algo == "mappo":
+            from amb.runners.traitor.on_policy_runner import OnPolicyRunner
+            return OnPolicyRunner
+        elif algo == "maddpg":
+            from amb.runners.traitor.off_policy_runner import OffPolicyRunner
+            return OffPolicyRunner

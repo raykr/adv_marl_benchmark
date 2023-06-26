@@ -3,6 +3,7 @@
 import time
 import os
 import numpy as np
+from amb.utils.trans_utils import _dimalign
 
 
 class BaseLogger:
@@ -24,14 +25,22 @@ class BaseLogger:
     def get_task_name(self):
         """Get the task name."""
         raise NotImplementedError
+    
+    def get_average_step_reward(self, buffers):
+        t = buffers[0].current_size
+        rewards = buffers[0].data["rewards"][t:t+self.algo_args["train"]["n_rollout_threads"]]
+        filled = buffers[0].data["filled"][t:t+self.algo_args["train"]["n_rollout_threads"]]
+        filled = _dimalign(filled, rewards)
+        average_rewards = (rewards * filled).sum() / filled.sum()
+        return average_rewards
 
     def init(self):
         """Initialize the logger."""
         self.start = time.time()
-        self.episode_lens = []
         self.train_episode_rewards = np.zeros(self.algo_args["train"]["n_rollout_threads"])
         self.done_episodes_rewards = []
-        self.one_episode_len = np.zeros(self.algo_args["train"]["n_rollout_threads"], dtype=np.int)
+        self.one_episode_len = np.zeros(self.algo_args["train"]["n_rollout_threads"], dtype=np.int32)
+        self.episode_lens = []
 
     def episode_init(self, timestep):
         """Initialize the logger for each episode."""
@@ -42,23 +51,25 @@ class BaseLogger:
         rewards = data["rewards"]
         dones = data["dones"]
         filled = data["filled"]
+        if len(filled.shape) > 1:
+            filled = filled[:, 0]
         dones_env = np.all(dones, axis=1) * filled
         reward_env = np.mean(rewards, axis=1).flatten() * filled
         self.train_episode_rewards += reward_env
         for t in range(self.algo_args["train"]["n_rollout_threads"]):
-            if filled[t]:
+            if filled[t] :
                 self.one_episode_len[t] += 1
-            if dones_env[t]:
-                self.done_episodes_rewards.append(self.train_episode_rewards[t])
-                self.train_episode_rewards[t] = 0
-                self.episode_lens.append(self.one_episode_len[t].copy())
-                self.one_episode_len[t] = 0
+                if dones_env[t]:
+                    self.done_episodes_rewards.append(self.train_episode_rewards[t].copy())
+                    self.train_episode_rewards[t] = 0
+                    self.episode_lens.append(self.one_episode_len[t].copy())
+                    self.one_episode_len[t] = 0
 
     def episode_log(self, actor_train_infos, critic_train_info, buffers):
         """Log information for each episode."""
         self.end = time.time()
         print(
-            "[Env] {} [Task] {} [Algo] {} [Exp] {}. Total timesteps {}/{}, FPS {}.".format(
+            "\n[Env] {} [Task] {} [Algo] {} [Exp] {}. Total timesteps {}/{}, FPS {}.".format(
                 self.args["env"],
                 self.task_name,
                 self.args["algo"],
@@ -69,23 +80,25 @@ class BaseLogger:
             )
         )
 
-        average_episode_len = (
-            np.mean(self.episode_lens) if len(self.episode_lens) > 0 else 0.0
-        )
-        self.episode_lens = []
-
+        average_episode_len = np.mean(self.episode_lens) if len(self.episode_lens) > 0 else 0.0
         self.writter.add_scalar("env/ep_length_mean", average_episode_len, self.timestep)
 
-        critic_train_info["average_step_rewards"] = np.mean(buffers[0].data["rewards"])
+        aver_episode_rewards = np.mean(self.done_episodes_rewards)
+        critic_train_info["average_step_rewards"] = aver_episode_rewards / average_episode_len
+        self.writter.add_scalar("env/train_episode_rewards", aver_episode_rewards, self.timestep)
+
         self.log_train(actor_train_infos, critic_train_info)
 
-        print("Average step reward is {}.".format(critic_train_info["average_step_rewards"]))
+        print(
+            "Train-time average step reward is {:.4f}, average episode length is {:.4f}, average episode reward is {:.4f}.".format(
+                aver_episode_rewards / average_episode_len,
+                average_episode_len,
+                aver_episode_rewards
+            )
+        )
 
-        if len(self.done_episodes_rewards) > 0:
-            aver_episode_rewards = np.mean(self.done_episodes_rewards)
-            print("Train-time average episode reward is {}.\n".format(aver_episode_rewards))
-            self.writter.add_scalar("env/train_episode_rewards", aver_episode_rewards, self.timestep)
-            self.done_episodes_rewards = []
+        self.done_episodes_rewards = []
+        self.episode_lens = []
 
     def eval_init(self, n_eval_rollout_threads):
         """Initialize the logger for evaluation."""

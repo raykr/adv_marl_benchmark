@@ -1,5 +1,8 @@
 import torch
 import numpy as np
+from copy import deepcopy
+
+from amb.utils.trans_utils import _dimalign
 
 class EpisodeBuffer:
     def __init__(self, args, buffer_size, scheme, num_agents=None):
@@ -20,6 +23,15 @@ class EpisodeBuffer:
 
         self.n_step = args.get("n_step", 1)
         self.gamma = args.get("gamma", 0.99)
+
+        tmp_scheme = {}
+        for key in self.scheme:
+            extra = self.scheme[key].get("extra", [])
+            if "sample_next" in extra:
+                tmp_scheme["next_" + key] = deepcopy(self.scheme[key])
+                tmp_scheme["next_" + key]["extra"].remove("sample_next")
+        
+        self.scheme.update(tmp_scheme)
 
         self.scheme["filled"] = {"vshape": (), "dtype": np.int32, "offset": 0, "init_value": 0, "extra": []}
         self.reset()
@@ -44,7 +56,7 @@ class EpisodeBuffer:
                 self.data[key] = np.ones((self.buffer_size, self.episode_length + abs(offset) + 1, *vshape), dtype=dtype) * init_value
             else:
                 self.data[key] = np.ones((self.buffer_size, self.episode_length + abs(offset), *vshape), dtype=dtype) * init_value
-
+            
     def insert(self, data, t):
         assert "filled" in data, "'filled' is needed to be inserted in episode buffer!"
         n = data["filled"].shape[0]
@@ -52,6 +64,7 @@ class EpisodeBuffer:
             d = data[key]
             dtype = self.scheme[key].get("dtype", np.float32)
             offset = self.scheme[key].get("offset", 0)
+            extra = self.scheme[key].get("extra", [])
             if isinstance(d, torch.Tensor):
                 d = d.detach().cpu().numpy()
             if not isinstance(d, np.ndarray):
@@ -64,8 +77,13 @@ class EpisodeBuffer:
                 left = n - right
                 self.data[key][self.current_size:, t+offset] = d[:left]
                 self.data[key][:right, t+offset] = d[left:]
+                if "sample_next" in extra:
+                    self.data["next_" + key][self.current_size:, max(t+offset-self.n_step, 0):t+offset] = d[:left, np.newaxis].copy()
+                    self.data["next_" + key][:right, max(t+offset-self.n_step, 0)] = d[left:, np.newaxis].copy()
             else:
                 self.data[key][self.current_size:self.current_size+n, t+offset] = d
+                if "sample_next" in extra:
+                    self.data["next_" + key][self.current_size:self.current_size+n, max(t+offset-self.n_step, 0):t+offset] = d[:, np.newaxis].copy()
 
     def after_update(self):
         self.data["filled"] = np.zeros((self.buffer_size, self.episode_length), dtype=np.int32)
@@ -200,6 +218,40 @@ class EpisodeBuffer:
                         + self.data["rewards"][:, step]
                     )
 
+    def compute_nstep_rewards(self, n):
+        assert "rewards" in self.data
+        assert "gammas" in self.data
+        if self.current_size + n > self.buffer_size:
+            right = self.current_size + n - self.buffer_size
+            rewards = np.concatenate([self.data["rewards"][self.current_size:], self.data["rewards"][:right]], axis=0)
+            filled = np.concatenate([self.data["filled"][self.current_size:], self.data["filled"][:right]], axis=0)
+        else:
+            rewards = self.data["rewards"][self.current_size:self.current_size+n]
+            filled = self.data["filled"][self.current_size:self.current_size+n]
+
+        filled = _dimalign(filled, rewards)
+        gammas = np.ones_like(rewards)
+
+        length = self.data["rewards"].shape[1] - 1
+        for step in reversed(range(length)):
+            rewards[:, step] += rewards[:, step + 1] * self.gamma * filled[:, step + 1]
+            gammas[:, step] = gammas[:, step + 1] + filled[:, step + 1]
+
+        for step in range(length + 1 - self.n_step):
+            rewards[:, step] -= rewards[:, step + self.n_step] * filled[:, step + self.n_step] * (self.gamma ** self.n_step)
+            gammas[:, step] -= gammas[:,  step + self.n_step] * filled[:,  step + self.n_step]
+
+        if self.current_size + n > self.buffer_size:
+            right = self.current_size + n - self.buffer_size
+            left = n - right
+            self.data["rewards"][self.current_size:] = rewards[:left]
+            self.data["rewards"][:right] = rewards[left:]
+            self.data["gammas"][self.current_size:] = gammas[:left]
+            self.data["gammas"][:right] = gammas[left:]
+        else:
+            self.data["rewards"][self.current_size:self.current_size+n] = rewards
+            self.data["gammas"][self.current_size:self.current_size+n] = gammas
+
     def step_generator(self, num_mini_batch, mini_batch_size=None):
         total_timesteps = np.sum(self.data["filled"])
         if mini_batch_size is None:
@@ -213,13 +265,9 @@ class EpisodeBuffer:
         for indices in sampler:
             sampled_data = {}
             for key in self.data:
-                extra = self.scheme[key].get("extra", [])
                 index_indices = (index[0][indices], index[1][indices])
                 sampled_data[key] = self.data[key][index_indices]
 
-                if "sample_next" in extra:
-                    index_indices = (index[0][indices], index[1][indices] + 1)
-                    sampled_data["next_" + key] = self.data[key][index_indices]
             yield sampled_data
 
     def episode_generator(self, num_mini_batch, mini_batch_size):
@@ -242,15 +290,8 @@ class EpisodeBuffer:
                     d = d.reshape(-1, *d.shape[2:])
                 sampled_data[key] = d
 
-                if "sample_next" in extra:
-                    d = self.data[key][indices, 1:max_t_filled+1]
-                    # [B, T, V] -> [T, B, V] -> [T*B, V]
-                    d = np.swapaxes(d, 0, 1)
-                    d = d.reshape(-1, *d.shape[2:])
-                    sampled_data["next_" + key] = d
             yield sampled_data
         
-
     def chunk_generator(self, num_mini_batch, chunk_length):
         # only used for fully fiiled buffer
         assert chunk_length > 1
@@ -284,14 +325,5 @@ class EpisodeBuffer:
                     data_batch = np.stack(data_batch, axis=1)
                     data_batch = data_batch.reshape(-1, *data_batch.shape[2:])
                 sampled_data[key] = data_batch
-
-                if "sample_next" in extra:
-                    for index in indices:
-                        ind = index * chunk_length
-                        data_batch.append(d[ind+1:ind+chunk_length+1])
-                    # [[L, V] * B] -> [L, B, V] -> [L*B, V]
-                    data_batch = np.stack(data_batch, axis=1)
-                    data_batch = data_batch.reshape(-1, *data_batch.shape[2:])
-                    sampled_data["next_" + key] = data_batch
 
             yield sampled_data

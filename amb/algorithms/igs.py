@@ -3,7 +3,8 @@ from amb.agents.base_agent import BaseAgent
 from amb.utils.env_utils import check
 
 
-class Perturbation:
+class IGS:
+    """Iterative Gradient Sign Attack"""
     def __init__(self, args, act_space, device=torch.device("cpu")):
         self.args = args
         self.act_space = act_space
