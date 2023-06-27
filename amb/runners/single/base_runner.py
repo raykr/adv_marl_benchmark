@@ -115,6 +115,7 @@ class BaseRunner:
         self.critic = self.algo.critic
 
         if self.algo_args['train']['model_dir'] is not None:  # restore model
+            print("Restore model from", self.algo_args['train']['model_dir'])
             self.restore()
 
     def run(self):
@@ -180,11 +181,12 @@ class BaseRunner:
 
         for _ in range(self.algo_args['render']['render_episodes']):
             eval_obs, _, eval_available_actions = self.envs.reset()
-            eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
-            if eval_available_actions is not None:
-                eval_available_actions = np.expand_dims(np.array(eval_available_actions), axis=0)
             rewards = 0
             while True:
+                eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
+                if eval_available_actions is not None:
+                    eval_available_actions = np.expand_dims(np.array(eval_available_actions), axis=0)
+                    
                 eval_actions_collector = []
                 for agent_id in range(self.num_agents):
                     eval_actions, temp_rnn_state = self.agents[agent_id].perform(
@@ -201,7 +203,6 @@ class BaseRunner:
 
                 eval_obs, _, eval_rewards, eval_dones, _, eval_available_actions = self.envs.step(eval_actions[0])
                 rewards += eval_rewards[0][0]
-                eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
                 if self.manual_render:
                     self.envs.render()
                 if self.manual_delay:

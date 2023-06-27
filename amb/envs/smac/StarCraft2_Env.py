@@ -206,6 +206,8 @@ class StarCraft2Env(MultiAgentEnv):
         # Map arguments
         state_config = self.load_state_config(args["state_type"])
         self.map_name = args["map_name"]
+        self.replay_dir = args.get("replay_dir", "")
+        self.replay_prefix = args.get("replay_prefix", "")
         self.add_local_obs = state_config["add_local_obs"]
         self.add_move_state = state_config["add_move_state"]
         self.add_visible_state = state_config["add_visible_state"]
@@ -268,8 +270,6 @@ class StarCraft2Env(MultiAgentEnv):
         self.heuristic_rest = heuristic_rest
         self.debug = debug
         self.window_size = (window_size_x, window_size_y)
-        self.replay_dir = replay_dir
-        self.replay_prefix = replay_prefix
 
         # Actions
         self.n_actions_no_attack = 6

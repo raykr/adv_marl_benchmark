@@ -35,11 +35,12 @@ class FootballLogger(BaseLogger):
                 eval_avg_rew, eval_score_rate
             )
         )
-        self.log_file.write(
-            ",".join(map(str, [self.timestep, eval_avg_rew, eval_score_rate]))
-            + "\n"
-        )
-        self.log_file.flush()
+        if self.args["run"] == "single":
+            self.log_file.write(
+                ",".join(map(str, [self.timestep, eval_avg_rew, eval_score_rate]))
+                + "\n"
+            )
+            self.log_file.flush()
 
     def eval_log_adv(self, eval_episode):
         self.eval_episode_rewards = np.concatenate(
@@ -58,3 +59,19 @@ class FootballLogger(BaseLogger):
                 eval_avg_rew, eval_score_rate
             )
         )
+        if self.args["run"] == "perturbation":
+            self.adv_file.write(
+                ",".join(map(str, [
+                    self.algo_args["attack"]["perturb_epsilon"], 
+                    self.algo_args["attack"]["perturb_iters"], 
+                    self.algo_args["attack"]["adaptive_alpha"], 
+                    self.algo_args["attack"]["perturb_alpha"], 
+                    eval_avg_rew, eval_score_rate])) + "\n"
+            )
+            self.adv_file.flush()
+        elif self.args["run"] == "traitor":
+            self.log_file.write(
+                ",".join(map(str, [self.timestep, eval_avg_rew, eval_score_rate]))
+                + "\n"
+            )
+            self.log_file.flush()

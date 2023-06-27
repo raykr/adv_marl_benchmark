@@ -45,7 +45,7 @@ class IGS:
             else:
                 target_action = target_action.argmax(dim=-1)
             
-        obs_adv = obs.detach().clone()
+        obs_adv = obs.detach().clone() + torch.clamp(torch.randn_like(obs) * self.epsilon, -self.epsilon, self.epsilon)
         for _ in range(self.num_iters):
             obs_adv.requires_grad_(True)
             action_dist, _ = agent.forward(obs_adv, rnn_states, masks, available_actions)

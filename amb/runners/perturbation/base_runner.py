@@ -115,7 +115,8 @@ class BaseRunner:
                 self.agents.append(agent)
                 self.attacks.append(attack)
 
-        if self.algo_args['victim']['model_dir'] is not None:  # restore model
+        if self.algo_args['victim']['model_dir'] is not None:  # restore victim
+            print("Restore victim from", self.algo_args['victim']['model_dir'])
             self.restore()
 
     def run(self):
@@ -243,11 +244,12 @@ class BaseRunner:
 
         for _ in range(self.algo_args['render']['render_episodes']):
             eval_obs, _, eval_available_actions = self.envs.reset()
-            eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
-            if eval_available_actions is not None:
-                eval_available_actions = np.expand_dims(np.array(eval_available_actions), axis=0)
             rewards = 0
             while True:
+                eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
+                if eval_available_actions is not None:
+                    eval_available_actions = np.expand_dims(np.array(eval_available_actions), axis=0)
+
                 eval_actions_collector = []
                 for agent_id in range(self.num_agents):
                     eval_obs_adv = self.attacks[agent_id].perturb(
@@ -256,7 +258,7 @@ class BaseRunner:
                         eval_rnn_states[:, agent_id],
                         eval_masks[:, agent_id],
                         eval_available_actions[:, agent_id]
-                        if eval_available_actions[0] is not None else None,
+                        if eval_available_actions is not None else None,
                     )
                     
                     eval_actions, temp_rnn_state = self.agents[agent_id].perform(
@@ -273,7 +275,6 @@ class BaseRunner:
 
                 eval_obs, _, eval_rewards, eval_dones, _, eval_available_actions = self.envs.step(eval_actions[0])
                 rewards += eval_rewards[0][0]
-                eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
                 if self.manual_render:
                     self.envs.render()
                 if self.manual_delay:

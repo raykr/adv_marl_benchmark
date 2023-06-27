@@ -1,2 +1,4 @@
 map_name: 3m
 state_type: FP # choose from FP (Feature Pruned) and EP (Environment Provided)
+replay_dir: "/root/share/guojun/adv_marl_benchmark/replays"
+replay_prefix: ""

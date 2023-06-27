@@ -21,6 +21,8 @@ class BaseLogger:
         self.writter = writter
         self.run_dir = run_dir
         self.log_file = open(os.path.join(run_dir, "progress.txt"), "w", encoding='utf-8')
+        if args["run"] == "perturbation":
+            self.adv_file = open("./perturbation_rewards.txt", "a", encoding="utf-8")
 
     def get_task_name(self):
         """Get the task name."""
@@ -140,10 +142,11 @@ class BaseLogger:
         self.log_env(eval_env_infos)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
         print("Evaluation average episode reward is {}.\n".format(eval_avg_rew))
-        self.log_file.write(
-            ",".join(map(str, [self.timestep, eval_avg_rew])) + "\n"
-        )
-        self.log_file.flush()
+        if self.args["run"] == "single":
+            self.log_file.write(
+                ",".join(map(str, [self.timestep, eval_avg_rew])) + "\n"
+            )
+            self.log_file.flush()
 
     def eval_log_adv(self, eval_episode):
         """Log evaluation information."""
@@ -157,6 +160,21 @@ class BaseLogger:
         self.log_env(eval_env_infos)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
         print("Evaluation adv average episode reward is {}.\n".format(eval_avg_rew))
+        if self.args["run"] == "perturbation":
+            self.adv_file.write(
+                ",".join(map(str, [
+                    self.algo_args["attack"]["perturb_epsilon"], 
+                    self.algo_args["attack"]["perturb_iters"], 
+                    self.algo_args["attack"]["adaptive_alpha"], 
+                    self.algo_args["attack"]["perturb_alpha"], 
+                    eval_avg_rew])) + "\n"
+            )
+            self.adv_file.flush()
+        elif self.args["run"] == "traitor":
+            self.log_file.write(
+                ",".join(map(str, [self.timestep, eval_avg_rew])) + "\n"
+            )
+            self.log_file.flush()
 
     def log_train(self, actor_train_infos, critic_train_info):
         """Log training information."""

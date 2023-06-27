@@ -87,35 +87,37 @@ def main():
         env_args = all_config["env_args"]
         update_args(unparsed_dict, algo=algo_args, env=env_args)  # update args from command line
     else:  # load config from corresponding yaml file
-        if args["run"] == "perturbation":
+        if args["load_victim"] != "":
+            with open(os.path.join(args["load_victim"], "config.json"), encoding='utf-8') as file:
+                victim_config = json.load(file)
+            args["victim"] = victim_config["main_args"]["algo"]
+            args["env"] = victim_config["main_args"]["env"]
+            victim_config["algo_args"]["train"]["model_dir"] = os.path.join(args["load_victim"], "models")
+
+            victim_args = {}
+            # "flatten" the victim args
+            def update_dict(dict1, dict2):
+                for k in dict2:
+                    if type(dict2[k]) is dict:
+                        update_dict(dict1, dict2[k])
+                    else:
+                        dict1[k] = dict2[k]
+            update_dict(victim_args, victim_config["algo_args"])
+            env_args = victim_config["env_args"]
+            if args["run"] == "perturbation":
+                algo_args, _, _ = get_defaults_yaml_args(args["algo"], args["env"], args["victim"])
+            elif args["run"] == "traitor":
+                algo_args, _, _ = get_defaults_yaml_args(args["algo"] + "_traitor", args["env"], args["victim"])
+            update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
+            algo_args = {**algo_args, "victim": victim_args}
+        elif args["run"] == "perturbation":
             algo_args, env_args, victim_args = get_defaults_yaml_args(args["algo"], args["env"], args["victim"])
             update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
             algo_args = {**algo_args, "victim": victim_args}
         elif args["run"] == "traitor":
-            if args["load_victim"] != "":
-                with open(os.path.join(args["load_victim"], "config.json"), encoding='utf-8') as file:
-                    victim_config = json.load(file)
-                args["victim"] = victim_config["main_args"]["algo"]
-                args["env"] = victim_config["main_args"]["env"]
-                victim_config["algo_args"]["train"]["model_dir"] = os.path.join(args["load_victim"], "models")
-
-                victim_args = {}
-                # "flatten" the victim args
-                def update_dict(dict1, dict2):
-                    for k in dict2:
-                        if type(dict2[k]) is dict:
-                            update_dict(dict1, dict2[k])
-                        else:
-                            dict1[k] = dict2[k]
-                update_dict(victim_args, victim_config["algo_args"])
-                env_args = victim_config["env_args"]
-                algo_args, _, _ = get_defaults_yaml_args(args["algo"] + "_traitor", args["env"])
-                update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
-                algo_args = {**algo_args, "victim": victim_args}
-            else:
-                algo_args, env_args, victim_args = get_defaults_yaml_args(args["algo"], args["env"], args["victim"])
-                update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
-                algo_args = {**algo_args, "victim": victim_args}
+            algo_args, env_args, victim_args = get_defaults_yaml_args(args["algo"] + "_traitor", args["env"], args["victim"])
+            update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
+            algo_args = {**algo_args, "victim": victim_args}
         else:
             algo_args, env_args, _ = get_defaults_yaml_args(args["algo"], args["env"])
             update_args(unparsed_dict, algo=algo_args, env=env_args)

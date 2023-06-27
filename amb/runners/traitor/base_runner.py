@@ -144,7 +144,8 @@ class BaseRunner:
                 args, algo_args, env_args, self.num_adv_agents, self.writter, self.run_dir
             )
 
-        if self.algo_args['victim']['model_dir'] is not None:  # restore model
+        if self.algo_args['victim']['model_dir'] is not None:  # restore victim
+            print("Restore victim from", self.algo_args['victim']['model_dir'])
             if self.victim_share_param:
                 self.victims[0].restore(self.algo_args['victim']['model_dir'])
             else:
@@ -152,6 +153,7 @@ class BaseRunner:
                     self.victims[agent_id].restore(os.path.join(self.algo_args['victim']['model_dir'], str(agent_id)))
 
         if self.algo_args['train']['model_dir'] is not None:  # restore model
+            print("Restore model from", self.algo_args['train']['model_dir'])
             self.restore()
 
     def get_certain_adv_ids(self):
@@ -298,15 +300,19 @@ class BaseRunner:
         print("start rendering")
 
         eval_rnn_states = np.zeros((self.env_num, self.num_agents, self.victim_recurrent_n, self.victim_rnn_hidden_size), dtype=np.float32)
+        eval_adv_rnn_states = np.zeros((self.env_num, self.num_adv_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
         eval_masks = np.ones((self.env_num, self.num_agents, 1), dtype=np.float32)
+
+        adv_agent_ids = np.stack([self.get_certain_adv_ids() for _ in range(self.env_num)], axis=0)
 
         for _ in range(self.algo_args['render']['render_episodes']):
             eval_obs, _, eval_available_actions = self.envs.reset()
-            eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
-            if eval_available_actions is not None:
-                eval_available_actions = np.expand_dims(np.array(eval_available_actions), axis=0)
             rewards = 0
             while True:
+                eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
+                if eval_available_actions is not None:
+                    eval_available_actions = np.expand_dims(np.array(eval_available_actions), axis=0)
+                    
                 eval_actions_collector = []
                 for agent_id in range(self.num_agents):
                     eval_actions, temp_rnn_state = self.victims[agent_id].perform(
@@ -321,9 +327,24 @@ class BaseRunner:
                     eval_actions_collector.append(_t2n(eval_actions))
                 eval_actions = np.array(eval_actions_collector).transpose(1, 0, 2)
 
+                eval_adv_actions_collector = []
+                for agent_id in range(self.num_adv_agents):
+                    eval_adv_actions, temp_adv_rnn_state = self.agents[agent_id].perform(
+                        gather(eval_obs, adv_agent_ids, axis=1)[:, agent_id],
+                        eval_adv_rnn_states[:, agent_id],
+                        gather(eval_masks, adv_agent_ids, axis=1)[:, agent_id],
+                        gather(eval_available_actions, adv_agent_ids, axis=1)[:, agent_id]
+                        if eval_available_actions is not None else None,
+                        deterministic=True,
+                    )
+                    eval_adv_rnn_states[:, agent_id] = _t2n(temp_adv_rnn_state)
+                    eval_adv_actions_collector.append(_t2n(eval_adv_actions))
+                eval_adv_actions = np.array(eval_adv_actions_collector).transpose(1, 0, 2)
+
+                scatter(eval_actions, adv_agent_ids, eval_adv_actions, axis=1)
+
                 eval_obs, _, eval_rewards, eval_dones, _, eval_available_actions = self.envs.step(eval_actions[0])
                 rewards += eval_rewards[0][0]
-                eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
                 if self.manual_render:
                     self.envs.render()
                 if self.manual_delay:
