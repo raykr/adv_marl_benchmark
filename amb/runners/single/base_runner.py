@@ -137,6 +137,8 @@ class BaseRunner:
         while True:
             eval_actions_collector = []
             for agent_id in range(self.num_agents):
+                if hasattr(self, "current_timestep"):
+                    self.agents[agent_id].current_timestep = self.current_timestep
                 eval_actions, temp_rnn_state = self.agents[agent_id].perform(
                     eval_obs[:, agent_id],
                     eval_rnn_states[:, agent_id],
@@ -189,6 +191,7 @@ class BaseRunner:
                     
                 eval_actions_collector = []
                 for agent_id in range(self.num_agents):
+                    self.agents[agent_id].current_timestep = self.current_timestep
                     eval_actions, temp_rnn_state = self.agents[agent_id].perform(
                         eval_obs[:, agent_id],
                         eval_rnn_states[:, agent_id],

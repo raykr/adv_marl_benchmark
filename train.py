@@ -13,7 +13,8 @@ def main():
         choices=[
             "maddpg",
             "mappo",
-            "igs"
+            "igs",
+            "qmix",
         ],
         help="Algorithm name. Choose from: maddpg, mappo, igs.",
     )

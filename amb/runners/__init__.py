@@ -3,7 +3,7 @@ def get_runner(run, algo):
         if algo == "mappo":
             from amb.runners.single.on_policy_runner import OnPolicyRunner
             return OnPolicyRunner
-        elif algo == "maddpg":
+        elif algo == "maddpg" or algo == "qmix":
             from amb.runners.single.off_policy_runner import OffPolicyRunner
             return OffPolicyRunner
     if run == "perturbation":
