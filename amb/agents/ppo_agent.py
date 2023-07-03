@@ -34,7 +34,7 @@ class PPOAgent(BaseAgent):
         return actions, rnn_states
     
     @torch.no_grad()
-    def collect(self, obs, rnn_states, masks, available_actions=None):
+    def collect(self, obs, rnn_states, masks, available_actions=None, t=0):
         action_dist, rnn_states = self.actor(obs, rnn_states, masks, available_actions)
         actions = action_dist.sample()
         action_log_probs = action_dist.log_probs(actions)

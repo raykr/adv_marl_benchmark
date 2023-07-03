@@ -108,7 +108,7 @@ class OffPolicyRunner(BaseRunner):
                     if self.algo_args['train']['use_linear_lr_decay']:  # linear decay of learning rate
                         self.algo.lr_decay(self.current_timestep, self.algo_args['train']['num_env_steps'])
                     for _ in range(update_num):
-                        self.algo.current_train_step = self.current_timestep
+                        # self.algo.current_train_step = self.current_timestep
                         actor_train_infos, critic_train_info = self.algo.train(self.buffer)
                     
                 # log information
@@ -134,7 +134,6 @@ class OffPolicyRunner(BaseRunner):
         rnn_state_collector = []
 
         for agent_id in range(self.num_agents):
-            self.agents[agent_id].current_timestep = self.current_timestep
             if self.current_timestep <= self.warmup_steps:
                 action, action_onehot = self.agents[agent_id].sample(
                     obs[:, agent_id], available_actions[:, agent_id]
@@ -146,7 +145,8 @@ class OffPolicyRunner(BaseRunner):
                     rnn_states[:, agent_id],
                     masks[:, agent_id],
                     available_actions[:, agent_id]
-                    if "available_actions" in self.buffer.data else None)
+                    if "available_actions" in self.buffer.data else None,
+                    t=self.current_timestep)
                 rnn_state_collector.append(_t2n(rnn_state))
 
             action_collector.append(_t2n(action))

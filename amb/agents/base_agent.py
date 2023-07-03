@@ -8,7 +8,7 @@ class BaseAgent:
     def perform(self, obs, rnn_states, masks, available_actions=None, deterministic=False):
         raise NotImplementedError
     
-    def collect(self, obs, rnn_states, masks, available_actions=None):
+    def collect(self, obs, rnn_states, masks, available_actions=None, t=0):
         raise NotImplementedError
     
     def restore(self, path):

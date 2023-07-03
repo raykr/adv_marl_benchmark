@@ -180,7 +180,8 @@ class OffPolicyRunner(BaseRunner):
                     rnn_states[:, agent_id],
                     masks[:, agent_id],
                     available_actions[:, agent_id]
-                    if "available_actions" in self.buffer.data else None)
+                    if "available_actions" in self.buffer.data else None,
+                    t=self.current_timestep)
                 rnn_state_collector.append(_t2n(rnn_state))
 
             action_collector.append(_t2n(action))

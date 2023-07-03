@@ -43,7 +43,7 @@ class DDPGAgent(BaseAgent):
         return actions, actions_onehot
     
     @torch.no_grad()
-    def collect(self, obs, rnn_states, masks, available_actions=None):
+    def collect(self, obs, rnn_states, masks, available_actions=None, t=0):
         action_dist, rnn_states = self.actor(obs, rnn_states, masks, available_actions)
         if self.actor.action_type == "Discrete":
             actions_onehot = action_dist.sample()   # here sample() means mode + noise

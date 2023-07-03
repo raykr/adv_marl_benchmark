@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from torch.distributions import OneHotCategorical, Normal, Uniform
+from torch.distributions import OneHotCategorical
+from amb.models.base.distributions import OneHotEpsilonGreedy
 from amb.models.base.cnn import CNNLayer
 from amb.models.base.mlp import MLPBase
 from amb.models.base.rnn import RNNLayer
@@ -9,7 +10,7 @@ from amb.utils.env_utils import (
     get_shape_from_obs_space,
     get_onehot_shape_from_act_space,
 )
-from amb.utils.model_utils import get_active_func, init, get_init_method
+from amb.utils.model_utils import init, get_init_method
 
 
 class QActor(nn.Module):
@@ -19,9 +20,11 @@ class QActor(nn.Module):
         self.args = args
         self.hidden_sizes = args["hidden_sizes"]
         self.activation_func = args["activation_func"]
-        self.final_activation_func = args["final_activation_func"]
         self.initialization_method = args["initialization_method"]
-        self.expl_noise = args["expl_noise"]
+
+        self.epsilon_start = args.get("epsilon_start", 1.0)
+        self.epsilon_finish = args.get("epsilon_finish", 0.05)
+        self.epsilon_anneal_time = args.get("epsilon_anneal_time", 100000)
 
         self.use_recurrent_policy = args["use_recurrent_policy"]
         self.recurrent_n = args["recurrent_n"]
@@ -68,13 +71,15 @@ class QActor(nn.Module):
 
         if self.action_type == "Box":
             raise f"Box action space is not supported for {self.__class__.__name__}"
-        elif self.action_type == "Discrete" and available_actions is not None:
-            q_values = torch.ones((obs.shape[0], self.act_shape)).to(**self.tpdv)
-            q_values[available_actions == 0] = -1e10
+        
+        if self.action_type == "Discrete" and available_actions is not None:
+            actor_out = torch.ones((obs.shape[0], self.act_shape)).to(**self.tpdv)
+            actor_out[available_actions == 0] = -1e10   
+            action_dist = OneHotCategorical(logits=actor_out)
 
-        return q_values
+        return action_dist
 
-    def forward(self, obs, rnn_states, masks, available_actions=None):
+    def forward(self, obs, rnn_states, masks, available_actions=None, t=0):
         obs = check(obs).to(**self.tpdv)
         rnn_states = check(rnn_states).to(**self.tpdv)
         masks = check(masks).to(**self.tpdv)
@@ -88,7 +93,10 @@ class QActor(nn.Module):
 
         if self.action_type == "Box":
             raise f"Box action space is not supported for {self.__class__.__name__}"
-        elif self.action_type == "Discrete" and available_actions is not None:
-            q_values[available_actions == 0] = -1e10
+        
+        if self.action_type == "Discrete":
+            action_dist = OneHotEpsilonGreedy(q_values, t, available_actions,
+                                              self.epsilon_start, self.epsilon_finish, 
+                                              self.epsilon_anneal_time)
 
-        return q_values, rnn_states
+        return action_dist, rnn_states

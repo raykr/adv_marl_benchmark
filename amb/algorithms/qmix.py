@@ -36,7 +36,6 @@ class QMIX:
         self.gamma = args["gamma"]
         self.lr = args["lr"]
         self.critic_lr = args["critic_lr"]
-        self.expl_noise = args["expl_noise"]
         self.polyak = args["polyak"]
         self.use_policy_active_masks = args["use_policy_active_masks"]
 
@@ -95,9 +94,10 @@ class QMIX:
         next_obs = sample["next_obs"]
         next_share_obs = sample["next_share_obs"]
         masks = sample["masks"]
-        rewards = sample["rewards"][:, -1]
-        active_masks = sample["active_masks"][:, -1]
-        dones_env = sample["dones_env"][:, -1]
+        rewards = sample["rewards"]
+        gammas = sample["gammas"]
+        active_masks = sample["active_masks"]
+        dones_env = sample["dones_env"]
         filled = sample["filled"]
         available_actions = None
         if "available_actions" in sample:
@@ -108,8 +108,9 @@ class QMIX:
         dones_env = check(dones_env).to(**self.tpdv)
         share_obs = check(share_obs).to(**self.tpdv)
         rewards = check(rewards).to(**self.tpdv)
+        gammas = check(gammas).to(**self.tpdv)
         next_share_obs = check(next_share_obs).to(**self.tpdv)
-        filled = check(filled).to(**self.tpdv).reshape(-1, 1)
+        filled = check(filled).to(**self.tpdv).reshape(-1, 1, 1)
         filled = filled.expand_as(active_masks)
 
         q_values = []
@@ -119,7 +120,7 @@ class QMIX:
         # Calculate estimated Q-Values
         for agent_id in range(self.num_agents):
             # Calculate estimated Q-Values
-            q_out, _ = self.actors[agent_id](
+            q_dist, _ = self.actors[agent_id](
                 obs[:, agent_id],
                 rnn_states_actor[:, agent_id],
                 masks[:, agent_id],
@@ -127,8 +128,7 @@ class QMIX:
                 if available_actions is not None
                 else None,
             )
-            q_values.append(q_out)
-            # print("q_out", q_out.shape)
+            q_values.append(q_dist.logits)
         q_values = torch.stack(q_values, dim=1)
 
         # Pick the Q-Values for the actions taken by the agent
@@ -137,7 +137,7 @@ class QMIX:
         # Calculate the Q-Values necessary for the target
         for agent_id in range(self.num_agents):
             # Calculate estimated Q-Values
-            next_q_out, _ = self.target_actors[agent_id](
+            next_q_dist, _ = self.target_actors[agent_id](
                 next_obs[:, agent_id],
                 rnn_states_actor[:, agent_id].copy(),
                 masks[:, agent_id],
@@ -145,21 +145,28 @@ class QMIX:
                 if available_actions is not None
                 else None,
             )
-            next_q_values.append(next_q_out)
+            next_q_values.append(next_q_dist.logits)
         next_q_values = torch.stack(next_q_values, dim=1)
 
         # Max over target Q-Values
         next_q_values = next_q_values.max(dim=2)[0]
 
-        # Mix the Q-Values, squeeze to [B, 1]
-        q_values = self.critic(q_values, share_obs[:, agent_id]).squeeze(2)
-        next_q_values = self.target_critic(next_q_values, next_share_obs[:, agent_id]).squeeze(2)
+        # Mix the Q-Values, squeeze to [B, N, 1]
+        mixed_q_values = []
+        next_mixed_q_values = []
+        for agent_id in range(self.num_agents):
+            q_out = self.critic(q_values, share_obs[:, agent_id]).squeeze(-1)
+            next_q_out = self.target_critic(next_q_values, next_share_obs[:, agent_id]).squeeze(-1)
+            mixed_q_values.append(q_out)
+            next_mixed_q_values.append(next_q_out)
+        mixed_q_values = torch.stack(mixed_q_values, dim=1)
+        next_mixed_q_values = torch.stack(next_mixed_q_values, dim=1)
 
-        # Calculate 1-step Q-Learning targets
-        q_targets = rewards + self.gamma * next_q_values * (1 - dones_env)
+        # Calculate n-step Q-Learning targets
+        q_targets = rewards + (self.gamma ** gammas) * next_mixed_q_values * (1 - dones_env)
 
         # Calculate actor loss
-        critic_loss = (q_values - q_targets.detach())**2
+        critic_loss = (mixed_q_values - q_targets.detach()) ** 2
 
         if self.use_policy_active_masks:
             critic_loss = torch.sum(critic_loss * active_masks) / active_masks.sum()
@@ -170,9 +177,9 @@ class QMIX:
         critic_loss.backward()
 
         if self.use_max_grad_norm:
-            critic_grad_norm = nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm).item()
+            critic_grad_norm = nn.utils.clip_grad_norm_(self.params, self.max_grad_norm).item()
         else:
-            critic_grad_norm = get_grad_norm(self.critic.parameters())
+            critic_grad_norm = get_grad_norm(self.params)
 
         self.optimizer.step()
         self._off_grad()

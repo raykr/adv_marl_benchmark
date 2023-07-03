@@ -2,7 +2,6 @@ import os
 import torch
 from amb.agents.base_agent import BaseAgent
 from amb.models.actor.q_actor import QActor
-from amb.utils.action_selectors import REGISTRY as action_REGISTRY
 
 
 class QAgent(BaseAgent):
@@ -15,41 +14,33 @@ class QAgent(BaseAgent):
         self.act_space = act_space
 
         self.actor = QActor(args, self.obs_space, self.act_space, self.device)
-        self.action_selector = action_REGISTRY[self.args["action_selector"]](self.args)
-        self.current_timestep = 0
 
     def forward(self, obs, rnn_states, masks, available_actions=None):
-        q_values, rnn_states = self.actor(obs, rnn_states, masks, available_actions)
+        action_dist, rnn_states = self.actor(obs, rnn_states, masks, available_actions)
 
-        # epsion-greedy policy to select action
-        actions, _ = self.action_selector.select(q_values, available_actions, self.current_timestep, device=self.device)
-
-        return actions, rnn_states
+        return action_dist, rnn_states
 
     @torch.no_grad()
     def perform(self, obs, rnn_states, masks, available_actions=None, deterministic=False):
-        q_values, rnn_states = self.actor(obs, rnn_states, masks, available_actions)
-
-        # argmax Q-values to select action
-        actions = q_values.argmax(dim=-1, keepdim=True)
+        action_dist, rnn_states = self.actor(obs, rnn_states, masks, available_actions)
+        actions = action_dist.mode.argmax(dim=-1, keepdim=True)
 
         return actions, rnn_states
 
     @torch.no_grad()
     def sample(self, obs, available_actions=None):
-        q_values = self.actor.sample(obs, available_actions)
-
-        # epsion-greedy policy to select action
-        actions, actions_onehot = self.action_selector.select(q_values, available_actions, self.current_timestep, device=self.device)
+        action_dist = self.actor.sample(obs, available_actions)
+        actions_onehot = action_dist.sample()
+        actions = actions_onehot.argmax(dim=-1, keepdim=True)
 
         return actions, actions_onehot
 
     @torch.no_grad()
-    def collect(self, obs, rnn_states, masks, available_actions=None):
-        q_values, rnn_states = self.actor(obs, rnn_states, masks, available_actions)
+    def collect(self, obs, rnn_states, masks, available_actions=None, t=0):
+        action_dist, rnn_states = self.actor(obs, rnn_states, masks, available_actions, t)
 
-        # epsion-greedy policy to select action
-        actions, actions_onehot = self.action_selector.select(q_values, available_actions, self.current_timestep, device=self.device)
+        actions_onehot = action_dist.sample()
+        actions = actions_onehot.argmax(dim=-1, keepdim=True)
 
         return actions, actions_onehot, rnn_states
 

@@ -30,6 +30,96 @@
 * Toy Example
 * Custom environments
 
+## Install Dependencies
+
+### Install Python requirements
+
+```bash
+pip install -r requirements.txt
+```
+
+### Install SMAC
+
+Change to the directory where you want to install StarCraftII, then run following commands:
+
+```bash
+wget https://blzdistsc2-a.akamaihd.net/Linux/SC2.4.10.zip
+unzip -P iagreetotheeula SC2.4.10.zip 
+rm -rf SC2.4.10.zip
+
+cd StarCraftII/
+wget https://raw.githubusercontent.com/Blizzard/s2client-proto/master/stableid.json
+```
+
+Add following lines into `~/.bashrc`:
+
+```bash
+export SC2PATH="/path/to/your/StarCraftII"
+```
+
+### Install Multi-Agent MuJoCo
+
+First, install MuJoCo by running the following commands:
+
+```bash
+mkdir ~/.mujoco
+cd ~/.mujoco
+wget https://github.com/deepmind/mujoco/releases/download/2.1.0/mujoco210-linux-x86_64.tar.gz
+tar xzvf mujoco210-linux-x86_64.tar.gz
+rm -rf mujoco210-linux-x86_64.tar.gz
+
+pip install pysc2
+```
+
+Copy the `amb/envs/smac/SMAC_Maps` directory to `StarCraftII/Maps`.
+
+Add following commands to your `~/.bashrc`:
+```bash
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/your/.mujoco/mujoco210/bin
+```
+
+Then, install mujoco-py by running the following commands:
+
+```bash
+# ubuntu only. If there are more troubles (e.g., -lGL cannot be found, etc.), please refer to the official github of mujoco-py.
+sudo apt install libosmesa6-dev libgl1-mesa-glx libglfw3 patchelf
+# install mujoco-py
+pip install "mujoco-py<2.2,>=2.1"
+```
+
+Running following commands in Python to make sure mujoco is installed.
+
+```python
+import mujoco_py
+import os
+mj_path = mujoco_py.utils.discover_mujoco()
+xml_path = os.path.join(mj_path, 'model', 'humanoid.xml')
+model = mujoco_py.load_model_from_path(xml_path)
+sim = mujoco_py.MjSim(model)
+
+print(sim.data.qpos)
+```
+
+### Install Pettingzoo MPE
+
+```bash
+pip install pettingzoo==1.22.0 supersuit==3.7.0
+```
+
+### Install Google Research Footabll
+
+```bash
+pip install gfootball
+```
+
+### Solving dependencies
+
+Run following commands after all enviroments are installed.
+
+```bash
+pip install gym==0.21.0 pyglet==1.5.0 importlib-metadata==4.13.0
+```
+
 ## Usage Examples
 
 ### Single Algorithm Training
