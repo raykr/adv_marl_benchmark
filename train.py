@@ -15,6 +15,7 @@ def main():
             "mappo",
             "igs",
             "qmix",
+            "vdn",
         ],
         help="Algorithm name. Choose from: maddpg, mappo, igs.",
     )
