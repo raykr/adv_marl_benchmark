@@ -4,20 +4,13 @@ import torch
 import torch.nn as nn
 from amb.agents.q_agent import QAgent
 from amb.models.critic.q_mixer import QMixer
+from amb.models.critic.vdn_mixer import VDNMixer
 from amb.utils.env_utils import check
 from amb.utils.model_utils import update_linear_schedule, get_grad_norm
 
 
-class QMIX:
-    def __init__(
-        self,
-        args,
-        num_agents,
-        obs_spaces,
-        share_obs_space,
-        act_spaces,
-        device=torch.device("cpu"),
-    ):
+class Q:
+    def __init__(self, args, num_agents, obs_spaces, share_obs_space, act_spaces, device=torch.device("cpu")):
         self.args = args
         self.device = device
         self.tpdv = dict(dtype=torch.float32, device=device)
@@ -35,9 +28,9 @@ class QMIX:
         self.batch_size = args["batch_size"]
         self.gamma = args["gamma"]
         self.lr = args["lr"]
-        self.critic_lr = args["critic_lr"]
         self.polyak = args["polyak"]
         self.use_policy_active_masks = args["use_policy_active_masks"]
+        self.mixer = args["mixer"]
 
         self.agents = []
         self.actors = []
@@ -69,9 +62,18 @@ class QMIX:
                 self.actors.append(actor)
                 self.target_actors.append(target_actor)
 
-        self.critic = QMixer(args, num_agents, share_obs_space, device)
-        self.target_critic = deepcopy(self.critic)
-        self.params += list(self.critic.parameters())
+        if self.mixer is not None:
+            if self.mixer == "qmix":
+                self.critic = QMixer(args, num_agents, share_obs_space, device)
+            elif self.mixer == "vdn":
+                self.critic = VDNMixer()
+            else:
+                raise ValueError("Mixer {} not recognised.".format(self.mixer))
+            self.target_critic = deepcopy(self.critic)
+            self.params += list(self.critic.parameters())
+        else:
+            self.critic = PlaceholderCritic()
+            self.target_critic = None
 
         self.optimizer = torch.optim.Adam(self.params, lr=self.lr)
 
@@ -150,23 +152,28 @@ class QMIX:
 
         # Max over target Q-Values
         next_q_values = next_q_values.max(dim=2)[0]
+        
 
         # Mix the Q-Values, squeeze to [B, N, 1]
-        mixed_q_values = []
-        next_mixed_q_values = []
-        for agent_id in range(self.num_agents):
-            q_out = self.critic(q_values, share_obs[:, agent_id]).squeeze(-1)
-            next_q_out = self.target_critic(next_q_values, next_share_obs[:, agent_id]).squeeze(-1)
-            mixed_q_values.append(q_out)
-            next_mixed_q_values.append(next_q_out)
-        mixed_q_values = torch.stack(mixed_q_values, dim=1)
-        next_mixed_q_values = torch.stack(next_mixed_q_values, dim=1)
+        if self.mixer is not None:
+            mixed_q_values = []
+            next_mixed_q_values = []
+            for agent_id in range(self.num_agents):
+                q_out = self.critic(q_values, share_obs[:, agent_id]).squeeze(-1)
+                next_q_out = self.target_critic(next_q_values, next_share_obs[:, agent_id]).squeeze(-1)
+                mixed_q_values.append(q_out)
+                next_mixed_q_values.append(next_q_out)
+            q_values = torch.stack(mixed_q_values, dim=1)
+            next_q_values = torch.stack(next_mixed_q_values, dim=1)
+        else:
+            q_values = q_values.unsqueeze(-1)
+            next_q_values = next_q_values.unsqueeze(-1)
 
         # Calculate n-step Q-Learning targets
-        q_targets = rewards + (self.gamma ** gammas) * next_mixed_q_values * (1 - dones_env)
+        q_targets = rewards + (self.gamma ** gammas) * next_q_values * (1 - dones_env)
 
         # Calculate actor loss
-        critic_loss = (mixed_q_values - q_targets.detach()) ** 2
+        critic_loss = (q_values - q_targets.detach()) ** 2
 
         if self.use_policy_active_masks:
             critic_loss = torch.sum(critic_loss * active_masks) / active_masks.sum()
@@ -208,7 +215,7 @@ class QMIX:
 
             for agent_id in range(self.num_agents):
                 self.soft_update(self.actors[agent_id], self.target_actors[agent_id])
-            self.soft_update(self.critic, self.target_critic)
+                self.soft_update(self.critic, self.target_critic)
 
             critic_train_info["critic_loss"] += critic_loss.item()        
             critic_train_info["critic_grad_norm"] += critic_grad_norm
@@ -262,3 +269,7 @@ class QMIX:
             for agent_id in range(self.num_agents):
                 self.agents[agent_id].restore(os.path.join(path, str(agent_id)))
         self.critic.load_state_dict(torch.load(os.path.join(path, "critic.pth")))
+
+
+class PlaceholderCritic(nn.Module):
+    pass

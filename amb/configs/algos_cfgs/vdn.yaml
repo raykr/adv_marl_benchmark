@@ -57,8 +57,6 @@ model:
   # optimizer parameters
   # actor learning rate
   lr: 0.0005
-  # critic learning rate
-  critic_lr: 0.0005
   # recurrent parameters
   # whether to use rnn policy (data is chunked for training)
   use_recurrent_policy: False
@@ -68,6 +66,8 @@ model:
   epsilon_start: 1.0
   epsilon_finish: 0.05
   epsilon_anneal_time: 100000
+  # mixer parameters
+  mixer: vdn
 algo:
   # discount factor
   gamma: 0.99
@@ -87,10 +87,6 @@ algo:
   share_param: True
   # whether to use policy active masks
   use_policy_active_masks: True
-  # qmix parameters
-  mixing_embed_dim: 32
-  hypernet_layers: 2
-  hypernet_embed: 64
 logger:
   # logging directory
   log_dir: "./results"
