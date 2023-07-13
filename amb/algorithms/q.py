@@ -3,8 +3,8 @@ from copy import deepcopy
 import torch
 import torch.nn as nn
 from amb.agents.q_agent import QAgent
-from amb.models.critic.q_mixer import QMixer
-from amb.models.critic.vdn_mixer import VDNMixer
+from amb.models.mixer.qmix import QMixer
+from amb.models.mixer.vdn import VDNMixer
 from amb.utils.env_utils import check
 from amb.utils.model_utils import update_linear_schedule, get_grad_norm
 
@@ -73,7 +73,7 @@ class Q:
             self.params += list(self.critic.parameters())
         else:
             self.critic = PlaceholderCritic()
-            self.target_critic = None
+            self.target_critic = deepcopy(self.critic)
 
         self.optimizer = torch.optim.Adam(self.params, lr=self.lr)
 
