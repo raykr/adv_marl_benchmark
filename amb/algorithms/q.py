@@ -134,7 +134,7 @@ class Q:
         q_values = torch.stack(q_values, dim=1)
 
         # Pick the Q-Values for the actions taken by the agent
-        q_values = torch.gather(q_values, dim=2, index=actions.long()).squeeze(2)
+        q_values = torch.gather(q_values, dim=2, index=actions.long()) # [B, N, 1]
 
         # Calculate the Q-Values necessary for the target
         for agent_id in range(self.num_agents):
@@ -151,8 +151,7 @@ class Q:
         next_q_values = torch.stack(next_q_values, dim=1)
 
         # Max over target Q-Values
-        next_q_values = next_q_values.max(dim=2)[0]
-        
+        next_q_values = next_q_values.max(dim=2, keepdim=True)[0] # [B, N, 1]
 
         # Mix the Q-Values, squeeze to [B, N, 1]
         if self.mixer is not None:
@@ -165,9 +164,6 @@ class Q:
                 next_mixed_q_values.append(next_q_out)
             q_values = torch.stack(mixed_q_values, dim=1)
             next_q_values = torch.stack(next_mixed_q_values, dim=1)
-        else:
-            q_values = q_values.unsqueeze(-1)
-            next_q_values = next_q_values.unsqueeze(-1)
 
         # Calculate n-step Q-Learning targets
         q_targets = rewards + (self.gamma ** gammas) * next_q_values * (1 - dones_env)
