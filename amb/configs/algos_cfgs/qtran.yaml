@@ -73,7 +73,7 @@ model:
   # mixer parameters
   mixer: "qtran_base"
   mixing_embed_dim: 64
-  qtran_arch: "qtran_paper"
+  qtran_arch: "coma_critic"
   network_size: small
   # loss coefficient
   opt_loss: 1

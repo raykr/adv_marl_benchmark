@@ -214,7 +214,7 @@ class QTran:
         self.optimizer.step()
         self._off_grad()
 
-        return critic_loss, critic_grad_norm, target_q_values, q_values
+        return critic_loss, td_loss, opt_loss, nopt_loss, critic_grad_norm, target_q_values, q_values
 
     def train(self, buffer):
         critic_train_info = {}
@@ -234,13 +234,16 @@ class QTran:
             data_generator = buffer.step_generator(1, self.batch_size)
 
         for sample in data_generator:
-            critic_loss, critic_grad_norm, q_targets, q_values = self.update(sample)
+            critic_loss, td_loss, opt_loss, nopt_loss, critic_grad_norm, q_targets, q_values = self.update(sample)
 
             for agent_id in range(self.num_agents):
                 self.soft_update(self.actors[agent_id], self.target_actors[agent_id])
                 self.soft_update(self.critic, self.target_critic)
 
             critic_train_info["critic_loss"] += critic_loss.item()        
+            critic_train_info["td_loss"] += td_loss.item()        
+            critic_train_info["opt_loss"] += opt_loss.item()        
+            critic_train_info["nopt_loss"] += nopt_loss.item()        
             critic_train_info["critic_grad_norm"] += critic_grad_norm
             critic_train_info["q_targets"] += q_targets.mean().item()
             critic_train_info["q_values"] += q_values.mean().item()

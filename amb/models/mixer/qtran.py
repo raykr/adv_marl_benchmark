@@ -21,12 +21,14 @@ class QTranBase(nn.Module):
         # Q(s,u)
         if self.arch == "coma_critic":
             # Q takes [state, u] as input
-            q_input_size = self.state_dim + (self.n_agents * self.n_actions)
+            q_input_size = self.state_dim + self.n_actions
         elif self.arch == "qtran_paper":
             # Q takes [state, agent_action_observation_encodings]
             q_input_size = self.state_dim + self.rnn_hidden_dim + self.n_actions
         else:
             raise Exception("{} is not a valid QTran architecture".format(self.arch))
+
+        self.q_input_size = q_input_size
 
         if self.args["network_size"] == "small":
             self.Q = nn.Sequential(nn.Linear(q_input_size, self.embed_dim),
@@ -90,7 +92,10 @@ class QTranBase(nn.Module):
             inputs = th.cat([states, agent_state_action_encoding], dim=2)
 
         # [batch_size, num_agents, num_actions] -> [batch_size, 1]
-        q_outputs = self.Q(inputs)
-        v_outputs = self.V(states)
+        inputs = inputs.reshape(-1, self.q_input_size)
+        q_outputs = self.Q(inputs).reshape(-1, self.n_agents, 1)
+
+        states = states.reshape(-1, self.state_dim)
+        v_outputs = self.V(states).reshape(-1, self.n_agents, 1)
 
         return q_outputs, v_outputs
