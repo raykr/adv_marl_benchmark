@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from amb.agents.q_agent import QAgent
 from amb.models.mixer.qtran import QTranBase
-from amb.utils.env_utils import check
+from amb.utils.env_utils import check, get_onehot_shape_from_act_space
 from amb.utils.model_utils import update_linear_schedule, get_grad_norm
 
 
@@ -14,7 +14,7 @@ class QTran:
         self.device = device
         self.tpdv = dict(dtype=torch.float32, device=device)
         self.num_agents = num_agents
-        self.num_actions = act_spaces[0].n
+        self.num_actions = get_onehot_shape_from_act_space(act_spaces[0])
         self.action_type = act_spaces[0].__class__.__name__
         self.share_param = args["share_param"]
 
