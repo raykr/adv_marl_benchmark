@@ -2,7 +2,7 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from amb.utils.env_utils import check, get_shape_from_obs_space
+from amb.utils.env_utils import check, get_shape_from_obs_space, get_onehot_shape_from_act_space
 
 
 class QTranBase(nn.Module):
@@ -11,7 +11,7 @@ class QTranBase(nn.Module):
 
         self.args = args
         self.n_agents = num_agents
-        self.n_actions = act_sapce[0].n
+        self.n_actions = get_onehot_shape_from_act_space(act_sapce[0])
         self.state_dim = int(np.prod(get_shape_from_obs_space(obs_space)))
         self.arch = args["qtran_arch"] # QTran architecture
         self.embed_dim = args["mixing_embed_dim"]
