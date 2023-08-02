@@ -220,6 +220,9 @@ class QTran:
         critic_train_info = {}
 
         critic_train_info["critic_loss"] = 0
+        critic_train_info["td_loss"] = 0
+        critic_train_info["opt_loss"] = 0
+        critic_train_info["nopt_loss"] = 0
         critic_train_info["critic_grad_norm"] = 0
         critic_train_info["q_targets"] = 0
         critic_train_info["q_values"] = 0
