@@ -26,6 +26,7 @@ def main():
             "vdn",
             "iql",
             "qtran",
+            "coma",
         ],
         help="Algorithm name. Choose from: maddpg, mappo, igs.",
     )
