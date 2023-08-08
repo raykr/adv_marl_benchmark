@@ -3,6 +3,7 @@
 import time
 import os
 import numpy as np
+import wandb
 from amb.utils.trans_utils import _dimalign
 
 
@@ -84,10 +85,14 @@ class BaseLogger:
 
         average_episode_len = np.mean(self.episode_lens) if len(self.episode_lens) > 0 else 0.0
         self.writter.add_scalar("env/ep_length_mean", average_episode_len, self.timestep)
+        if self.algo_args["logger"]["use_wandb"]:
+            wandb.log({"env/ep_length_mean": average_episode_len}, step=self.timestep)
 
         aver_episode_rewards = np.mean(self.done_episodes_rewards)
         critic_train_info["average_step_rewards"] = aver_episode_rewards / average_episode_len
         self.writter.add_scalar("env/train_episode_rewards", aver_episode_rewards, self.timestep)
+        if self.algo_args["logger"]["use_wandb"]:
+            wandb.log({"env/train_episode_rewards": aver_episode_rewards}, step=self.timestep)
 
         self.log_train(actor_train_infos, critic_train_info)
 
@@ -183,16 +188,22 @@ class BaseLogger:
             for k, v in actor_train_infos[agent_id].items():
                 agent_k = "agent%i/" % agent_id + k
                 self.writter.add_scalar(agent_k, v, self.timestep)
+                if self.algo_args["logger"]["use_wandb"]:
+                    wandb.log({agent_k: v}, step=self.timestep)
         # log critic
         for k, v in critic_train_info.items():
             critic_k = "critic/" + k
             self.writter.add_scalar(critic_k, v, self.timestep)
+            if self.algo_args["logger"]["use_wandb"]:
+                wandb.log({critic_k: v}, step=self.timestep)
 
     def log_env(self, env_infos):
         """Log environment information."""
         for k, v in env_infos.items():
             if len(v) > 0:
                 self.writter.add_scalar("env/{}".format(k), np.mean(v), self.timestep)
+                if self.algo_args["logger"]["use_wandb"]:
+                    wandb.log({"env/{}".format(k): np.mean(v)}, step=self.timestep)
 
     def close(self):
         """Close the logger."""

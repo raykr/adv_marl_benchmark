@@ -1,6 +1,7 @@
 import time
 from functools import reduce
 import numpy as np
+import wandb
 from amb.envs.base_logger import BaseLogger
 
 
@@ -58,6 +59,8 @@ class SMACLogger(BaseLogger):
 
         incre_win_rate = np.sum(incre_battles_won) / np.sum(incre_battles_game) if np.sum(incre_battles_game) > 0 else 0.0
         self.writter.add_scalar("env/incre_win_rate", incre_win_rate, self.timestep)
+        if self.algo_args["logger"]["use_wandb"]:
+            wandb.log({"env/incre_win_rate": incre_win_rate}, step=self.timestep)
 
         self.last_battles_game = battles_game
         self.last_battles_won = battles_won

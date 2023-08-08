@@ -115,3 +115,4 @@ algo:
 logger:
   # logging directory
   log_dir: "./results"
+  use_wandb: True
