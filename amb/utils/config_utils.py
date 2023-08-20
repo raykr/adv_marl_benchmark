@@ -138,3 +138,50 @@ def save_config(args, algo_args, env_args, run_dir):
     output = json.dumps(config_json, separators=(',', ':\t'), indent=4, sort_keys=True)
     with open(os.path.join(run_dir, "config.json"), 'w', encoding='utf-8') as out:
         out.write(output)
+
+
+def merge_parameter(base_params, override_params):
+    """
+    Update the parameters in ``base_params`` with ``override_params``.
+    Can be useful to override parsed command line arguments.
+
+    Parameters
+    ----------
+    base_params : namespace or dict
+        Base parameters. A key-value mapping.
+    override_params : dict or None
+        Parameters to override. Usually the parameters got from ``get_next_parameters()``.
+        When it is none, nothing will happen.
+
+    Returns
+    -------
+    namespace or dict
+        The updated ``base_params``. Note that ``base_params`` will be updated inplace. The return value is
+        only for convenience.
+    """
+    if override_params is None:
+        return base_params
+    is_dict = isinstance(base_params, dict)
+    for k, v in override_params.items():
+        if is_dict:
+            if k not in base_params:
+                continue
+            v = _ensure_compatible_type(k, base_params[k], v)
+            base_params[k] = v
+        else:
+            if not hasattr(base_params, k):
+                continue
+            v = _ensure_compatible_type(k, getattr(base_params, k), v)
+            setattr(base_params, k, v)
+    return base_params
+
+def _ensure_compatible_type(key, base, override):
+    if base is None:
+        return override
+    if isinstance(override, type(base)):
+        return override
+    if isinstance(base, float) and isinstance(override, int):
+        return float(override)
+    base_type = type(base).__name__
+    override_type = type(override).__name__
+    raise ValueError(f'Expected "{key}" in override parameters to have type {base_type}, but found {override_type}')

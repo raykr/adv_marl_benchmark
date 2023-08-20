@@ -1,8 +1,11 @@
+from copy import deepcopy
 import os
 import argparse
 import json
-from amb.utils.config_utils import get_defaults_yaml_args, update_args
+import sys
+from amb.utils.config_utils import get_defaults_yaml_args, update_args, merge_parameter
 import torch
+import nni
 
 # show tensor shape in vscode debugger
 def custom_repr(self):
@@ -13,6 +16,8 @@ torch.Tensor.__repr__ = custom_repr
 
 def main():
     """Main function."""
+    params = deepcopy(sys.argv)
+    nni_params = nni.get_next_parameter()
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--algo",
@@ -135,6 +140,11 @@ def main():
             algo_args, env_args, _ = get_defaults_yaml_args(args["algo"], args["env"])
             update_args(unparsed_dict, algo=algo_args, env=env_args)
 
+    # merge nni parameters
+    args = merge_parameter(args, nni_params)
+    algo_args = merge_parameter(algo_args, nni_params)
+    env_args = merge_parameter(env_args, nni_params)
+
     # start training
     from amb.runners import get_runner
     runner = get_runner(args["run"], args["algo"])(args, algo_args, env_args)
@@ -142,6 +152,10 @@ def main():
         runner.render()
     else:
         runner.run()
+    
+    # nni final
+    nni.report_final_result(0)
+    
     runner.close()
 
 
