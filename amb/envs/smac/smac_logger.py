@@ -2,6 +2,7 @@ import time
 from functools import reduce
 import numpy as np
 import wandb
+import nni
 from amb.envs.base_logger import BaseLogger
 
 
@@ -97,6 +98,9 @@ class SMACLogger(BaseLogger):
                 eval_win_rate, eval_avg_rew
             )
         )
+        ## nni report
+        nni.report_intermediate_result(eval_avg_rew)
+
         if self.args["run"] == "single":
             self.log_file.write(
                 ",".join(map(str, [self.timestep, eval_avg_rew, eval_win_rate]))

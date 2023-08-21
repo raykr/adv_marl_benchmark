@@ -1,0 +1,56 @@
+experimentName: nni-data
+searchSpace:
+  # common hyperparameters [don't change]
+  "algo_args.logger.log_dir":
+    _type: choice
+    _value: ["#nni_dynamic"]
+  # end common hyperparameters
+  
+  "main_args.algo":
+    _type: choice
+    _value: ["mappo", "maddpg", "qmix"]
+  "main_args.env":
+    _type: choice
+    _value: ["smac"]
+  "main_args.run":
+    _type: choice
+    _value: [
+        "single",
+        # 'perturbation',
+        # "traitor",
+      ]
+  "env_args.map_name":
+    _type: choice
+    _value: ["3m", "3s6z"]
+  "algo_args.seed.seed":
+    _type: choice
+    _value: [0, 1, 2]
+
+  # data
+  "env_args.state_type":
+    _type: choice
+    _value: ["FP", "EP"]
+  # TODO batch_mode需要配置且实现
+  "algo_args.algo.batch_mode":
+    _type: choice
+    _value: ["step", "episode", "chunk"]
+  "algo_args.algo.batch_size":
+    _type: choice
+    _value: [50, 100, 1000, 5000]
+  # TODO advantage_estimation需要配置且实现，替换use_gae
+  "algo_args.algo.advantage_estimation":
+    _type: choice
+    _value: ["GAE", "N-step", "V-trace"]
+
+trialCommand: python -u train.py --env=smac --algo=mappo --exp_name nni_data --run single
+trialCodeDirectory: .
+# experimentWorkingDirectory: nni-experiments
+trialGpuNumber: 1
+trialConcurrency: 3
+tuner:
+  name: GridSearch
+trainingService:
+  platform: local
+  useActiveGpu: True
+  maxTrialNumberPerGpu: 5
+  gpuIndices: [0]

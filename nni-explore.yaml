@@ -1,5 +1,11 @@
 experimentName: nni-explore
 searchSpace:
+  # common hyperparameters [don't change]
+  "algo_args.logger.log_dir":
+    _type: choice
+    _value: ["#nni_dynamic"]
+  # end common hyperparameters
+  
   "main_args.algo":
     _type: choice
     _value: ["mappo", "maddpg", "qmix"]
@@ -38,9 +44,9 @@ searchSpace:
     _type: choice
     _value: [20, 40, 10]
 
-trialCommand: python -u ../train.py --env=smac --algo=mappo --exp_name nni_explore --run single
+trialCommand: python -u train.py --env=smac --algo=mappo --exp_name nni_explore --run single
 trialCodeDirectory: .
-# experimentWorkingDirectory: ../nni-experiments
+# experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1
 trialConcurrency: 3
 tuner:

@@ -83,12 +83,17 @@ def get_task_name(env, env_args):
 
 
 def init_dir(env, env_args, algo, exp_name, run_name, seed, logger_path):
+    # check logger_path == nni
+    if logger_path == "#nni_dynamic":
+        logger_path = os.path.join(os.environ["NNI_OUTPUT_DIR"], 'tensorboard')
+
     """Init directory for saving results."""
     task = get_task_name(env, env_args)
     hms_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())
     results_path = os.path.join(
-        logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time])
+        logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time]), random_str(8)
     )
+    print("results_path", results_path)
     log_path = os.path.join(results_path, 'logs')
     os.makedirs(log_path, exist_ok=True)
     from tensorboardX import SummaryWriter
@@ -97,6 +102,12 @@ def init_dir(env, env_args, algo, exp_name, run_name, seed, logger_path):
     os.makedirs(models_path, exist_ok=True)
     return results_path, log_path, models_path, writter
 
+# 生成8位随机字符串
+def random_str(num):
+    import random
+    import string
+    salt = ''.join(random.sample(string.ascii_letters + string.digits, num))
+    return salt
 
 def is_json_serializable(value):
     """Check if v is JSON serializable."""

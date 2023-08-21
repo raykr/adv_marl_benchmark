@@ -3,7 +3,6 @@ import time
 import torch
 import numpy as np
 import setproctitle
-import nni
 from amb.algorithms import ALGO_REGISTRY
 from amb.envs import LOGGER_REGISTRY
 from amb.utils.trans_utils import _t2n
@@ -183,8 +182,6 @@ class BaseRunner:
 
             eval_data = (eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions)
             self.logger.eval_per_step(eval_data)  # logger callback at each step of evaluation
-            # nni report
-            nni.report_intermediate_result(eval_rewards)
 
             eval_dones_env = np.all(eval_dones, axis=1)
 
