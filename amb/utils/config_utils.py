@@ -140,48 +140,34 @@ def save_config(args, algo_args, env_args, run_dir):
         out.write(output)
 
 
-def merge_parameter(base_params, override_params):
-    """
-    Update the parameters in ``base_params`` with ``override_params``.
-    Can be useful to override parsed command line arguments.
-
-    Parameters
-    ----------
-    base_params : namespace or dict
-        Base parameters. A key-value mapping.
-    override_params : dict or None
-        Parameters to override. Usually the parameters got from ``get_next_parameters()``.
-        When it is none, nothing will happen.
-
-    Returns
-    -------
-    namespace or dict
-        The updated ``base_params``. Note that ``base_params`` will be updated inplace. The return value is
-        only for convenience.
-    """
-    if override_params is None:
-        return base_params
-    is_dict = isinstance(base_params, dict)
-    for k, v in override_params.items():
-        if is_dict:
-            if k not in base_params:
-                continue
-            v = _ensure_compatible_type(k, base_params[k], v)
-            base_params[k] = v
+# 遍历nni_params，如果发现key是 xx.xx.xx 的形式，就把它转换成dict
+def convert_nested_dict(params):
+    new_params = {}
+    for key, value in params.items():
+        if isinstance(value, dict):
+            new_value = convert_nested_dict(value)
         else:
-            if not hasattr(base_params, k):
-                continue
-            v = _ensure_compatible_type(k, getattr(base_params, k), v)
-            setattr(base_params, k, v)
-    return base_params
+            new_value = value
 
-def _ensure_compatible_type(key, base, override):
-    if base is None:
-        return override
-    if isinstance(override, type(base)):
-        return override
-    if isinstance(base, float) and isinstance(override, int):
-        return float(override)
-    base_type = type(base).__name__
-    override_type = type(override).__name__
-    raise ValueError(f'Expected "{key}" in override parameters to have type {base_type}, but found {override_type}')
+        if '.' in key:
+            print(key)
+            keys = key.split('.')
+            current_dict = new_params
+            for k in keys[:-1]:
+                if k not in current_dict:
+                    current_dict[k] = {}
+                current_dict = current_dict[k]
+            current_dict[keys[-1]] = new_value
+        else:
+            new_params[key] = new_value
+        
+    return new_params
+
+def nni_update_args(dict1, dict2):
+    for key, value in dict2.items():
+        if key in dict1:
+            if type(dict1[key]) == type(value):
+                if isinstance(dict1[key], dict) and isinstance(value, dict):
+                    nni_update_args(dict1[key], value)
+                else:
+                    dict1[key] = value

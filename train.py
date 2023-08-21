@@ -3,7 +3,7 @@ import os
 import argparse
 import json
 import sys
-from amb.utils.config_utils import get_defaults_yaml_args, update_args, merge_parameter
+from amb.utils.config_utils import convert_nested_dict, get_defaults_yaml_args, update_args, nni_update_args
 import torch
 import nni
 
@@ -16,8 +16,6 @@ torch.Tensor.__repr__ = custom_repr
 
 def main():
     """Main function."""
-    params = deepcopy(sys.argv)
-    nni_params = nni.get_next_parameter()
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--algo",
@@ -141,9 +139,14 @@ def main():
             update_args(unparsed_dict, algo=algo_args, env=env_args)
 
     # merge nni parameters
-    args = merge_parameter(args, nni_params)
-    algo_args = merge_parameter(algo_args, nni_params)
-    env_args = merge_parameter(env_args, nni_params)
+    nni_params = nni.get_next_parameter()
+    nni_dict = convert_nested_dict(nni_params)
+    if "main_args" in nni_dict:
+        nni_update_args(args, nni_dict["main_args"])
+    if "algo_args" in nni_dict:
+        nni_update_args(algo_args, nni_dict["algo_args"])
+    if "env_args" in nni_dict:
+        nni_update_args(env_args, nni_dict["env_args"])
 
     # start training
     from amb.runners import get_runner
