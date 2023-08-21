@@ -1,36 +1,36 @@
 experimentName: nni-network
 searchSpace:
   # common hyperparameters [don't change]
-  "algo_args.logger.log_dir":
+  algo_args.logger.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
-  "main_args.algo":
+  main_args.algo:
     _type: choice
     _value: ["mappo", "maddpg", "qmix"]
-  "main_args.env":
+  main_args.env:
     _type: choice
     _value: ["smac"]
-  "main_args.run":
+  main_args.run:
     _type: choice
     _value: [
         "single",
         # 'perturbation',
         # "traitor",
       ]
-  "env_args.map_name":
+  env_args.map_name:
     _type: choice
     _value: ["3m", "3s6z"]
-  "algo_args.seed.seed":
+  algo_args.seed.seed:
     _type: choice
     _value: [0, 1, 2]
 
   # Network Architecture
-  "algo_args.model.hidden_sizes":
+  algo_args.model.hidden_sizes:
     _type: choice
     _value: [[64, 64], [128, 128], [64, 64, 64], [128, 128, 128]]
-  "algo_args.model.activation_func":
+  algo_args.model.activation_func:
     _type: choice
     _value: ["relu", "tanh", "softmax"]
 

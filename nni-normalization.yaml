@@ -1,36 +1,36 @@
 experimentName: nni-normalization
 searchSpace:
   # common hyperparameters [don't change]
-  "algo_args.logger.log_dir":
+  algo_args.logger.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
-  "main_args.algo":
+  main_args.algo:
     _type: choice
     _value: ["mappo", "maddpg", "qmix"]
-  "main_args.env":
+  main_args.env:
     _type: choice
     _value: ["smac"]
-  "main_args.run":
+  main_args.run:
     _type: choice
     _value: [
         "single",
         # 'perturbation',
         # "traitor",
       ]
-  "env_args.map_name":
+  env_args.map_name:
     _type: choice
     _value: ["3m", "3s6z"]
-  "algo_args.seed.seed":
+  algo_args.seed.seed:
     _type: choice
     _value: [0, 1, 2]
 
   # normalization
-  "algo_args.model.use_feature_normalization":
+  algo_args.model.use_feature_normalization:
     _type: choice
     _value: [true, false]
-  "algo_args.train.use_popart":
+  algo_args.train.use_popart:
     _type: choice
     _value: [true, false]
 

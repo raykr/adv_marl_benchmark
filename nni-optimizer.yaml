@@ -1,36 +1,36 @@
 experimentName: nni-optimizer
 searchSpace:
   # common hyperparameters [don't change]
-  "algo_args.logger.log_dir":
+  algo_args.logger.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
-  "main_args.algo":
+  main_args.algo:
     _type: choice
     _value: ["mappo", "maddpg", "qmix"]
-  "main_args.env":
+  main_args.env:
     _type: choice
     _value: ["smac"]
-  "main_args.run":
+  main_args.run:
     _type: choice
     _value: [
         "single",
         # 'perturbation',
         # "traitor",
       ]
-  "env_args.map_name":
+  env_args.map_name:
     _type: choice
     _value: ["3m", "3s6z"]
-  "algo_args.seed.seed":
+  algo_args.seed.seed:
     _type: choice
     _value: [0, 1, 2]
 
   # Optimizer
-  "algo_args.algo.gamma":
+  algo_args.algo.gamma:
     _type: choice
     _value: [0.90, 0.97, 0.99]
-  "algo_args.model.lr":
+  algo_args.model.lr:
     _type: choice
     _value: [0.00001, 0.0001, 0.0003, 0.001]
 

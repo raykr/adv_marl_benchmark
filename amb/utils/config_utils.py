@@ -83,16 +83,17 @@ def get_task_name(env, env_args):
 
 
 def init_dir(env, env_args, algo, exp_name, run_name, seed, logger_path):
+    """Init directory for saving results."""
     # check logger_path == nni
     if logger_path == "#nni_dynamic":
         logger_path = os.path.join(os.environ["NNI_OUTPUT_DIR"], 'tensorboard')
-
-    """Init directory for saving results."""
-    task = get_task_name(env, env_args)
-    hms_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())
-    results_path = os.path.join(
-        logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time]), random_str(8)
-    )
+        results_path = logger_path
+    else:
+        task = get_task_name(env, env_args)
+        hms_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())
+        results_path = os.path.join(
+            logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time]), random_str(8)
+        )
     print("results_path", results_path)
     log_path = os.path.join(results_path, 'logs')
     os.makedirs(log_path, exist_ok=True)

@@ -1,46 +1,46 @@
 experimentName: nni-explore
 searchSpace:
   # common hyperparameters [don't change]
-  "algo_args.logger.log_dir":
+  algo_args.logger.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
-  "main_args.algo":
+  main_args.algo:
     _type: choice
     _value: ["mappo", "maddpg", "qmix"]
-  "main_args.env":
+  main_args.env:
     _type: choice
     _value: ["smac"]
-  "main_args.run":
+  main_args.run:
     _type: choice
     _value: [
         "single",
         # 'perturbation',
         # "traitor",
       ]
-  "env_args.map_name":
+  env_args.map_name:
     _type: choice
     _value: ["3m", "3s6z"]
-  "algo_args.seed.seed":
+  algo_args.seed.seed":
     _type: choice
     _value: [0, 1, 2]
 
   # Exploration and Exploitation
   # PPO
-  "algo_args.algo.entropy_coef":
+  algo_args.algo.entropy_coef:
     _type: choice
     _value: [0.01, 0.001, 0.1]
   # DDPG
-  "algo_args.algo.expl_noise":
+  algo_args.algo.expl_noise:
     _type: choice
     _value: [0.1, 0.01, 0.5]
   # Q-family
-  "algo_args.model.epsilon_anneal_time":
+  algo_args.model.epsilon_anneal_time:
     _type: choice
     _value: [100000, 50000, 500000]
   # parallel env nums
-  "algo_args.train.n_rollout_threads":
+  algo_args.train.n_rollout_threads:
     _type: choice
     _value: [20, 40, 10]
 
