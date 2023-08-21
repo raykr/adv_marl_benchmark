@@ -1,4 +1,4 @@
-experimentName: nni-network
+experimentName: nni-explore-mappo
 searchSpace:
   # common hyperparameters [don't change]
   algo_args.logger.log_dir:
@@ -8,7 +8,7 @@ searchSpace:
   
   main_args.algo:
     _type: choice
-    _value: ["mappo", "maddpg", "qmix"]
+    _value: ["mappo"]
   main_args.env:
     _type: choice
     _value: ["smac"]
@@ -22,19 +22,21 @@ searchSpace:
   env_args.map_name:
     _type: choice
     _value: ["3m", "3s6z"]
-  algo_args.seed.seed:
+  algo_args.seed.seed":
     _type: choice
     _value: [0, 1, 2]
 
-  # Network Architecture
-  algo_args.model.hidden_sizes:
+  # Exploration and Exploitation
+  # PPO
+  algo_args.algo.entropy_coef:
     _type: choice
-    _value: [[64, 64], [128, 128], [64, 64, 64], [128, 128, 128]]
-  algo_args.model.activation_func:
+    _value: [0.01, 0.001, 0.1]
+  # parallel env nums
+  algo_args.train.n_rollout_threads:
     _type: choice
-    _value: ["relu", "tanh", "softmax"]
+    _value: [20, 40, 10]
 
-trialCommand: python -u train.py --env=smac --algo=mappo --exp_name nni_network --run single
+trialCommand: python -u ../../train.py --env=smac --algo=mappo --exp_name nni_explore_mappo --run single
 trialCodeDirectory: .
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1

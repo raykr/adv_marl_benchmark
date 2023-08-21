@@ -1,4 +1,4 @@
-experimentName: nni-normalization
+experimentName: nni-explore-q
 searchSpace:
   # common hyperparameters [don't change]
   algo_args.logger.log_dir:
@@ -8,7 +8,7 @@ searchSpace:
   
   main_args.algo:
     _type: choice
-    _value: ["mappo", "maddpg", "qmix"]
+    _value: ["qmix", "iql", "vdn"]
   main_args.env:
     _type: choice
     _value: ["smac"]
@@ -22,19 +22,21 @@ searchSpace:
   env_args.map_name:
     _type: choice
     _value: ["3m", "3s6z"]
-  algo_args.seed.seed:
+  algo_args.seed.seed":
     _type: choice
     _value: [0, 1, 2]
 
-  # normalization
-  algo_args.model.use_feature_normalization:
+  # Exploration and Exploitation
+  # Q-family
+  algo_args.model.epsilon_anneal_time:
     _type: choice
-    _value: [true, false]
-  algo_args.train.use_popart:
+    _value: [100000, 50000, 500000]
+  # parallel env nums
+  algo_args.train.n_rollout_threads:
     _type: choice
-    _value: [true, false]
+    _value: [20, 40, 10]
 
-trialCommand: python -u train.py --env=smac --algo=mappo --exp_name nni_normalization --run single
+trialCommand: python -u ../../train.py --env=smac --algo=mappo --exp_name nni_explore_q --run single
 trialCodeDirectory: .
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1

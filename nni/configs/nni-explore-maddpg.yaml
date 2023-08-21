@@ -1,4 +1,4 @@
-experimentName: nni-data
+experimentName: nni-explore-maddpg
 searchSpace:
   # common hyperparameters [don't change]
   algo_args.logger.log_dir:
@@ -8,7 +8,7 @@ searchSpace:
   
   main_args.algo:
     _type: choice
-    _value: ["mappo", "maddpg", "qmix"]
+    _value: ["maddpg"]
   main_args.env:
     _type: choice
     _value: ["smac"]
@@ -22,27 +22,21 @@ searchSpace:
   env_args.map_name:
     _type: choice
     _value: ["3m", "3s6z"]
-  algo_args.seed.seed:
+  algo_args.seed.seed":
     _type: choice
     _value: [0, 1, 2]
 
-  # data
-  env_args.state_type:
+  # Exploration and Exploitation
+  # DDPG
+  algo_args.algo.expl_noise:
     _type: choice
-    _value: ["FP", "EP"]
-  # TODO batch_mode需要配置且实现
-  algo_args.algo.batch_mode:
+    _value: [0.1, 0.01, 0.5]
+  # parallel env nums
+  algo_args.train.n_rollout_threads:
     _type: choice
-    _value: ["step", "episode", "chunk"]
-  algo_args.algo.batch_size:
-    _type: choice
-    _value: [50, 100, 1000, 5000]
-  # TODO advantage_estimation需要配置且实现，替换use_gae
-  algo_args.algo.advantage_estimation:
-    _type: choice
-    _value: ["GAE", "N-step", "V-trace"]
+    _value: [20, 40, 10]
 
-trialCommand: python -u train.py --env=smac --algo=mappo --exp_name nni_data --run single
+trialCommand: python -u ../../train.py --env=smac --algo=mappo --exp_name nni_explore_maddpg --run single
 trialCodeDirectory: .
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1

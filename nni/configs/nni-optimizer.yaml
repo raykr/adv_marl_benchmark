@@ -1,4 +1,4 @@
-experimentName: nni-train
+experimentName: nni-optimizer
 searchSpace:
   # common hyperparameters [don't change]
   algo_args.logger.log_dir:
@@ -26,15 +26,15 @@ searchSpace:
     _type: choice
     _value: [0, 1, 2]
 
-  # multi-agent training
-  algo_args.algo.share_param:
+  # Optimizer
+  algo_args.algo.gamma:
     _type: choice
-    _value: [true, false]
-  algo_args.algo.algo_type:
+    _value: [0.90, 0.97, 0.99]
+  algo_args.model.lr:
     _type: choice
-    _value: ["IL", "VD", "CC"]
+    _value: [0.00001, 0.0001, 0.0003, 0.001]
 
-trialCommand: python -u train.py --env=smac --algo=mappo --exp_name nni_train --run single
+trialCommand: python -u ../../train.py --env=smac --algo=mappo --exp_name nni_optimizer --run single
 trialCodeDirectory: .
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1
