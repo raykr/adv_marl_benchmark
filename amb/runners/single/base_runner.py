@@ -1,3 +1,5 @@
+import os
+import nni
 import socket
 import time
 import torch
@@ -31,17 +33,17 @@ class BaseRunner:
 
         self.rnn_hidden_size = algo_args["model"]["hidden_sizes"][-1]
         self.recurrent_n = algo_args["model"]["recurrent_n"]
-        
+
         self.episode_length = algo_args["train"]["episode_length"]
         self.n_rollout_threads = algo_args["train"]["n_rollout_threads"]
-        self.n_eval_rollout_threads = algo_args['eval']['n_eval_rollout_threads']
+        self.n_eval_rollout_threads = algo_args["eval"]["n_eval_rollout_threads"]
 
-        self.share_param = algo_args["algo"]['share_param']
+        self.share_param = algo_args["algo"]["share_param"]
 
         set_seed(algo_args["seed"])
         self.device = init_device(algo_args["device"])
         self.task_name = get_task_name(args["env"], env_args)
-        if not self.algo_args['render']['use_render']:
+        if not self.algo_args["render"]["use_render"]:
             self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
                 args["env"],
                 env_args,
@@ -52,23 +54,33 @@ class BaseRunner:
                 logger_path=algo_args["logger"]["log_dir"],
             )
             save_config(args, algo_args, env_args, self.run_dir)
+
             # init wandb and save config
+            wandb_dir = self.run_dir
+            wandb_name = (
+                args["env"]
+                + "_"
+                + get_task_name(args["env"], env_args)
+                + "_"
+                + args["run"]
+                + "_"
+                + args["algo"]
+                + "_seed-"
+                + str(algo_args["seed"]["seed"])
+                + "_"
+                + time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+            )
             if algo_args["logger"]["use_wandb"]:
+                # nni wandb path
+                if algo_args["logger"]["log_dir"] == "#nni_dynamic":
+                    wandb_dir = os.path.join(os.environ["NNI_OUTPUT_DIR"])
+                    wandb_name = nni.get_trial_id()
+
                 import wandb
 
                 wandb.init(
                     project=args["exp_name"],
-                    name=args["env"]
-                    + "_"
-                    + get_task_name(args["env"], env_args)
-                    + "_"
-                    + args["run"]
-                    + "_"
-                    + args["algo"]
-                    + "_seed-"
-                    + str(algo_args["seed"]["seed"])
-                    + "_"
-                    + time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime()),
+                    name=wandb_name,
                     config={
                         "args": args,
                         "algo_args": algo_args,
@@ -76,15 +88,14 @@ class BaseRunner:
                     },
                     notes=socket.gethostname(),
                     entity="adv_marl_benchmark",
-                    dir=self.run_dir,
+                    dir=wandb_dir,
                     job_type="training",
                 )
-        setproctitle.setproctitle(
-            str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"])
-        )
+
+        setproctitle.setproctitle(str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"]))
 
         # set the config of env
-        if self.algo_args['render']['use_render']:  # make envs for rendering
+        if self.algo_args["render"]["use_render"]:  # make envs for rendering
             (
                 self.envs,
                 self.manual_render,
@@ -115,7 +126,7 @@ class BaseRunner:
         print("observation_space: ", self.envs.observation_space)
         print("action_space: ", self.envs.action_space, self.action_type)
 
-        if self.algo_args['render']['use_render'] is False:
+        if self.algo_args["render"]["use_render"] is False:
             self.logger = LOGGER_REGISTRY[args["env"]](
                 args, algo_args, env_args, self.num_agents, self.writter, self.run_dir
             )
@@ -142,8 +153,8 @@ class BaseRunner:
         self.agents = self.algo.agents
         self.critic = self.algo.critic
 
-        if self.algo_args['train']['model_dir'] is not None:  # restore model
-            print("Restore model from", self.algo_args['train']['model_dir'])
+        if self.algo_args["train"]["model_dir"] is not None:  # restore model
+            print("Restore model from", self.algo_args["train"]["model_dir"])
             self.restore()
 
     def run(self):
@@ -154,12 +165,16 @@ class BaseRunner:
         """Evaluate the model. All algorithms should fit this evaluation pipeline."""
         self.algo.prep_rollout()
 
-        self.logger.eval_init(self.n_eval_rollout_threads)  # logger callback at the beginning of evaluation
+        # logger callback at the beginning of evaluation
+        self.logger.eval_init(self.n_eval_rollout_threads)
         eval_episode = 0
 
         eval_obs, eval_share_obs, eval_available_actions = self.eval_envs.reset()
 
-        eval_rnn_states = np.zeros((self.n_eval_rollout_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
+        eval_rnn_states = np.zeros(
+            (self.n_eval_rollout_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size),
+            dtype=np.float32,
+        )
         eval_masks = np.ones((self.n_eval_rollout_threads, self.num_agents, 1), dtype=np.float32)
 
         while True:
@@ -169,8 +184,7 @@ class BaseRunner:
                     eval_obs[:, agent_id],
                     eval_rnn_states[:, agent_id],
                     eval_masks[:, agent_id],
-                    eval_available_actions[:, agent_id]
-                    if eval_available_actions[0] is not None else None,
+                    eval_available_actions[:, agent_id] if eval_available_actions[0] is not None else None,
                     deterministic=True,
                 )
                 eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
@@ -178,10 +192,25 @@ class BaseRunner:
 
             eval_actions = np.array(eval_actions_collector).transpose(1, 0, 2)
 
-            eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions = self.eval_envs.step(eval_actions)
+            (
+                eval_obs,
+                eval_share_obs,
+                eval_rewards,
+                eval_dones,
+                eval_infos,
+                eval_available_actions,
+            ) = self.eval_envs.step(eval_actions)
 
-            eval_data = (eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions)
-            self.logger.eval_per_step(eval_data)  # logger callback at each step of evaluation
+            eval_data = (
+                eval_obs,
+                eval_share_obs,
+                eval_rewards,
+                eval_dones,
+                eval_infos,
+                eval_available_actions,
+            )
+            # logger callback at each step of evaluation
+            self.logger.eval_per_step(eval_data)
 
             eval_dones_env = np.all(eval_dones, axis=1)
 
@@ -193,10 +222,12 @@ class BaseRunner:
             for eval_i in range(self.n_eval_rollout_threads):
                 if eval_dones_env[eval_i]:
                     eval_episode += 1
-                    self.logger.eval_thread_done(eval_i)  # logger callback when an episode is done
+                    # logger callback when an episode is done
+                    self.logger.eval_thread_done(eval_i)
 
             if eval_episode >= self.algo_args["eval"]["eval_episodes"]:
-                self.logger.eval_log(eval_episode)  # logger callback at the end of evaluation
+                # logger callback at the end of evaluation
+                self.logger.eval_log(eval_episode)
                 break
 
     @torch.no_grad()
@@ -204,25 +235,27 @@ class BaseRunner:
         """Render the model"""
         print("start rendering")
 
-        eval_rnn_states = np.zeros((self.env_num, self.num_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
+        eval_rnn_states = np.zeros(
+            (self.env_num, self.num_agents, self.recurrent_n, self.rnn_hidden_size),
+            dtype=np.float32,
+        )
         eval_masks = np.ones((self.env_num, self.num_agents, 1), dtype=np.float32)
 
-        for _ in range(self.algo_args['render']['render_episodes']):
+        for _ in range(self.algo_args["render"]["render_episodes"]):
             eval_obs, _, eval_available_actions = self.envs.reset()
             rewards = 0
             while True:
                 eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
                 if eval_available_actions is not None:
                     eval_available_actions = np.expand_dims(np.array(eval_available_actions), axis=0)
-                    
+
                 eval_actions_collector = []
                 for agent_id in range(self.num_agents):
                     eval_actions, temp_rnn_state = self.agents[agent_id].perform(
                         eval_obs[:, agent_id],
                         eval_rnn_states[:, agent_id],
                         eval_masks[:, agent_id],
-                        eval_available_actions[:, agent_id]
-                        if eval_available_actions is not None else None,
+                        eval_available_actions[:, agent_id] if eval_available_actions is not None else None,
                         deterministic=True,
                     )
                     eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
@@ -236,9 +269,9 @@ class BaseRunner:
                 if self.manual_delay:
                     time.sleep(0.1)
                 if eval_dones[0]:
-                    print(f'total reward of this episode: {rewards}')
+                    print(f"total reward of this episode: {rewards}")
                     break
-                
+
         if "smac" in self.args["env"]:  # replay for smac, no rendering
             if "v2" in self.args["env"]:
                 self.envs.env.save_replay()
@@ -247,7 +280,7 @@ class BaseRunner:
 
     def restore(self):
         """Restore the model"""
-        self.algo.restore(str(self.algo_args['train']['model_dir']))
+        self.algo.restore(str(self.algo_args["train"]["model_dir"]))
 
     def save(self):
         """Save the model"""
@@ -255,7 +288,7 @@ class BaseRunner:
 
     def close(self):
         """Close environment, writter, and log file."""
-        if self.algo_args['render']['use_render']:
+        if self.algo_args["render"]["use_render"]:
             self.envs.close()
         else:
             self.envs.close()
