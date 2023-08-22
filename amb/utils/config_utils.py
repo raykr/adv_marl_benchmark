@@ -28,18 +28,27 @@ def get_defaults_yaml_args(algo, env, victim=None):
     if victim is not None:
         victim_cfg_path = os.path.join(base_path, "configs", "algos_cfgs", f"{victim}.yaml")
         with open(victim_cfg_path, "r", encoding="utf-8") as file:
-            _victim_args = yaml.load(file, Loader=yaml.FullLoader)
-        # "flatten" the victim args
-        def update_dict(dict1, dict2):
-            for k in dict2:
-                if type(dict2[k]) is dict:
-                    update_dict(dict1, dict2[k])
-                else:
-                    dict1[k] = dict2[k]
-        update_dict(victim_args, _victim_args)
+            victim_args = yaml.load(file, Loader=yaml.FullLoader)
 
     return algo_args, env_args, victim_args
 
+
+def get_one_yaml_args(name, type="algo"):
+    """Load config file for user-specified algo and env.
+    Args:
+        name: (str) yaml name.
+        type: (str) choose from algo, env
+    Returns:
+        read_args: (dict) config from yaml.
+    """
+    base_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))[0]
+    cfg_path = os.path.join(base_path, "configs", f"{type}s_cfgs", f"{name}.yaml")
+
+
+    with open(cfg_path, "r", encoding="utf-8") as file:
+        read_args = yaml.load(file, Loader=yaml.FullLoader)
+
+    return read_args
 
 def update_args(unparsed_dict, **kwargs):
     """Update loaded config with unparsed command-line arguments.
@@ -63,6 +72,8 @@ def update_args(unparsed_dict, **kwargs):
 def get_task_name(env, env_args):
     """Get task name."""
     if env == "smac":
+        task = env_args["map_name"]
+    elif env == "smac_dual":
         task = env_args["map_name"]
     elif env == "smacv2":
         task = env_args["map_name"]

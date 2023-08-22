@@ -27,7 +27,7 @@ from pathlib import Path
 import yaml
 
 import random
-from gym.spaces import Discrete
+from gym.spaces import Discrete, Box
 
 races = {
     "R": sc_common.Random,
@@ -106,6 +106,8 @@ class StarCraft2Env(MultiAgentEnv):
         heuristic_ai=False,
         heuristic_rest=False,
         debug=False,
+        host=True,
+        ports=None,
     ):
         """
         Create a StarCraftC2Env environment.
@@ -222,12 +224,19 @@ class StarCraft2Env(MultiAgentEnv):
         self.stacked_frames = state_config["stacked_frames"]
 
         map_params = get_map_params(self.map_name)
-        self.n_agents = map_params["n_agents"]
-        self.n_enemies = map_params["n_enemies"]
+        if host:
+            self.n_agents = map_params["n_agents"]
+            self.n_enemies = map_params["n_enemies"]
+        else:
+            self.n_agents = map_params["n_enemies"]
+            self.n_enemies = map_params["n_agents"]
         self.episode_limit = map_params["limit"]
         self._move_amount = move_amount
         self._step_mul = step_mul
         self.difficulty = difficulty
+
+        self.host = host
+        self.ports = ports
 
         # Observations and state
         self.obs_own_health = obs_own_health
@@ -279,8 +288,12 @@ class StarCraft2Env(MultiAgentEnv):
         # Map info
         self._agent_race = map_params["a_race"]
         self._bot_race = map_params["b_race"]
-        self.shield_bits_ally = 1 if self._agent_race == "P" else 0
-        self.shield_bits_enemy = 1 if self._bot_race == "P" else 0
+        if self.host:
+            self.shield_bits_ally = 1 if self._agent_race == "P" else 0
+            self.shield_bits_enemy = 1 if self._bot_race == "P" else 0
+        else:
+            self.shield_bits_ally = 1 if self._bot_race == "P" else 0
+            self.shield_bits_enemy = 1 if self._agent_race == "P" else 0
         self.unit_type_bits = map_params["unit_type_bits"]
         self.map_type = map_params["map_type"]
 
@@ -359,25 +372,52 @@ class StarCraft2Env(MultiAgentEnv):
         self._controller = self._sc2_proc.controller
 
         # Request to create the game
-        create = sc_pb.RequestCreateGame(
-            local_map=sc_pb.LocalMap(
-                map_path=_map.path, map_data=self._run_config.map_data(_map.path)
-            ),
-            realtime=False,
-            random_seed=self._seed,
-        )
-        create.player_setup.add(type=sc_pb.Participant)
-        create.player_setup.add(
-            type=sc_pb.Computer,
-            race=races[self._bot_race],
-            difficulty=difficulties[self.difficulty],
-        )
-        self._controller.create_game(create)
+        if self.ports is None:
+            create = sc_pb.RequestCreateGame(
+                local_map=sc_pb.LocalMap(
+                    map_path=_map.path, map_data=self._run_config.map_data(_map.path)
+                ),
+                realtime=False,
+                random_seed=self._seed,
+            )
+            create.player_setup.add(type=sc_pb.Participant)
+            create.player_setup.add(
+                type=sc_pb.Computer,
+                race=races[self._bot_race],
+                difficulty=difficulties[self.difficulty],
+            )
+            self._controller.create_game(create)
 
-        join = sc_pb.RequestJoinGame(
-            race=races[self._agent_race], options=interface_options
-        )
-        self._controller.join_game(join)
+            join = sc_pb.RequestJoinGame(
+                race=races[self._agent_race], options=interface_options
+            )
+            self._controller.join_game(join)
+        else:
+            server_ports = sc_pb.PortSet(game_port=self.ports[0], base_port=self.ports[1])
+            client_ports = sc_pb.PortSet(game_port=self.ports[2], base_port=self.ports[3])
+            if self.host:
+                create = sc_pb.RequestCreateGame(
+                    local_map=sc_pb.LocalMap(
+                        map_path=_map.path, map_data=self._run_config.map_data(_map.path)
+                    ),
+                    realtime=False,
+                    random_seed=self._seed,
+                )
+                create.player_setup.add(type=sc_pb.Participant)
+                create.player_setup.add(type=sc_pb.Participant)
+                self._controller.create_game(create)
+
+                join = sc_pb.RequestJoinGame(
+                    race=races[self._agent_race], options=interface_options,
+                    server_ports=server_ports, client_ports=[client_ports]
+                )
+                self._controller.join_game(join)
+            else:
+                join = sc_pb.RequestJoinGame(
+                    race=races[self._bot_race], options=interface_options,
+                    server_ports=server_ports, client_ports=[client_ports]
+                )
+                self._controller.join_game(join)
 
         game_info = self._controller.game_info()
         map_info = game_info.start_raw
@@ -448,7 +488,6 @@ class StarCraft2Env(MultiAgentEnv):
 
         if self.heuristic_ai:
             self.heuristic_targets = [None] * self.n_agents
-
         try:
             self._obs = self._controller.observe()
             self.init_units()
@@ -511,7 +550,10 @@ class StarCraft2Env(MultiAgentEnv):
         """
         try:
             self._kill_all_units()
-            self._controller.step(2)
+            if self.ports is None:
+                self._controller.step(2)
+            else:
+                self._controller.step(self._step_mul)
         except (protocol.ProtocolError, protocol.ConnectionError):
             self.full_restart()
 
@@ -2156,7 +2198,7 @@ class StarCraft2Env(MultiAgentEnv):
 
     def get_unit_type_id(self, unit, ally):
         """Returns the ID of unit type in the given scenario."""
-        if ally:  # use new SC2 unit types
+        if ally or self.ports is not None:  # use new SC2 unit types
             type_id = unit.unit_type - self._min_unit_type
         else:  # use default SC2 unit types
             if self.map_type == "stalkers_and_zealots":
@@ -2254,13 +2296,14 @@ class StarCraft2Env(MultiAgentEnv):
 
     def _kill_all_units(self):
         """Kill all units on the map."""
-        units_alive = [unit.tag for unit in self.agents.values() if unit.health > 0] + [
-            unit.tag for unit in self.enemies.values() if unit.health > 0
-        ]
-        debug_command = [
-            d_pb.DebugCommand(kill_unit=d_pb.DebugKillUnit(tag=units_alive))
-        ]
-        self._controller.debug(debug_command)
+        if self.host:
+            units_alive = [unit.tag for unit in self.agents.values() if unit.health > 0] + [
+                unit.tag for unit in self.enemies.values() if unit.health > 0
+            ]
+            debug_command = [
+                d_pb.DebugCommand(kill_unit=d_pb.DebugKillUnit(tag=units_alive))
+            ]
+            self._controller.debug(debug_command)
 
     def init_units(self):
         """Initialise the units."""
@@ -2270,7 +2313,7 @@ class StarCraft2Env(MultiAgentEnv):
             self.enemies = {}
 
             ally_units = [
-                unit for unit in self._obs.observation.raw_data.units if unit.owner == 1
+                unit for unit in self._obs.observation.raw_data.units if unit.owner == (1 if self.host else 2)
             ]
             ally_units_sorted = sorted(
                 ally_units,
@@ -2291,13 +2334,16 @@ class StarCraft2Env(MultiAgentEnv):
                     )
 
             for unit in self._obs.observation.raw_data.units:
-                if unit.owner == 2:
+                if unit.owner == (2 if self.host else 1):
                     self.enemies[len(self.enemies)] = unit
                     if self._episode_count == 0:
                         self.max_reward += unit.health_max + unit.shield_max
 
             if self._episode_count == 0:
-                min_unit_type = min(unit.unit_type for unit in self.agents.values())
+                if self.ports is None:
+                    min_unit_type = min(unit.unit_type for unit in self.agents.values())
+                else:
+                    min_unit_type = min(min(unit.unit_type for unit in self.agents.values()), min(unit.unit_type for unit in self.enemies.values()))
                 self._init_ally_unit_types(min_unit_type)
 
             all_agents_created = len(self.agents) == self.n_agents
@@ -2429,3 +2475,6 @@ class StarCraft2Env(MultiAgentEnv):
             "restarts": self.force_restarts,
         }
         return stats
+    
+    def get_env_info(self):
+        return self.observation_space, self.share_observation_space, self.action_space, self.n_agents

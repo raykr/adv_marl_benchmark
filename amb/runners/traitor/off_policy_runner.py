@@ -29,7 +29,7 @@ class OffPolicyRunner(BaseRunner):
         self.last_eval = -1
         self.last_train = -1
 
-        if self.algo_args['render']['use_render'] is False:  # train, not render
+        if self.algo_args['train']['use_render'] is False:  # train, not render
             scheme = {
                 "obs": {"vshape": get_shape_from_obs_space(self.envs.observation_space[0]), "offset": 1, "extra": ["sample_next"]},
                 "rnn_states_actor": {"vshape": (self.recurrent_n, self.rnn_hidden_size), "extra": ["rnn_state"]},
@@ -47,7 +47,9 @@ class OffPolicyRunner(BaseRunner):
             }
             if self.action_type == "Discrete":
                 scheme["available_actions"] = {"vshape": (self.envs.action_space[0].n,), "offset": 1, "init_value": 1, "extra": ["sample_next"]}
-            self.buffer = EpisodeBuffer({**algo_args["train"], **algo_args["model"], **algo_args["algo"]}, self.algo_args["algo"]["buffer_size"], scheme, num_agents=self.num_adv_agents)
+            self.buffer = EpisodeBuffer(algo_args["train"], self.algo_args["train"]["buffer_size"], scheme, num_agents=self.num_adv_agents)
+
+        self.restore()
 
     def init_batch(self):
         obs, share_obs, available_actions = self.envs.reset()
@@ -65,7 +67,7 @@ class OffPolicyRunner(BaseRunner):
 
     def run(self):
         """Run the training (or rendering) pipeline."""
-        if self.algo_args['render']['use_render'] is True:
+        if self.algo_args['train']['use_render'] is True:
             self.render()
             return
         update_num = int(  # update number per train
@@ -153,7 +155,7 @@ class OffPolicyRunner(BaseRunner):
                 # eval
                 if self.current_timestep - self.last_eval >= self.algo_args['train']['eval_interval']:
                     self.last_eval = self.current_timestep
-                    if self.algo_args['eval']['use_eval']:
+                    if self.algo_args['train']['use_eval']:
                         self.eval()
                         self.eval_adv()
                     self.save()

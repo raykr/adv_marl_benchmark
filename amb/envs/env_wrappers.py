@@ -163,7 +163,6 @@ class ShareVecEnv(ABC):
         return self.viewer
 
 
-
 def shareworker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
     env = env_fn_wrapper.x()
@@ -185,12 +184,34 @@ def shareworker(remote, parent_remote, env_fn_wrapper):
                     ob, s_ob, available_actions = env.reset()
 
             remote.send((ob, s_ob, reward, done, info, available_actions))
+        elif cmd == "step_dual":
+            ob, s_ob, reward, done, info, available_actions = env.step(data)
+            if "bool" in done[0].__class__.__name__:  # done is a bool
+                if done[0]:  # if done, save the original obs, state, and available actions in info, and then reset
+                    info[0][0]["original_obs"] = copy.deepcopy(ob[0])
+                    info[0][0]["original_state"] = copy.deepcopy(s_ob[0])
+                    info[0][0]["original_avail_actions"] = copy.deepcopy(available_actions[0])
+                    info[1][0]["original_obs"] = copy.deepcopy(ob[1])
+                    info[1][0]["original_state"] = copy.deepcopy(s_ob[1])
+                    info[1][0]["original_avail_actions"] = copy.deepcopy(available_actions[1])
+                    ob, s_ob, available_actions = env.reset()
+            else:
+                if np.all(done[0]):  # if done, save the original obs, state, and available actions in info, and then reset
+                    info[0][0]["original_obs"] = copy.deepcopy(ob[0])
+                    info[0][0]["original_state"] = copy.deepcopy(s_ob[0])
+                    info[0][0]["original_avail_actions"] = copy.deepcopy(available_actions[0])
+                    info[1][0]["original_obs"] = copy.deepcopy(ob[1])
+                    info[1][0]["original_state"] = copy.deepcopy(s_ob[1])
+                    info[1][0]["original_avail_actions"] = copy.deepcopy(available_actions[1])
+                    ob, s_ob, available_actions = env.reset()
+
+            remote.send((ob, s_ob, reward, done, info, available_actions))
         elif cmd == "reset":
             ob, s_ob, available_actions = env.reset()
             remote.send((ob, s_ob, available_actions))
-        elif cmd == "reset_task":
-            ob = env.reset_task()
-            remote.send(ob)
+        # elif cmd == "reset_task":
+        #     ob = env.reset_task()
+        #     remote.send(ob)
         elif cmd == "render":
             if data == "rgb_array":
                 fr = env.render(mode=data)
@@ -205,11 +226,13 @@ def shareworker(remote, parent_remote, env_fn_wrapper):
             remote.send(
                 (env.observation_space, env.share_observation_space, env.action_space)
             )
-        elif cmd == "render_vulnerability":
-            fr = env.render_vulnerability(data)
-            remote.send((fr))
+        # elif cmd == "render_vulnerability":
+        #     fr = env.render_vulnerability(data)
+        #     remote.send((fr))
         elif cmd == "get_num_agents":
             remote.send((env.n_agents))
+        elif cmd == "get_num_agents_dual":
+            remote.send((env.n_angels, env.n_demons))
         else:
             raise NotImplementedError
 
@@ -242,9 +265,7 @@ class ShareSubprocVecEnv(ShareVecEnv):
         self.remotes[0].send(("get_num_agents", None))
         self.n_agents = self.remotes[0].recv()
         self.remotes[0].send(("get_spaces", None))
-        observation_space, share_observation_space, action_space = self.remotes[
-            0
-        ].recv()
+        observation_space, share_observation_space, action_space = self.remotes[0].recv()
         ShareVecEnv.__init__(
             self, len(env_fns), observation_space, share_observation_space, action_space
         )
@@ -294,10 +315,10 @@ class ShareSubprocVecEnv(ShareVecEnv):
         obs, share_obs, available_actions = zip(*results)
         return np.stack(obs), np.stack(share_obs), np.stack(available_actions)
 
-    def reset_task(self):
-        for remote in self.remotes:
-            remote.send(("reset_task", None))
-        return np.stack([remote.recv() for remote in self.remotes])
+    # def reset_task(self):
+    #     for remote in self.remotes:
+    #         remote.send(("reset_task", None))
+    #     return np.stack([remote.recv() for remote in self.remotes])
 
     def close(self):
         if self.closed:
@@ -311,6 +332,90 @@ class ShareSubprocVecEnv(ShareVecEnv):
             p.join()
         self.closed = True
 
+
+class ShareSubprocVecDualEnv(ShareSubprocVecEnv):
+    def __init__(self, env_fns, spaces=None):
+        self.waiting = False
+        self.closed = False
+        nenvs = len(env_fns)
+        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
+        self.ps = [
+            Process(
+                target=shareworker,
+                args=(work_remote, remote, CloudpickleWrapper(env_fn)),
+            )
+            for (work_remote, remote, env_fn) in zip(
+                self.work_remotes, self.remotes, env_fns
+            )
+        ]
+        for p in self.ps:
+            # p.daemon = (
+            #     True  # if the main process crashes, we should not cause things to hang
+            # )
+            p.start()
+        for remote in self.work_remotes:
+            remote.close()
+        self.remotes[0].send(("get_num_agents", None))
+        self.n_agents = self.remotes[0].recv()
+        self.remotes[0].send(("get_spaces", None))
+        observation_space, share_observation_space, action_space = self.remotes[0].recv()
+        self.remotes[0].send(("get_num_agents_dual", None))
+        self.n_angels, self.n_demons = self.remotes[0].recv()
+        ShareVecEnv.__init__(
+            self, len(env_fns), observation_space, share_observation_space, action_space
+        )
+        
+
+    def step_async(self, actions, filled=None):
+        angel_actions, demon_actions = actions
+        if filled is None:
+            for remote, a_action, d_action in zip(self.remotes, angel_actions, demon_actions):
+                remote.send(("step_dual", (a_action, d_action)))
+        else:
+            for remote, a_action, d_action, fill in zip(self.remotes, angel_actions, demon_actions, filled):
+                if fill:
+                    remote.send(("step_dual", (a_action, d_action)))
+        self.waiting = True
+
+    def step_wait(self, filled=None):
+        if filled is None:
+            results = [remote.recv() for remote in self.remotes]
+        else:
+            results = []
+            for i in range(len(filled)):
+                if filled[i]:
+                    results.append(self.remotes[i].recv())
+                else:
+                    results.append(None)
+            for elm in results:
+                if elm is not None:
+                    temp = elm
+                    break
+            for i in range(len(results)):
+                if results[i] is None:
+                    results[i] = copy.deepcopy(elm)
+        self.waiting = False
+        obs, share_obs, rews, dones, infos, available_actions = zip(*results)
+        
+        return (
+            [np.stack(o) for o in zip(*obs)],
+            [np.stack(o) for o in zip(*share_obs)],
+            [np.stack(o) for o in zip(*rews)],
+            [np.stack(o) for o in zip(*dones)],
+            [o for o in zip(*infos)],
+            [np.stack(o) for o in zip(*available_actions)],
+        )
+    
+    def reset(self):
+        for remote in self.remotes:
+            remote.send(("reset", None))
+        results = [remote.recv() for remote in self.remotes]
+        obs, share_obs, available_actions = zip(*results)
+        return (
+            [np.stack(o) for o in zip(*obs)],
+            [np.stack(o) for o in zip(*share_obs)],
+            [np.stack(o) for o in zip(*available_actions)],
+        )
 
 # single env
 class ShareDummyVecEnv(ShareVecEnv):
@@ -327,6 +432,12 @@ class ShareDummyVecEnv(ShareVecEnv):
         self.actions = None
         try:
             self.n_agents = env.n_agents
+        except:
+            pass
+
+        try:
+            self.n_angels = env.n_angels
+            self.n_demons = env.n_demons
         except:
             pass
 
@@ -377,3 +488,53 @@ class ShareDummyVecEnv(ShareVecEnv):
                 env.render(mode=mode)
         else:
             raise NotImplementedError
+
+
+class ShareDummyVecDualEnv(ShareDummyVecEnv):
+    def step_wait(self, filled=None):
+        angel_actions, demon_actions = self.actions
+        results = [env.step((a, d)) for (a, d, env) in zip(angel_actions, demon_actions, self.envs)]
+        obs, share_obs, rews, dones, infos, available_actions = zip(*results)
+
+        obs, share_obs, available_actions = list(obs), list(share_obs), list(available_actions)
+
+        for i, done in enumerate(dones):
+            if "bool" in done[0].__class__.__name__:  # done is a bool
+                if done[0]:  # if done, save the original obs, state, and available actions in info, and then reset
+                    infos[i][0][0]["original_obs"] = copy.deepcopy(obs[i][0])
+                    infos[i][0][0]["original_state"] = copy.deepcopy(share_obs[i][0])
+                    infos[i][0][0]["original_avail_actions"] = copy.deepcopy(available_actions[i][0])
+                    infos[i][1][0]["original_obs"] = copy.deepcopy(obs[i][1])
+                    infos[i][1][0]["original_state"] = copy.deepcopy(share_obs[i][1])
+                    infos[i][1][0]["original_avail_actions"] = copy.deepcopy(available_actions[i][1])
+                    obs[i], share_obs[i], available_actions[i] = self.envs[i].reset()
+            else:
+                if np.all(done[0]):  # if done, save the original obs, state, and available actions in info, and then reset
+                    infos[i][0][0]["original_obs"] = copy.deepcopy(obs[i][0])
+                    infos[i][0][0]["original_state"] = copy.deepcopy(share_obs[i][0])
+                    infos[i][0][0]["original_avail_actions"] = copy.deepcopy(available_actions[i][0])
+                    infos[i][1][0]["original_obs"] = copy.deepcopy(obs[i][1])
+                    infos[i][1][0]["original_state"] = copy.deepcopy(share_obs[i][1])
+                    infos[i][1][0]["original_avail_actions"] = copy.deepcopy(available_actions[i][1])
+                    obs[i], share_obs[i], available_actions[i] = self.envs[i].reset()
+
+        self.actions = None
+
+        return (
+            [np.stack(o) for o in zip(*obs)],
+            [np.stack(o) for o in zip(*share_obs)],
+            [np.stack(o) for o in zip(*rews)],
+            [np.stack(o) for o in zip(*dones)],
+            [o for o in zip(*infos)],
+            [np.stack(o) for o in zip(*available_actions)],
+        )
+    
+    def reset(self):
+        results = [env.reset() for env in self.envs]
+        obs, share_obs, available_actions = zip(*results)
+
+        return (
+            [np.stack(o) for o in zip(*obs)],
+            [np.stack(o) for o in zip(*share_obs)],
+            [np.stack(o) for o in zip(*available_actions)],
+        )

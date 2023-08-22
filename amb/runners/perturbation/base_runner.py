@@ -10,7 +10,6 @@ from amb.utils.env_utils import (
     make_train_env,
     make_render_env,
     set_seed,
-    get_num_agents,
 )
 from amb.utils.model_utils import init_device
 from amb.utils.config_utils import init_dir, save_config, get_task_name
@@ -35,18 +34,18 @@ class BaseRunner:
 
         self.n_rollout_threads = algo_args["train"]["n_rollout_threads"]
 
-        set_seed(algo_args["seed"])
-        self.device = init_device(algo_args["device"])
+        set_seed(algo_args["train"])
+        self.device = init_device(algo_args["train"])
         self.task_name = get_task_name(args["env"], env_args)
-        if not self.algo_args['render']['use_render']:
+        if not self.algo_args['train']['use_render']:
             self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
                 args["env"],
                 env_args,
                 args["victim"],
                 args["exp_name"],
                 args["run"],
-                algo_args["seed"]["seed"],
-                logger_path=algo_args["logger"]["log_dir"],
+                algo_args["train"]["seed"],
+                logger_path=algo_args["train"]["log_dir"],
             )
             save_config(args, algo_args, env_args, self.run_dir)
         setproctitle.setproctitle(
@@ -54,28 +53,28 @@ class BaseRunner:
         )
 
         # set the config of env
-        if self.algo_args['render']['use_render']:  # make envs for rendering
+        if self.algo_args['train']['use_render']:  # make envs for rendering
             (
                 self.envs,
                 self.manual_render,
                 self.manual_delay,
                 self.env_num,
-            ) = make_render_env(args["env"], algo_args["seed"]["seed"], env_args)
+            ) = make_render_env(args["env"], algo_args["train"]["seed"], env_args)
         else:  # make envs for training and evaluation
             self.envs = make_train_env(
                 args["env"],
-                algo_args["seed"]["seed"],
+                algo_args["train"]["seed"],
                 algo_args["train"]["n_rollout_threads"],
                 env_args,
             )
-        self.num_agents = get_num_agents(args["env"], env_args, self.envs)
+        self.num_agents = self.envs.n_agents
         self.action_type = self.envs.action_space[0].__class__.__name__
 
         print("share_observation_space: ", self.envs.share_observation_space)
         print("observation_space: ", self.envs.observation_space)
         print("action_space: ", self.envs.action_space, self.action_type)
 
-        if self.algo_args['render']['use_render'] is False:
+        if self.algo_args['train']['use_render'] is False:
             self.logger = LOGGER_REGISTRY[args["env"]](
                 args, algo_args, env_args, self.num_agents, self.writter, self.run_dir
             )
@@ -94,12 +93,12 @@ class BaseRunner:
         self.attacks = []
         if self.share_param:
             agent = ALGO_REGISTRY[args["victim"]].create_agent(
-                algo_args["victim"],
+                algo_args["train"],
                 self.envs.observation_space[0],
                 self.envs.action_space[0],
                 device=self.device,
             )
-            attack = ALGO_REGISTRY[args["algo"]](algo_args["attack"], self.envs.action_space[0], self.device)
+            attack = ALGO_REGISTRY[args["algo"]](algo_args["train"], self.envs.action_space[0], self.device)
             for agent_id in range(self.num_agents):
                 self.agents.append(agent)
                 self.attacks.append(attack)
@@ -111,13 +110,11 @@ class BaseRunner:
                     self.envs.action_space[agent_id],
                     device=self.device,
                 )
-                attack = ALGO_REGISTRY[args["algo"]](algo_args["attack"], self.envs.action_space[agent_id], self.device)
+                attack = ALGO_REGISTRY[args["algo"]](algo_args["train"], self.envs.action_space[agent_id], self.device)
                 self.agents.append(agent)
                 self.attacks.append(attack)
 
-        if self.algo_args['victim']['model_dir'] is not None:  # restore victim
-            print("Restore victim from", self.algo_args['victim']['model_dir'])
-            self.restore()
+        self.restore()
 
     def run(self):
         print("start perturbation-based attack")
@@ -242,7 +239,7 @@ class BaseRunner:
         eval_rnn_states = np.zeros((self.env_num, self.num_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
         eval_masks = np.ones((self.env_num, self.num_agents, 1), dtype=np.float32)
 
-        for _ in range(self.algo_args['render']['render_episodes']):
+        for _ in range(self.algo_args['train']['render_episodes']):
             eval_obs, _, eval_available_actions = self.envs.reset()
             rewards = 0
             while True:
@@ -279,7 +276,8 @@ class BaseRunner:
                     self.envs.render()
                 if self.manual_delay:
                     time.sleep(0.1)
-                if eval_dones[0]:
+                eval_dones_env = np.all(eval_dones)
+                if eval_dones_env:
                     print(f'total reward of this episode: {rewards}')
                     break
                 
@@ -291,11 +289,13 @@ class BaseRunner:
 
     def restore(self):
         """Restore the model"""
-        if self.share_param:
-            self.agents[0].restore(self.algo_args['victim']['model_dir'])
-        else:
-            for agent_id in range(self.num_agents):
-                self.agents[agent_id].restore(os.path.join(self.algo_args['victim']['model_dir'], str(agent_id)))
+        if self.algo_args['victim']['model_dir'] is not None:  # restore victim
+            print("Restore victim from", self.algo_args['victim']['model_dir'])
+            if self.share_param:
+                self.agents[0].restore(self.algo_args['victim']['model_dir'])
+            else:
+                for agent_id in range(self.num_agents):
+                    self.agents[agent_id].restore(os.path.join(self.algo_args['victim']['model_dir'], str(agent_id)))
 
     def save(self):
         """Save the model"""
@@ -307,7 +307,7 @@ class BaseRunner:
 
     def close(self):
         """Close environment."""
-        if self.algo_args['render']['use_render']:
+        if self.algo_args['train']['use_render']:
             self.envs.close()
         else:
             self.envs.close()

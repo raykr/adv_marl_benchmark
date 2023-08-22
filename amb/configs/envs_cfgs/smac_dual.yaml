@@ -1,4 +1,5 @@
-map_name: 3s_vs_4z
+map_name: 3s_vs_4z_dual
 state_type: FP # choose from FP (Feature Pruned) and EP (Environment Provided)
+reverse_team: False
 replay_dir: ""
 replay_prefix: ""

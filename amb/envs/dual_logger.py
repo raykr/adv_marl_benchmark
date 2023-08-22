@@ -6,18 +6,19 @@ import numpy as np
 from amb.utils.trans_utils import _dimalign
 
 
-class BaseLogger:
-    """Base logger class.
+class DualLogger:
+    """Base dual logger class.
     Used for logging information in the on-policy training pipeline.
     """
 
-    def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
+    def __init__(self, args, algo_args, env_args, num_angels, num_demons, writter, run_dir):
         """Initialize the logger."""
         self.args = args
         self.algo_args = algo_args
         self.env_args = env_args
         self.task_name = self.get_task_name()
-        self.num_agents = num_agents
+        self.num_angels = num_angels
+        self.num_demons = num_demons
         self.writter = writter
         self.run_dir = run_dir
         self.log_file = open(os.path.join(run_dir, "progress.txt"), "w", encoding='utf-8')
@@ -30,8 +31,8 @@ class BaseLogger:
     
     def get_average_step_reward(self, buffers):
         t = buffers[0].current_size
-        rewards = buffers[0].data["rewards"][t:t+self.algo_args["train"]["n_rollout_threads"]]
-        filled = buffers[0].data["filled"][t:t+self.algo_args["train"]["n_rollout_threads"]]
+        rewards = buffers[0].data["rewards"][t:t+self.algo_args["angel"]["n_rollout_threads"]]
+        filled = buffers[0].data["filled"][t:t+self.algo_args["angel"]["n_rollout_threads"]]
         filled = _dimalign(filled, rewards)
         average_rewards = (rewards * filled).sum() / filled.sum()
         return average_rewards
@@ -39,9 +40,9 @@ class BaseLogger:
     def init(self):
         """Initialize the logger."""
         self.start = time.time()
-        self.train_episode_rewards = np.zeros(self.algo_args["train"]["n_rollout_threads"])
+        self.train_episode_rewards = np.zeros(self.algo_args["angel"]["n_rollout_threads"])
         self.done_episodes_rewards = []
-        self.one_episode_len = np.zeros(self.algo_args["train"]["n_rollout_threads"], dtype=np.int32)
+        self.one_episode_len = np.zeros(self.algo_args["angel"]["n_rollout_threads"], dtype=np.int32)
         self.episode_lens = []
 
     def episode_init(self, timestep):
@@ -58,7 +59,7 @@ class BaseLogger:
         dones_env = np.all(dones, axis=1) * filled
         reward_env = np.mean(rewards, axis=1).flatten() * filled
         self.train_episode_rewards += reward_env
-        for t in range(self.algo_args["train"]["n_rollout_threads"]):
+        for t in range(self.algo_args["angel"]["n_rollout_threads"]):
             if filled[t] :
                 self.one_episode_len[t] += 1
                 if dones_env[t]:
@@ -71,13 +72,14 @@ class BaseLogger:
         """Log information for each episode."""
         self.end = time.time()
         print(
-            "\n[Env] {} [Task] {} [Algo] {} [Exp] {}. Total timesteps {}/{}, FPS {}.".format(
+            "\n[Env] {} [Task] {} [Angel] {} [Demon] {} [Exp] {}. Total timesteps {}/{}, FPS {}.".format(
                 self.args["env"],
                 self.task_name,
-                self.args["algo"],
+                self.args["angel"],
+                self.args["demon"],
                 self.args["exp_name"],
                 self.timestep,
-                self.algo_args['train']['num_env_steps'],
+                self.algo_args["angel"]['num_env_steps'],
                 int(self.timestep / (self.end - self.start)),
             )
         )
@@ -142,7 +144,7 @@ class BaseLogger:
         self.log_env(eval_env_infos)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
         print("Evaluation average episode reward is {}.\n".format(eval_avg_rew))
-        if self.args["run"] == "single":
+        if self.args["run"] == "dual":
             self.log_file.write(
                 ",".join(map(str, [self.timestep, eval_avg_rew])) + "\n"
             )
@@ -163,10 +165,10 @@ class BaseLogger:
         if self.args["run"] == "perturbation":
             self.adv_file.write(
                 ",".join(map(str, [
-                    self.algo_args["train"]["perturb_epsilon"], 
-                    self.algo_args["train"]["perturb_iters"], 
-                    self.algo_args["train"]["adaptive_alpha"], 
-                    self.algo_args["train"]["perturb_alpha"], 
+                    self.algo_args["angel"]["perturb_epsilon"], 
+                    self.algo_args["angel"]["perturb_iters"], 
+                    self.algo_args["angel"]["adaptive_alpha"], 
+                    self.algo_args["angel"]["perturb_alpha"], 
                     eval_avg_rew])) + "\n"
             )
             self.adv_file.flush()
@@ -179,7 +181,7 @@ class BaseLogger:
     def log_train(self, actor_train_infos, critic_train_info):
         """Log training information."""
         # log actor
-        for agent_id in range(self.num_agents):
+        for agent_id in range(self.num_angels):
             for k, v in actor_train_infos[agent_id].items():
                 agent_k = "agent%i/" % agent_id + k
                 self.writter.add_scalar(agent_k, v, self.timestep)

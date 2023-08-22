@@ -1,15 +1,15 @@
 import time
 from functools import reduce
 import numpy as np
-from amb.envs.base_logger import BaseLogger
+from amb.envs.dual_logger import DualLogger
 
 
-class SMACLogger(BaseLogger):
+class SMACDualLogger(DualLogger):
 
-    def __init__(self, args, algo_args, env_args, num_agents, writter, run_dir):
-        super(SMACLogger, self).__init__(args, algo_args, env_args, num_agents, writter, run_dir)
+    def __init__(self, args, algo_args, env_args, num_angels, num_demons, writter, run_dir):
+        super(SMACDualLogger, self).__init__(args, algo_args, env_args, num_angels, num_demons, writter, run_dir)
         self.win_key = "won"
-        self.infos = [{} for i in range(self.algo_args["train"]["n_rollout_threads"])]
+        self.infos = [{} for i in range(self.algo_args["angel"]["n_rollout_threads"])]
 
     def get_task_name(self):
         return self.env_args["map_name"]
@@ -17,10 +17,10 @@ class SMACLogger(BaseLogger):
     def init(self):
         super().init()
         self.last_battles_game = np.zeros(
-            self.algo_args["train"]["n_rollout_threads"], dtype=np.float32
+            self.algo_args["angel"]["n_rollout_threads"], dtype=np.float32
         )
         self.last_battles_won = np.zeros(
-            self.algo_args["train"]["n_rollout_threads"], dtype=np.float32
+            self.algo_args["angel"]["n_rollout_threads"], dtype=np.float32
         )
 
     def per_step(self, data):
@@ -29,7 +29,7 @@ class SMACLogger(BaseLogger):
         filled = data["filled"]
         if len(filled.shape) > 1:
             filled = filled[:, 0]
-        for i in range(self.algo_args["train"]["n_rollout_threads"]):
+        for i in range(self.algo_args["angel"]["n_rollout_threads"]):
             if filled[i]:
                 self.infos[i] = infos[i]
 
@@ -94,7 +94,7 @@ class SMACLogger(BaseLogger):
                 eval_win_rate, eval_avg_rew
             )
         )
-        if self.args["run"] == "single":
+        if self.args["run"] == "dual":
             self.log_file.write(
                 ",".join(map(str, [self.timestep, eval_avg_rew, eval_win_rate]))
                 + "\n"
@@ -120,10 +120,10 @@ class SMACLogger(BaseLogger):
         if self.args["run"] == "perturbation":
             self.adv_file.write(
                 ",".join(map(str, [
-                    self.algo_args["train"]["perturb_epsilon"], 
-                    self.algo_args["train"]["perturb_iters"], 
-                    self.algo_args["train"]["adaptive_alpha"], 
-                    self.algo_args["train"]["perturb_alpha"], 
+                    self.algo_args["angel"]["perturb_epsilon"], 
+                    self.algo_args["angel"]["perturb_iters"], 
+                    self.algo_args["angel"]["adaptive_alpha"], 
+                    self.algo_args["angel"]["perturb_alpha"], 
                     eval_avg_rew, eval_win_rate])) + "\n"
             )
             self.adv_file.flush()

@@ -35,7 +35,6 @@ class QMIX:
         self.batch_size = args["batch_size"]
         self.gamma = args["gamma"]
         self.lr = args["lr"]
-        self.critic_lr = args["critic_lr"]
         self.polyak = args["polyak"]
         self.use_policy_active_masks = args["use_policy_active_masks"]
 

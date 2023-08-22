@@ -20,7 +20,7 @@ class OnPolicyRunner(BaseRunner):
         """
         super(OnPolicyRunner, self).__init__(args, algo_args, env_args)
 
-        if self.algo_args['render']['use_render'] is False:  # train, not render
+        if self.algo_args['train']['use_render'] is False:  # train, not render
             self.buffers = []
             for agent_id in range(self.num_adv_agents):
                 scheme = {
@@ -41,12 +41,14 @@ class OnPolicyRunner(BaseRunner):
                 }
                 if self.action_type == "Discrete":
                     scheme["available_actions"] = {"vshape": (self.envs.action_space[agent_id].n,), "offset": 1, "init_value": 1}
-                self.buffers.append(EpisodeBuffer({**algo_args["train"], **algo_args["model"], **algo_args["algo"]}, self.n_rollout_threads, scheme))
+                self.buffers.append(EpisodeBuffer(algo_args["train"], self.n_rollout_threads, scheme))
 
             if self.algo_args['train']['use_popart'] is True:
                 self.value_normalizer = PopArt(1, device=self.device)
             else:
                 self.value_normalizer = None
+
+        self.restore()
 
     def init_batch(self):
         """initialize the replay buffer."""
@@ -66,7 +68,7 @@ class OnPolicyRunner(BaseRunner):
 
     def run(self):
         """Run the training (or rendering) pipeline."""
-        if self.algo_args['render']['use_render'] is True:
+        if self.algo_args['train']['use_render'] is True:
             self.render()
             return
         print("start running")
@@ -158,7 +160,7 @@ class OnPolicyRunner(BaseRunner):
 
             # eval
             if episode % self.algo_args['train']['eval_interval'] == 0:
-                if self.algo_args['eval']['use_eval']:
+                if self.algo_args['train']['use_eval']:
                     self.eval()
                     self.eval_adv()
                 self.save()
@@ -285,9 +287,10 @@ class OnPolicyRunner(BaseRunner):
 
     def restore(self):
         """Restore model parameters."""
-        super().restore()
-        if self.algo_args['render']['use_render'] is False and self.value_normalizer is not None:
-            value_normalizer_state_dict = torch.load(
-                str(self.algo_args['train']['model_dir']) + "/value_normalizer.pth"
-            )
-            self.value_normalizer.load_state_dict(value_normalizer_state_dict)
+        if self.algo_args['train']['model_dir'] is not None:
+            super().restore()
+            if self.algo_args['train']['use_render'] is False and self.value_normalizer is not None:
+                value_normalizer_state_dict = torch.load(
+                    str(self.algo_args['train']['model_dir']) + "/value_normalizer.pth"
+                )
+                self.value_normalizer.load_state_dict(value_normalizer_state_dict)

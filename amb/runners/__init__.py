@@ -16,3 +16,10 @@ def get_runner(run, algo):
         elif algo == "maddpg":
             from amb.runners.traitor.off_policy_runner import OffPolicyRunner
             return OffPolicyRunner
+    if run == "dual":
+        if algo == "mappo":
+            from amb.runners.dual.on_policy_runner import OnPolicyRunner
+            return OnPolicyRunner
+        elif algo == "maddpg":
+            from amb.runners.dual.off_policy_runner import OffPolicyRunner
+            return OffPolicyRunner
