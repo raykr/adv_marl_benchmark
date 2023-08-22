@@ -1,4 +1,6 @@
 import os
+import nni
+import socket
 import time
 import torch
 import numpy as np
@@ -56,6 +58,44 @@ class BaseRunner:
                 logger_path=algo_args["logger"]["log_dir"],
             )
             save_config(args, algo_args, env_args, self.run_dir)
+
+            # init wandb and save config
+            wandb_dir = self.run_dir
+            wandb_name = (
+                args["env"]
+                + "_"
+                + get_task_name(args["env"], env_args)
+                + "_"
+                + args["run"]
+                + "_"
+                + args["algo"]
+                + "_seed-"
+                + str(algo_args["seed"]["seed"])
+                + "_"
+                + time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+            )
+            if algo_args["logger"]["use_wandb"]:
+                # nni wandb path
+                if algo_args["logger"]["log_dir"] == "#nni_dynamic":
+                    wandb_dir = os.path.join(os.environ["NNI_OUTPUT_DIR"])
+                    wandb_name = nni.get_trial_id()
+
+                import wandb
+
+                wandb.init(
+                    project=args["exp_name"],
+                    name=wandb_name,
+                    config={
+                        "args": args,
+                        "algo_args": algo_args,
+                        "env_args": env_args,
+                    },
+                    notes=socket.gethostname(),
+                    entity="adv_marl_benchmark",
+                    dir=wandb_dir,
+                    job_type="training",
+                )
+        
         setproctitle.setproctitle(
             str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"])
         )
