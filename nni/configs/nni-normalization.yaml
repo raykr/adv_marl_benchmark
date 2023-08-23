@@ -1,11 +1,14 @@
 experimentName: nni-normalization
 searchSpace:
   # common hyperparameters [don't change]
-  algo_args.logger.log_dir:
+  algo_args.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
+  algo_args.num_env_steps:
+    _type: choice
+    _value: [3000000]
   main_args.algo:
     _type: choice
     _value: ["mappo", "maddpg", "qmix"]
@@ -21,20 +24,20 @@ searchSpace:
       ]
   env_args.map_name:
     _type: choice
-    _value: ["3m", "3s6z"]
-  algo_args.seed.seed:
+    _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
+  algo_args.seed:
     _type: choice
     _value: [0, 1, 2]
 
   # normalization
-  algo_args.model.use_feature_normalization:
+  algo_args.use_feature_normalization:
     _type: choice
     _value: [true, false]
-  algo_args.train.use_popart:
+  algo_args.use_popart:
     _type: choice
     _value: [true, false]
 
-trialCommand: python -u ../../train.py --env=smac --algo=mappo --exp_name nni_normalization --run single
+trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-normalization --run single
 trialCodeDirectory: .
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1

@@ -1,4 +1,4 @@
-experimentName: nni-explore-mappo
+experimentName: nni-optimizer-gamma
 searchSpace:
   # common hyperparameters [don't change]
   algo_args.log_dir:
@@ -11,7 +11,7 @@ searchSpace:
     _value: [3000000]
   main_args.algo:
     _type: choice
-    _value: ["mappo"]
+    _value: ["mappo", "maddpg", "qmix"]
   main_args.env:
     _type: choice
     _value: ["smac"]
@@ -25,17 +25,16 @@ searchSpace:
   env_args.map_name:
     _type: choice
     _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
-  algo_args.seed":
+  algo_args.seed:
     _type: choice
     _value: [0, 1]
 
-  # Exploration and Exploitation
-  # PPO
-  algo_args.entropy_coef:
+  # Optimizer
+  algo_args.gamma:
     _type: choice
-    _value: [0.001, 0.01, 0.1]
+    _value: [0.90, 0.95, 0.99]
 
-trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-explore-mappo --run single
+trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-optimizer-gamma --run single
 trialCodeDirectory: .
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1

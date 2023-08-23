@@ -1,14 +1,17 @@
-experimentName: nni-explore-q
+experimentName: nni-explore-qmix
 searchSpace:
   # common hyperparameters [don't change]
-  algo_args.logger.log_dir:
+  algo_args.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
+  algo_args.num_env_steps:
+    _type: choice
+    _value: [3000000]
   main_args.algo:
     _type: choice
-    _value: ["qmix", "iql", "vdn"]
+    _value: ["qmix"]
   main_args.env:
     _type: choice
     _value: ["smac"]
@@ -21,22 +24,18 @@ searchSpace:
       ]
   env_args.map_name:
     _type: choice
-    _value: ["3m", "3s6z"]
-  algo_args.seed.seed":
+    _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
+  algo_args.seed":
     _type: choice
-    _value: [0, 1, 2]
+    _value: [0, 1]
 
   # Exploration and Exploitation
   # Q-family
-  algo_args.model.epsilon_anneal_time:
+  algo_args.epsilon_anneal_time:
     _type: choice
-    _value: [100000, 50000, 500000]
-  # parallel env nums
-  algo_args.train.n_rollout_threads:
-    _type: choice
-    _value: [20, 40, 10]
+    _value: [50000, 100000, 500000]
 
-trialCommand: python -u ../../train.py --env=smac --algo=mappo --exp_name nni_explore_q --run single
+trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-explore-qmix --run single
 trialCodeDirectory: .
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1

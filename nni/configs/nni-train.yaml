@@ -1,11 +1,14 @@
-experimentName: nni-train
+experimentName: nni-optimizer-lr
 searchSpace:
   # common hyperparameters [don't change]
-  algo_args.logger.log_dir:
+  algo_args.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
+  algo_args.num_env_steps:
+    _type: choice
+    _value: [3000000]
   main_args.algo:
     _type: choice
     _value: ["mappo", "maddpg", "qmix"]
@@ -21,22 +24,21 @@ searchSpace:
       ]
   env_args.map_name:
     _type: choice
-    _value: ["3m", "3s6z"]
-  algo_args.seed.seed:
+    _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
+  algo_args.seed:
     _type: choice
-    _value: [0, 1, 2]
+    _value: [0, 1]
 
   # multi-agent training
-  algo_args.algo.share_param:
+  algo_args.share_param:
     _type: choice
     _value: [true, false]
-  algo_args.algo.algo_type:
+  algo_args.algo_type:
     _type: choice
     _value: ["IL", "VD", "CC"]
 
-trialCommand: python -u ../../train.py --env=smac --algo=mappo --exp_name nni_train --run single
+trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-optimizer-lr --run single
 trialCodeDirectory: .
-# experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1
 trialConcurrency: 3
 tuner:
