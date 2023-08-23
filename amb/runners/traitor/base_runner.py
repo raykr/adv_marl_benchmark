@@ -69,13 +69,13 @@ class BaseRunner:
                 + "_"
                 + args["algo"]
                 + "_seed-"
-                + str(algo_args["seed"]["seed"])
+                + str(algo_args["train"]["seed"])
                 + "_"
                 + time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
             )
-            if algo_args["logger"]["use_wandb"]:
+            if "use_wandb" in algo_args["train"] and algo_args["train"]["use_wandb"]:
                 # nni wandb path
-                if algo_args["logger"]["log_dir"] == "#nni_dynamic":
+                if algo_args["train"]["log_dir"] == "#nni_dynamic":
                     wandb_dir = os.path.join(os.environ["NNI_OUTPUT_DIR"])
                     wandb_name = nni.get_trial_id()
 
