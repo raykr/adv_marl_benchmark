@@ -13,7 +13,6 @@ from amb.utils.env_utils import (
     make_train_env,
     make_render_env,
     set_seed,
-    get_num_agents,
 )
 from amb.utils.model_utils import init_device
 from amb.utils.config_utils import init_dir, save_config, get_task_name
@@ -31,31 +30,31 @@ class BaseRunner:
         self.algo_args = algo_args
         self.env_args = env_args
 
-        self.rnn_hidden_size = algo_args["model"]["hidden_sizes"][-1]
-        self.recurrent_n = algo_args["model"]["recurrent_n"]
+        self.rnn_hidden_size = algo_args["train"]["hidden_sizes"][-1]
+        self.recurrent_n = algo_args["train"]["recurrent_n"]
 
         self.victim_rnn_hidden_size = algo_args["victim"]["hidden_sizes"][-1]
         self.victim_recurrent_n = algo_args["victim"]["recurrent_n"]
         
         self.episode_length = algo_args["train"]["episode_length"]
         self.n_rollout_threads = algo_args["train"]["n_rollout_threads"]
-        self.n_eval_rollout_threads = algo_args['eval']['n_eval_rollout_threads']
+        self.n_eval_rollout_threads = algo_args['train']['n_eval_rollout_threads']
 
-        self.share_param = algo_args["algo"]['share_param']
+        self.share_param = algo_args["train"]['share_param']
         self.victim_share_param = algo_args["victim"]['share_param']
 
-        set_seed(algo_args["seed"])
-        self.device = init_device(algo_args["device"])
+        set_seed(algo_args["train"])
+        self.device = init_device(algo_args["train"])
         self.task_name = get_task_name(args["env"], env_args)
-        if not self.algo_args['render']['use_render']:
+        if not self.algo_args['train']['use_render']:
             self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
                 args["env"],
                 env_args,
                 args["algo"] + "-" + args["victim"],
                 args["exp_name"],
                 args["run"],
-                algo_args["seed"]["seed"],
-                logger_path=algo_args["logger"]["log_dir"],
+                algo_args["train"]["seed"],
+                logger_path=algo_args["train"]["log_dir"],
             )
             save_config(args, algo_args, env_args, self.run_dir)
 
@@ -101,31 +100,31 @@ class BaseRunner:
         )
 
         # set the config of env
-        if self.algo_args['render']['use_render']:  # make envs for rendering
+        if self.algo_args['train']['use_render']:  # make envs for rendering
             (
                 self.envs,
                 self.manual_render,
                 self.manual_delay,
                 self.env_num,
-            ) = make_render_env(args["env"], algo_args["seed"]["seed"], env_args)
+            ) = make_render_env(args["env"], algo_args["train"]["seed"], env_args)
         else:  # make envs for training and evaluation
             self.envs = make_train_env(
                 args["env"],
-                algo_args["seed"]["seed"],
+                algo_args["train"]["seed"],
                 algo_args["train"]["n_rollout_threads"],
                 env_args,
             )
             self.eval_envs = (
                 make_eval_env(
                     args["env"],
-                    algo_args["seed"]["seed"],
-                    algo_args["eval"]["n_eval_rollout_threads"],
+                    algo_args["train"]["seed"],
+                    algo_args["train"]["n_eval_rollout_threads"],
                     env_args,
                 )
-                if algo_args["eval"]["use_eval"]
+                if algo_args["train"]["use_eval"]
                 else None
             )
-        self.num_agents = get_num_agents(args["env"], env_args, self.envs)
+        self.num_agents = self.envs.n_agents
         self.action_type = self.envs.action_space[0].__class__.__name__
 
         print("share_observation_space: ", self.envs.share_observation_space)
@@ -164,11 +163,11 @@ class BaseRunner:
                 agent.prep_rollout()
                 self.victims.append(agent)
 
-        self.num_adv_agents = len(algo_args["algo"]["adv_agent_ids"])
+        self.num_adv_agents = len(algo_args["train"]["adv_agent_ids"])
 
         # cannot support heterogeneous spaces in random-id adv policy
         self.algo = ALGO_REGISTRY[args["algo"]](
-            {**algo_args["model"], **algo_args["algo"], **algo_args["train"]},
+            algo_args["train"],
             self.num_adv_agents,
             self.envs.observation_space[:self.num_adv_agents],
             self.envs.share_observation_space[0],
@@ -179,25 +178,13 @@ class BaseRunner:
         self.agents = self.algo.agents
         self.critic = self.algo.critic
 
-        if self.algo_args['render']['use_render'] is False:
+        if self.algo_args['train']['use_render'] is False:
             self.logger = LOGGER_REGISTRY[args["env"]](
                 args, algo_args, env_args, self.num_adv_agents, self.writter, self.run_dir
             )
 
-        if self.algo_args['victim']['model_dir'] is not None:  # restore victim
-            print("Restore victim from", self.algo_args['victim']['model_dir'])
-            if self.victim_share_param:
-                self.victims[0].restore(self.algo_args['victim']['model_dir'])
-            else:
-                for agent_id in range(self.num_agents):
-                    self.victims[agent_id].restore(os.path.join(self.algo_args['victim']['model_dir'], str(agent_id)))
-
-        if self.algo_args['train']['model_dir'] is not None:  # restore model
-            print("Restore model from", self.algo_args['train']['model_dir'])
-            self.restore()
-
     def get_certain_adv_ids(self):
-        adv_agent_ids = self.algo_args["algo"]["adv_agent_ids"]
+        adv_agent_ids = self.algo_args["train"]["adv_agent_ids"]
         n_random = len([t for t in adv_agent_ids if t < 0])
         random_ids = [i for i in range(self.num_agents) if i not in adv_agent_ids]
         confirm_ids = [t for t in adv_agent_ids if t >= 0]
@@ -260,7 +247,7 @@ class BaseRunner:
                     eval_episode += 1
                     self.logger.eval_thread_done(eval_i)  # logger callback when an episode is done
 
-            if eval_episode >= self.algo_args["eval"]["eval_episodes"]:
+            if eval_episode >= self.algo_args["train"]["eval_episodes"]:
                 self.logger.eval_log(eval_episode)  # logger callback at the end of evaluation
                 break
 
@@ -330,7 +317,7 @@ class BaseRunner:
                     self.logger.eval_thread_done(eval_i)  # logger callback when an episode is done
                     adv_agent_ids[eval_i] = self.get_certain_adv_ids()
 
-            if eval_episode >= self.algo_args["eval"]["eval_episodes"]:
+            if eval_episode >= self.algo_args["train"]["eval_episodes"]:
                 self.logger.eval_log_adv(eval_episode)  # logger callback at the end of evaluation
                 break
 
@@ -345,7 +332,7 @@ class BaseRunner:
 
         adv_agent_ids = np.stack([self.get_certain_adv_ids() for _ in range(self.env_num)], axis=0)
 
-        for _ in range(self.algo_args['render']['render_episodes']):
+        for _ in range(self.algo_args['train']['render_episodes']):
             eval_obs, _, eval_available_actions = self.envs.reset()
             rewards = 0
             while True:
@@ -389,7 +376,8 @@ class BaseRunner:
                     self.envs.render()
                 if self.manual_delay:
                     time.sleep(0.1)
-                if eval_dones[0]:
+                eval_dones_env = np.all(eval_dones)
+                if eval_dones_env:
                     print(f'total reward of this episode: {rewards}')
                     break
                 
@@ -401,7 +389,17 @@ class BaseRunner:
 
     def restore(self):
         """Restore the model"""
-        self.algo.restore(str(self.algo_args['train']['model_dir']))
+        if self.algo_args['victim']['model_dir'] is not None:  # restore victim
+            print("Restore victim from", self.algo_args['victim']['model_dir'])
+            if self.victim_share_param:
+                self.victims[0].restore(self.algo_args['victim']['model_dir'])
+            else:
+                for agent_id in range(self.num_agents):
+                    self.victims[agent_id].restore(os.path.join(self.algo_args['victim']['model_dir'], str(agent_id)))
+
+        if self.algo_args['train']['model_dir'] is not None:  # restore model
+            print("Restore model from", self.algo_args['train']['model_dir'])
+            self.algo.restore(str(self.algo_args['train']['model_dir']))
 
     def save(self):
         """Save the model"""
@@ -409,11 +407,11 @@ class BaseRunner:
 
     def close(self):
         """Close environment, writter, and log file."""
-        if self.algo_args['render']['use_render']:
+        if self.algo_args['train']['use_render']:
             self.envs.close()
         else:
             self.envs.close()
-            if self.algo_args["eval"]["use_eval"] and self.eval_envs is not self.envs:
+            if self.algo_args["train"]["use_eval"] and self.eval_envs is not self.envs:
                 self.eval_envs.close()
             self.writter.export_scalars_to_json(str(self.log_dir + "/summary.json"))
             self.writter.close()

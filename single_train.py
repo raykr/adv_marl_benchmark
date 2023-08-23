@@ -1,9 +1,7 @@
-from copy import deepcopy
 import os
 import argparse
 import json
-import sys
-from amb.utils.config_utils import convert_nested_dict, get_defaults_yaml_args, update_args, nni_update_args
+from amb.utils.config_utils import convert_nested_dict, get_one_yaml_args, update_args, nni_update_args
 import torch
 import nni
 
@@ -40,7 +38,7 @@ def main():
         choices=[
             "single",
             "perturbation",
-            "traitor"
+            "traitor",
         ],
         help="Runner pipeline name. Choose from: single, perturbation, traitor.",
     )
@@ -51,8 +49,9 @@ def main():
         choices=[
             "maddpg",
             "mappo",
+            "qmix"
         ],
-        help="Victim algorithm name. Choose from: maddpg, mappo.",
+        help="Victim algorithm name. Choose from: maddpg, mappo, qmix.",
     )
     parser.add_argument(
         "--env",
@@ -98,11 +97,18 @@ def main():
             all_config = json.load(file)
         args["algo"] = all_config["main_args"]["algo"]
         args["env"] = all_config["main_args"]["env"]
+        args["run"] = all_config["main_args"]["run"]
         args["exp_name"] = all_config["main_args"]["exp_name"]
-        algo_args = all_config["algo_args"]
+
+        algo_args = all_config["algo_args"]["train"]
+        victim_args = all_config["algo_args"]["victim"]
         env_args = all_config["env_args"]
-        update_args(unparsed_dict, algo=algo_args, env=env_args)  # update args from command line
     else:  # load config from corresponding yaml file
+        if args["run"] == "single" or args["run"] == "perturbation":
+            algo_args = get_one_yaml_args(args["algo"])
+        elif args["run"] == "traitor":
+            algo_args = get_one_yaml_args(args["algo"] + "_traitor")
+
         if args["load_victim"] != "":
             with open(os.path.join(args["load_victim"], "config.json"), encoding='utf-8') as file:
                 victim_config = json.load(file)
@@ -110,33 +116,17 @@ def main():
             args["env"] = victim_config["main_args"]["env"]
             victim_config["algo_args"]["train"]["model_dir"] = os.path.join(args["load_victim"], "models")
 
-            victim_args = {}
-            # "flatten" the victim args
-            def update_dict(dict1, dict2):
-                for k in dict2:
-                    if type(dict2[k]) is dict:
-                        update_dict(dict1, dict2[k])
-                    else:
-                        dict1[k] = dict2[k]
-            update_dict(victim_args, victim_config["algo_args"])
+            victim_args = victim_config["algo_args"]["train"]
             env_args = victim_config["env_args"]
-            if args["run"] == "perturbation":
-                algo_args, _, _ = get_defaults_yaml_args(args["algo"], args["env"], args["victim"])
-            elif args["run"] == "traitor":
-                algo_args, _, _ = get_defaults_yaml_args(args["algo"] + "_traitor", args["env"], args["victim"])
-            update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
-            algo_args = {**algo_args, "victim": victim_args}
-        elif args["run"] == "perturbation":
-            algo_args, env_args, victim_args = get_defaults_yaml_args(args["algo"], args["env"], args["victim"])
-            update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
-            algo_args = {**algo_args, "victim": victim_args}
-        elif args["run"] == "traitor":
-            algo_args, env_args, victim_args = get_defaults_yaml_args(args["algo"] + "_traitor", args["env"], args["victim"])
-            update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
-            algo_args = {**algo_args, "victim": victim_args}
         else:
-            algo_args, env_args, _ = get_defaults_yaml_args(args["algo"], args["env"])
-            update_args(unparsed_dict, algo=algo_args, env=env_args)
+            victim_args = {}
+            if args["run"] == "perturbation" or args["run"] == "traitor":
+                victim_args = get_one_yaml_args(args["victim"])
+            env_args = get_one_yaml_args(args["env"], type="env")
+            
+    update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
+    algo_args = {"train": algo_args, "victim": victim_args}
+
 
     # merge nni parameters
     nni_params = nni.get_next_parameter()
@@ -151,7 +141,7 @@ def main():
     # start training
     from amb.runners import get_runner
     runner = get_runner(args["run"], args["algo"])(args, algo_args, env_args)
-    if algo_args['render']['use_render']:  # render, not train
+    if algo_args["train"]['use_render']:  # render, not train
         runner.render()
     else:
         runner.run()

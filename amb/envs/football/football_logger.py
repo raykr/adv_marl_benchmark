@@ -62,10 +62,10 @@ class FootballLogger(BaseLogger):
         if self.args["run"] == "perturbation":
             self.adv_file.write(
                 ",".join(map(str, [
-                    self.algo_args["attack"]["perturb_epsilon"], 
-                    self.algo_args["attack"]["perturb_iters"], 
-                    self.algo_args["attack"]["adaptive_alpha"], 
-                    self.algo_args["attack"]["perturb_alpha"], 
+                    self.algo_args["train"]["perturb_epsilon"], 
+                    self.algo_args["train"]["perturb_iters"], 
+                    self.algo_args["train"]["adaptive_alpha"], 
+                    self.algo_args["train"]["perturb_alpha"], 
                     eval_avg_rew, eval_score_rate])) + "\n"
             )
             self.adv_file.flush()

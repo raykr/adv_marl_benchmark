@@ -2,7 +2,7 @@ import os
 import random
 import numpy as np
 import torch
-from amb.envs.env_wrappers import ShareSubprocVecEnv, ShareDummyVecEnv
+from amb.envs.env_wrappers import ShareSubprocVecEnv, ShareDummyVecEnv, ShareSubprocVecDualEnv, ShareDummyVecDualEnv
 
 
 def check(value):
@@ -61,6 +61,10 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 from amb.envs.smac.StarCraft2_Env import StarCraft2Env
 
                 env = StarCraft2Env(env_args)
+            elif env_name == "smac_dual":
+                from amb.envs.smac.StarCraft2Dual_Env import StarCraft2DualEnv
+
+                env = StarCraft2DualEnv(env_args)
             elif env_name == "smacv2":
                 from amb.envs.smacv2.smacv2_env import SMACv2Env
 
@@ -103,10 +107,16 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
         return init_env
 
-    if n_threads == 1:
-        return ShareDummyVecEnv([get_env_fn(0)])
+    if env_name == "smac_dual":
+        if n_threads == 1:
+            return ShareDummyVecDualEnv([get_env_fn(0)])
+        else:
+            return ShareSubprocVecDualEnv([get_env_fn(i) for i in range(n_threads)])
     else:
-        return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])
+        if n_threads == 1:
+            return ShareDummyVecEnv([get_env_fn(0)])
+        else:
+            return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])
 
 
 def make_eval_env(env_name, seed, n_threads, env_args):
@@ -117,6 +127,10 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 from amb.envs.smac.StarCraft2_Env import StarCraft2Env
 
                 env = StarCraft2Env(env_args)
+            elif env_name == "smac_dual":
+                from amb.envs.smac.StarCraft2Dual_Env import StarCraft2DualEnv
+
+                env = StarCraft2DualEnv(env_args)
             elif env_name == "smacv2":
                 from amb.envs.smacv2.smacv2_env import SMACv2Env
 
@@ -153,10 +167,16 @@ def make_eval_env(env_name, seed, n_threads, env_args):
 
         return init_env
 
-    if n_threads == 1:
-        return ShareDummyVecEnv([get_env_fn(0)])
+    if env_name == "smac_dual":
+        if n_threads == 1:
+            return ShareDummyVecDualEnv([get_env_fn(0)])
+        else:
+            return ShareSubprocVecDualEnv([get_env_fn(i) for i in range(n_threads)])
     else:
-        return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])
+        if n_threads == 1:
+            return ShareDummyVecEnv([get_env_fn(0)])
+        else:
+            return ShareSubprocVecEnv([get_env_fn(i) for i in range(n_threads)])
 
 
 def make_render_env(env_name, seed, env_args):
@@ -168,6 +188,13 @@ def make_render_env(env_name, seed, env_args):
         from amb.envs.smac.StarCraft2_Env import StarCraft2Env
 
         env = StarCraft2Env(args=env_args)
+        manual_render = False  # smac does not support manually calling the render() function
+                               # instead, it use save_replay()
+        manual_delay = False
+    elif env_name == "smac_dual":
+        from amb.envs.smac.StarCraft2Dual_Env import StarCraft2DualEnv
+
+        env = StarCraft2DualEnv(env_args)
         manual_render = False  # smac does not support manually calling the render() function
                                # instead, it use save_replay()
         manual_delay = False
@@ -218,19 +245,3 @@ def set_seed(args):
     torch.cuda.manual_seed(args["seed"])
     torch.cuda.manual_seed_all(args["seed"])
 
-
-def get_num_agents(env, env_args, envs):
-    """Get the number of agents in the environment."""
-    if env == "smac":
-        from amb.envs.smac.smac_maps import get_map_params
-        return get_map_params(env_args["map_name"])["n_agents"]
-    elif env == "smacv2":
-        return envs.n_agents
-    elif env == "mamujoco":
-        return envs.n_agents
-    elif env == "pettingzoo_mpe":
-        return envs.n_agents
-    elif env == "gym":
-        return envs.n_agents
-    elif env == "football":
-        return envs.n_agents
