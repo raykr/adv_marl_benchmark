@@ -1,12 +1,12 @@
 experimentName: nni-network-rnn
 searchSpace:
   # common hyperparameters [don't change]
-  algo_args.log_dir:
+  algo_args.train.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
-  algo_args.num_env_steps:
+  algo_args.train.num_env_steps:
     _type: choice
     _value: [3000000]
   main_args.algo:
@@ -25,18 +25,18 @@ searchSpace:
   env_args.map_name:
     _type: choice
     _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
-  algo_args.seed:
+  algo_args.train.seed:
     _type: choice
     _value: [0, 1]
 
   # Network Architecture
-  # algo_args.hidden_sizes:
+  # algo_args.train.hidden_sizes:
   #   _type: choice
   #   _value: [[64, 64], [128, 128], [64, 64, 64], [128, 128, 128]]
-  # algo_args.activation_func:
+  # algo_args.train.activation_func:
   #   _type: choice
   #   _value: ["relu", "tanh", "softmax"]
-  algo_args.use_recurrent_policy:
+  algo_args.train.use_recurrent_policy:
     _type: choice
     _value: [true, false]
 

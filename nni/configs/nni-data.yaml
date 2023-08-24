@@ -1,12 +1,12 @@
 experimentName: nni-data
 searchSpace:
   # common hyperparameters [don't change]
-  algo_args.log_dir:
+  algo_args.train.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
-  algo_args.num_env_steps:
+  algo_args.train.num_env_steps:
     _type: choice
     _value: [3000000]
   main_args.algo:
@@ -25,7 +25,7 @@ searchSpace:
   env_args.map_name:
     _type: choice
     _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
-  algo_args.seed:
+  algo_args.train.seed:
     _type: choice
     _value: [0, 1, 2]
 
@@ -34,14 +34,14 @@ searchSpace:
     _type: choice
     _value: ["FP", "EP"]
   # TODO batch_mode需要配置且实现
-  algo_args.batch_mode:
+  algo_args.train.batch_mode:
     _type: choice
     _value: ["step", "episode", "chunk"]
-  algo_args.batch_size:
+  algo_args.train.batch_size:
     _type: choice
     _value: [50, 100, 1000, 5000]
   # TODO advantage_estimation需要配置且实现，替换use_gae
-  algo_args.advantage_estimation:
+  algo_args.train.advantage_estimation:
     _type: choice
     _value: ["GAE", "N-step", "V-trace"]
 

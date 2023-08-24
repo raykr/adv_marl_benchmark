@@ -1,12 +1,12 @@
 experimentName: nni-normalization
 searchSpace:
   # common hyperparameters [don't change]
-  algo_args.log_dir:
+  algo_args.train.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
-  algo_args.num_env_steps:
+  algo_args.train.num_env_steps:
     _type: choice
     _value: [3000000]
   main_args.algo:
@@ -25,15 +25,15 @@ searchSpace:
   env_args.map_name:
     _type: choice
     _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
-  algo_args.seed:
+  algo_args.train.seed:
     _type: choice
     _value: [0, 1, 2]
 
   # normalization
-  algo_args.use_feature_normalization:
+  algo_args.train.use_feature_normalization:
     _type: choice
     _value: [true, false]
-  algo_args.use_popart:
+  algo_args.train.use_popart:
     _type: choice
     _value: [true, false]
 

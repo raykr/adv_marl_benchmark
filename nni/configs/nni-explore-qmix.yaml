@@ -1,12 +1,12 @@
 experimentName: nni-explore-qmix
 searchSpace:
   # common hyperparameters [don't change]
-  algo_args.log_dir:
+  algo_args.train.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
   
-  algo_args.num_env_steps:
+  algo_args.train.num_env_steps:
     _type: choice
     _value: [3000000]
   main_args.algo:
@@ -25,13 +25,13 @@ searchSpace:
   env_args.map_name:
     _type: choice
     _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
-  algo_args.seed":
+  algo_args.train.seed":
     _type: choice
     _value: [0, 1]
 
   # Exploration and Exploitation
   # Q-family
-  algo_args.epsilon_anneal_time:
+  algo_args.train.epsilon_anneal_time:
     _type: choice
     _value: [50000, 100000, 500000]
 
