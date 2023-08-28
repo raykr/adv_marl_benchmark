@@ -14,6 +14,10 @@ torch.Tensor.__repr__ = custom_repr
 
 def main():
     """Main function."""
+    # merge nni parameters
+    nni_params = nni.get_next_parameter()
+    nni_dict = convert_nested_dict(nni_params)
+
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--algo",
@@ -92,6 +96,12 @@ def main():
     values = [process(v) for v in unparsed_args[1::2]]
     unparsed_dict = {k: v for k, v in zip(keys, values)}
     args = vars(args)  # convert to dict
+
+    # Since subsequent configuration files require parameters in args, 
+    # it is necessary to update args first
+    if "main_args" in nni_dict:
+        nni_update_args(args, nni_dict["main_args"])
+
     if args["load_config"] != "":  # load config from existing config file
         with open(args["load_config"], encoding='utf-8') as file:
             all_config = json.load(file)
@@ -127,12 +137,7 @@ def main():
     update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
     algo_args = {"train": algo_args, "victim": victim_args}
 
-
-    # merge nni parameters
-    nni_params = nni.get_next_parameter()
-    nni_dict = convert_nested_dict(nni_params)
-    if "main_args" in nni_dict:
-        nni_update_args(args, nni_dict["main_args"])
+    # update args from nni
     if "algo_args" in nni_dict:
         nni_update_args(algo_args, nni_dict["algo_args"])
     if "env_args" in nni_dict:
