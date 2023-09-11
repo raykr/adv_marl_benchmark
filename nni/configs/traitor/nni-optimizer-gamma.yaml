@@ -1,0 +1,41 @@
+experimentName: nni-optimizer-gamma-traitor
+searchSpace:
+  # common hyperparameters [don't change]
+  algo_args.train.log_dir:
+    _type: choice
+    _value: ["#nni_dynamic"]
+  # end common hyperparameters
+  
+  algo_args.train.num_env_steps:
+    _type: choice
+    _value: [5000000]
+  main_args.algo:
+    _type: choice
+    _value: ["mappo"]
+  main_args.env:
+    _type: choice
+    _value: ["smac"]
+  env_args.map_name:
+    _type: choice
+    _value: ["4m_vs_3m", "4s_vs_5z"]
+  algo_args.train.seed:
+    _type: choice
+    _value: [0, 1]
+
+  # Optimizer
+  algo_args.train.gamma:
+    _type: choice
+    _value: [0.90, 0.95, 0.99]
+
+trialCommand: python -u ../../../single_train.py --env smac --algo mappo --exp_name nni-optimizer-gamma-traitor --run traitor
+trialCodeDirectory: .
+# experimentWorkingDirectory: nni-experiments
+trialGpuNumber: 3
+trialConcurrency: 5
+tuner:
+  name: GridSearch
+trainingService:
+  platform: local
+  useActiveGpu: True
+  maxTrialNumberPerGpu: 10
+  gpuIndices: [0, 1, 2]
