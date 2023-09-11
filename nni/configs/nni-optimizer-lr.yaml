@@ -1,4 +1,4 @@
-experimentName: nni-optimizer-lr
+experimentName: nni-optimizer-lr-extra
 searchSpace:
   # common hyperparameters [don't change]
   algo_args.train.log_dir:
@@ -11,7 +11,7 @@ searchSpace:
     _value: [3000000]
   main_args.algo:
     _type: choice
-    _value: ["mappo", "maddpg", "qmix"]
+    _value: ["maddpg", "qmix"]
   main_args.env:
     _type: choice
     _value: ["smac"]
@@ -34,7 +34,7 @@ searchSpace:
     _type: choice
     _value: [0.00005, 0.0005, 0.005, 0.05]
 
-trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-optimizer-lr --run single
+trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-optimizer-lr-extra --run single
 trialCodeDirectory: .
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1
