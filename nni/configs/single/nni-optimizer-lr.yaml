@@ -1,30 +1,26 @@
-experimentName: nni-optimizer-lr-extra
+experimentName: nni-optimizer-lr
 searchSpace:
   # common hyperparameters [don't change]
   algo_args.train.log_dir:
     _type: choice
     _value: ["#nni_dynamic"]
   # end common hyperparameters
-  
+
   algo_args.train.num_env_steps:
     _type: choice
     _value: [3000000]
   main_args.algo:
     _type: choice
-    _value: ["maddpg", "qmix"]
+    _value: ["mappo"]
   main_args.env:
     _type: choice
     _value: ["smac"]
   main_args.run:
     _type: choice
-    _value: [
-        "single",
-        # 'perturbation',
-        # "traitor",
-      ]
+    _value: ["single"]
   env_args.map_name:
     _type: choice
-    _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
+    _value: ["3m", "3s_vs_5z"]
   algo_args.train.seed:
     _type: choice
     _value: [0, 1]
@@ -34,8 +30,8 @@ searchSpace:
     _type: choice
     _value: [0.00005, 0.0005, 0.005, 0.05]
 
-trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-optimizer-lr-extra --run single
-trialCodeDirectory: .
+trialCommand: python -u single_train.py --env smac --algo mappo --exp_name nni-optimizer-lr --run single
+trialCodeDirectory: ../../../
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1
 trialConcurrency: 3

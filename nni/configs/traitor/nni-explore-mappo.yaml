@@ -18,7 +18,7 @@ searchSpace:
   env_args.map_name:
     _type: choice
     _value: ["4m_vs_3m", "4s_vs_5z"]
-  algo_args.train.seed":
+  algo_args.train.seed:
     _type: choice
     _value: [0, 1]
 
@@ -28,8 +28,8 @@ searchSpace:
     _type: choice
     _value: [0.001, 0.01, 0.1]
 
-trialCommand: python -u ../../../single_train.py --env smac --algo mappo --exp_name nni-explore-mappo-traitor --run traitor
-trialCodeDirectory: .
+trialCommand: python -u single_train.py --env smac --algo mappo --exp_name nni-explore-mappo-traitor --run traitor
+trialCodeDirectory: ../../../
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 3
 trialConcurrency: 5

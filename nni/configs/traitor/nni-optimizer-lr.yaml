@@ -27,8 +27,8 @@ searchSpace:
     _type: choice
     _value: [0.00005, 0.0005, 0.005, 0.05]
 
-trialCommand: python -u ../../../single_train.py --env smac --algo mappo --exp_name nni-optimizer-lr-traitor --run traitor
-trialCodeDirectory: .
+trialCommand: python -u single_train.py --env smac --algo mappo --exp_name nni-optimizer-lr-traitor --run traitor
+trialCodeDirectory: ../../../
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 3
 trialConcurrency: 5

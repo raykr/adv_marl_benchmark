@@ -1,4 +1,4 @@
-experimentName: nni-explore-qmix
+experimentName: nni-explore-mappo
 searchSpace:
   # common hyperparameters [don't change]
   algo_args.train.log_dir:
@@ -11,7 +11,7 @@ searchSpace:
     _value: [3000000]
   main_args.algo:
     _type: choice
-    _value: ["qmix"]
+    _value: ["mappo"]
   main_args.env:
     _type: choice
     _value: ["smac"]
@@ -19,24 +19,22 @@ searchSpace:
     _type: choice
     _value: [
         "single",
-        # 'perturbation',
-        # "traitor",
       ]
   env_args.map_name:
     _type: choice
-    _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
-  algo_args.train.seed":
+    _value: ["3m", "3s_vs_5z"]
+  algo_args.train.seed:
     _type: choice
     _value: [0, 1]
 
   # Exploration and Exploitation
-  # Q-family
-  algo_args.train.epsilon_anneal_time:
+  # PPO
+  algo_args.train.entropy_coef:
     _type: choice
-    _value: [50000, 100000, 500000]
+    _value: [0.001, 0.01, 0.1]
 
-trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-explore-qmix --run single
-trialCodeDirectory: .
+trialCommand: python -u single_train.py --env smac --algo mappo --exp_name nni-explore-mappo --run single
+trialCodeDirectory: ../../../
 # experimentWorkingDirectory: nni-experiments
 trialGpuNumber: 1
 trialConcurrency: 3
