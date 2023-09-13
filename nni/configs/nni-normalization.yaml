@@ -1,0 +1,51 @@
+experimentName: nni-normalization
+searchSpace:
+  # common hyperparameters [don't change]
+  algo_args.train.log_dir:
+    _type: choice
+    _value: ["#nni_dynamic"]
+  # end common hyperparameters
+  
+  algo_args.train.num_env_steps:
+    _type: choice
+    _value: [3000000]
+  main_args.algo:
+    _type: choice
+    _value: ["mappo", "maddpg", "qmix"]
+  main_args.env:
+    _type: choice
+    _value: ["smac"]
+  main_args.run:
+    _type: choice
+    _value: [
+        "single",
+        # 'perturbation',
+        # "traitor",
+      ]
+  env_args.map_name:
+    _type: choice
+    _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
+  algo_args.train.seed:
+    _type: choice
+    _value: [0, 1, 2]
+
+  # normalization
+  algo_args.train.use_feature_normalization:
+    _type: choice
+    _value: [true, false]
+  algo_args.train.use_popart:
+    _type: choice
+    _value: [true, false]
+
+trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-normalization --run single
+trialCodeDirectory: .
+# experimentWorkingDirectory: nni-experiments
+trialGpuNumber: 1
+trialConcurrency: 3
+tuner:
+  name: GridSearch
+trainingService:
+  platform: local
+  useActiveGpu: True
+  maxTrialNumberPerGpu: 5
+  gpuIndices: [0]

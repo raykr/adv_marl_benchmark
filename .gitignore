@@ -1,5 +1,6 @@
 ##### Project Specification #####
 **/results/**
+**/nni-experiments/**
 **/ckpts/**
 .VSCodeCounter/
 perturbation_rewards.txt

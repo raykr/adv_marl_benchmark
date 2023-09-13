@@ -1,6 +1,7 @@
 import time
 from functools import reduce
 import numpy as np
+import nni
 from amb.envs.base_logger import BaseLogger
 
 
@@ -58,6 +59,7 @@ class SMACLogger(BaseLogger):
 
         incre_win_rate = np.sum(incre_battles_won) / np.sum(incre_battles_game) if np.sum(incre_battles_game) > 0 else 0.0
         self.writter.add_scalar("env/incre_win_rate", incre_win_rate, self.timestep)
+        self.wandb and self.wandb.log({"env/incre_win_rate": incre_win_rate}, step=self.timestep)
 
         self.last_battles_game = battles_game
         self.last_battles_won = battles_won
@@ -94,6 +96,9 @@ class SMACLogger(BaseLogger):
                 eval_win_rate, eval_avg_rew
             )
         )
+        ## nni report
+        nni.report_intermediate_result(eval_avg_rew)
+
         if self.args["run"] == "single":
             self.log_file.write(
                 ",".join(map(str, [self.timestep, eval_avg_rew, eval_win_rate]))

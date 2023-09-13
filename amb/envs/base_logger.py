@@ -3,6 +3,7 @@
 import time
 import os
 import numpy as np
+import nni
 from amb.utils.trans_utils import _dimalign
 
 
@@ -23,6 +24,12 @@ class BaseLogger:
         self.log_file = open(os.path.join(run_dir, "progress.txt"), "w", encoding='utf-8')
         if args["run"] == "perturbation":
             self.adv_file = open("./perturbation_rewards.txt", "a", encoding="utf-8")
+        
+        # wandb
+        self.wandb = None
+        if "use_wandb" in algo_args["train"] and algo_args["train"]["use_wandb"]:
+            import wandb
+            self.wandb = wandb
 
     def get_task_name(self):
         """Get the task name."""
@@ -84,10 +91,12 @@ class BaseLogger:
 
         average_episode_len = np.mean(self.episode_lens) if len(self.episode_lens) > 0 else 0.0
         self.writter.add_scalar("env/ep_length_mean", average_episode_len, self.timestep)
+        self.wandb and self.wandb.log({"env/ep_length_mean": average_episode_len}, step=self.timestep)
 
         aver_episode_rewards = np.mean(self.done_episodes_rewards)
         critic_train_info["average_step_rewards"] = aver_episode_rewards / average_episode_len
         self.writter.add_scalar("env/train_episode_rewards", aver_episode_rewards, self.timestep)
+        self.wandb and self.wandb.log({"env/train_episode_rewards": aver_episode_rewards}, step=self.timestep)
 
         self.log_train(actor_train_infos, critic_train_info)
 
@@ -142,6 +151,9 @@ class BaseLogger:
         self.log_env(eval_env_infos)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
         print("Evaluation average episode reward is {}.\n".format(eval_avg_rew))
+        # nni report
+        nni.report_intermediate_result(eval_avg_rew)
+        
         if self.args["run"] == "single":
             self.log_file.write(
                 ",".join(map(str, [self.timestep, eval_avg_rew])) + "\n"
@@ -183,16 +195,19 @@ class BaseLogger:
             for k, v in actor_train_infos[agent_id].items():
                 agent_k = "agent%i/" % agent_id + k
                 self.writter.add_scalar(agent_k, v, self.timestep)
+                self.wandb and self.wandb.log({agent_k: v}, step=self.timestep)
         # log critic
         for k, v in critic_train_info.items():
             critic_k = "critic/" + k
             self.writter.add_scalar(critic_k, v, self.timestep)
+            self.wandb and self.wandb.log({critic_k: v}, step=self.timestep)
 
     def log_env(self, env_infos):
         """Log environment information."""
         for k, v in env_infos.items():
             if len(v) > 0:
                 self.writter.add_scalar("env/{}".format(k), np.mean(v), self.timestep)
+                self.wandb and self.wandb.log({"env/{}".format(k): np.mean(v)}, step=self.timestep)
 
     def close(self):
         """Close the logger."""

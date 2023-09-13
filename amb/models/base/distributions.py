@@ -47,6 +47,46 @@ class OneHotEpsilonGreedy:
         return torch.nn.functional.one_hot(masked_actions, num_classes=self.logits.shape[-1])
 
 
+class OneHotMultinomial:
+    def __init__(self, logits, t, avail_actions=None, eps_start=1.0, eps_finish=0.05, eps_anneal_time=100000):
+        self.logits = logits
+        self.t = t
+        self.eps_start = eps_start
+        self.eps_finish = eps_finish
+        self.eps_anneal_time = eps_anneal_time
+        self.avail_actions = avail_actions
+        delta = (self.eps_start - self.eps_finish) / self.eps_anneal_time
+
+        if self.avail_actions is not None:
+            self.logits[self.avail_actions==0] = -1e10
+
+        self.epsilon = max(self.eps_finish, self.eps_start - delta * self.t)
+
+    def sample(self):
+        random_logits = torch.ones_like(self.logits)
+
+        if self.avail_actions is not None:
+            random_logits[self.avail_actions==0] = -1e10
+        
+        # softmax
+        # random_logits = torch.exp(random_logits) / torch.exp(random_logits).sum(dim=-1, keepdim=True)
+
+        random_actions = torch.distributions.Categorical(logits=random_logits).sample()
+
+        return torch.nn.functional.one_hot(random_actions, num_classes=self.logits.shape[-1])
+    
+    @property
+    def mode(self):
+        masked_logits = self.logits.clone()
+
+        if self.avail_actions is not None:
+            masked_logits[self.avail_actions==0] = -1e10
+
+        masked_actions = masked_logits.argmax(dim=-1)
+
+        return torch.nn.functional.one_hot(masked_actions, num_classes=self.logits.shape[-1])
+    
+
 class FixedCategorical(torch.distributions.Categorical):
     """Modify standard PyTorch Categorical."""
     def sample(self):

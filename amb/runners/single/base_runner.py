@@ -1,3 +1,6 @@
+import os
+import nni
+import socket
 import time
 import torch
 import numpy as np
@@ -50,9 +53,45 @@ class BaseRunner:
                 logger_path=algo_args["train"]["log_dir"],
             )
             save_config(args, algo_args, env_args, self.run_dir)
-        setproctitle.setproctitle(
-            str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"])
-        )
+
+            # init wandb and save config
+            wandb_dir = self.run_dir
+            wandb_name = (
+                args["env"]
+                + "_"
+                + get_task_name(args["env"], env_args)
+                + "_"
+                + args["run"]
+                + "_"
+                + args["algo"]
+                + "_seed-"
+                + str(algo_args["train"]["seed"])
+                + "_"
+                + time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+            )
+            if "use_wandb" in algo_args["train"] and algo_args["train"]["use_wandb"]:
+                # nni wandb path
+                if algo_args["train"]["log_dir"] == "#nni_dynamic":
+                    wandb_dir = os.path.join(os.environ["NNI_OUTPUT_DIR"])
+                    wandb_name = nni.get_trial_id()
+
+                import wandb
+
+                wandb.init(
+                    project=args["exp_name"],
+                    name=wandb_name,
+                    config={
+                        "args": args,
+                        "algo_args": algo_args,
+                        "env_args": env_args,
+                    },
+                    notes=socket.gethostname(),
+                    entity="adv_marl_benchmark",
+                    dir=wandb_dir,
+                    job_type="training",
+                )
+
+        setproctitle.setproctitle(str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"]))
 
         # set the config of env
         if self.algo_args['train']['use_render']:  # make envs for rendering
@@ -121,12 +160,16 @@ class BaseRunner:
         """Evaluate the model. All algorithms should fit this evaluation pipeline."""
         self.algo.prep_rollout()
 
-        self.logger.eval_init(self.n_eval_rollout_threads)  # logger callback at the beginning of evaluation
+        # logger callback at the beginning of evaluation
+        self.logger.eval_init(self.n_eval_rollout_threads)
         eval_episode = 0
 
         eval_obs, eval_share_obs, eval_available_actions = self.eval_envs.reset()
 
-        eval_rnn_states = np.zeros((self.n_eval_rollout_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
+        eval_rnn_states = np.zeros(
+            (self.n_eval_rollout_threads, self.num_agents, self.recurrent_n, self.rnn_hidden_size),
+            dtype=np.float32,
+        )
         eval_masks = np.ones((self.n_eval_rollout_threads, self.num_agents, 1), dtype=np.float32)
 
         while True:
@@ -136,8 +179,7 @@ class BaseRunner:
                     eval_obs[:, agent_id],
                     eval_rnn_states[:, agent_id],
                     eval_masks[:, agent_id],
-                    eval_available_actions[:, agent_id]
-                    if eval_available_actions[0] is not None else None,
+                    eval_available_actions[:, agent_id] if eval_available_actions[0] is not None else None,
                     deterministic=True,
                 )
                 eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
@@ -145,10 +187,25 @@ class BaseRunner:
 
             eval_actions = np.array(eval_actions_collector).transpose(1, 0, 2)
 
-            eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions = self.eval_envs.step(eval_actions)
+            (
+                eval_obs,
+                eval_share_obs,
+                eval_rewards,
+                eval_dones,
+                eval_infos,
+                eval_available_actions,
+            ) = self.eval_envs.step(eval_actions)
 
-            eval_data = (eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions)
-            self.logger.eval_per_step(eval_data)  # logger callback at each step of evaluation
+            eval_data = (
+                eval_obs,
+                eval_share_obs,
+                eval_rewards,
+                eval_dones,
+                eval_infos,
+                eval_available_actions,
+            )
+            # logger callback at each step of evaluation
+            self.logger.eval_per_step(eval_data)
 
             eval_dones_env = np.all(eval_dones, axis=1)
 
@@ -160,7 +217,8 @@ class BaseRunner:
             for eval_i in range(self.n_eval_rollout_threads):
                 if eval_dones_env[eval_i]:
                     eval_episode += 1
-                    self.logger.eval_thread_done(eval_i)  # logger callback when an episode is done
+                    # logger callback when an episode is done
+                    self.logger.eval_thread_done(eval_i)
 
             if eval_episode >= self.algo_args["train"]["eval_episodes"]:
                 self.logger.eval_log(eval_episode)  # logger callback at the end of evaluation
@@ -181,15 +239,14 @@ class BaseRunner:
                 eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
                 if eval_available_actions is not None:
                     eval_available_actions = np.expand_dims(np.array(eval_available_actions), axis=0)
-                    
+
                 eval_actions_collector = []
                 for agent_id in range(self.num_agents):
                     eval_actions, temp_rnn_state = self.agents[agent_id].perform(
                         eval_obs[:, agent_id],
                         eval_rnn_states[:, agent_id],
                         eval_masks[:, agent_id],
-                        eval_available_actions[:, agent_id]
-                        if eval_available_actions is not None else None,
+                        eval_available_actions[:, agent_id] if eval_available_actions is not None else None,
                         deterministic=True,
                     )
                     eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
@@ -206,7 +263,7 @@ class BaseRunner:
                 if eval_dones_env:
                     print(f'total reward of this episode: {rewards}')
                     break
-                
+
         if "smac" in self.args["env"]:  # replay for smac, no rendering
             if "v2" in self.args["env"]:
                 self.envs.env.save_replay()

@@ -95,11 +95,17 @@ def get_task_name(env, env_args):
 
 def init_dir(env, env_args, algo, exp_name, run_name, seed, logger_path):
     """Init directory for saving results."""
-    task = get_task_name(env, env_args)
-    hms_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())
-    results_path = os.path.join(
-        logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time])
-    )
+    # check logger_path == nni
+    if logger_path == "#nni_dynamic":
+        logger_path = os.path.join(os.environ["NNI_OUTPUT_DIR"], 'tensorboard')
+        results_path = logger_path
+    else:
+        task = get_task_name(env, env_args)
+        hms_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())
+        results_path = os.path.join(
+            logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time]), random_str(8)
+        )
+    print("results_path", results_path)
     log_path = os.path.join(results_path, 'logs')
     os.makedirs(log_path, exist_ok=True)
     from tensorboardX import SummaryWriter
@@ -108,6 +114,12 @@ def init_dir(env, env_args, algo, exp_name, run_name, seed, logger_path):
     os.makedirs(models_path, exist_ok=True)
     return results_path, log_path, models_path, writter
 
+# 生成8位随机字符串
+def random_str(num):
+    import random
+    import string
+    salt = ''.join(random.sample(string.ascii_letters + string.digits, num))
+    return salt
 
 def is_json_serializable(value):
     """Check if v is JSON serializable."""
@@ -151,6 +163,38 @@ def save_config(args, algo_args, env_args, run_dir):
         out.write(output)
 
 
+# 遍历nni_params，如果发现key是 xx.xx.xx 的形式，就把它转换成dict
+def convert_nested_dict(params):
+    new_params = {}
+    for key, value in params.items():
+        if isinstance(value, dict):
+            new_value = convert_nested_dict(value)
+        else:
+            new_value = value
+
+        if '.' in key:
+            print(key)
+            keys = key.split('.')
+            current_dict = new_params
+            for k in keys[:-1]:
+                if k not in current_dict:
+                    current_dict[k] = {}
+                current_dict = current_dict[k]
+            current_dict[keys[-1]] = new_value
+        else:
+            new_params[key] = new_value
+        
+    return new_params
+
+def nni_update_args(dict1, dict2):
+    for key, value in dict2.items():
+        if key in dict1:
+            if type(dict1[key]) == type(value):
+                if isinstance(dict1[key], dict) and isinstance(value, dict):
+                    nni_update_args(dict1[key], value)
+                else:
+                    dict1[key] = value
+
 def parse_timestep(timesteps, ep_length):
     if timesteps is None:
         return [True for _ in range(ep_length)]
@@ -168,3 +212,4 @@ def parse_timestep(timesteps, ep_length):
     for step in parsed_steps:
         steps_bool[step] = True
     return steps_bool
+

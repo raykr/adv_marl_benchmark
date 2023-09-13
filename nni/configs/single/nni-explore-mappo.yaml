@@ -1,0 +1,47 @@
+experimentName: nni-explore-mappo
+searchSpace:
+  # common hyperparameters [don't change]
+  algo_args.train.log_dir:
+    _type: choice
+    _value: ["#nni_dynamic"]
+  # end common hyperparameters
+  
+  algo_args.train.num_env_steps:
+    _type: choice
+    _value: [3000000]
+  main_args.algo:
+    _type: choice
+    _value: ["mappo"]
+  main_args.env:
+    _type: choice
+    _value: ["smac"]
+  main_args.run:
+    _type: choice
+    _value: [
+        "single",
+      ]
+  env_args.map_name:
+    _type: choice
+    _value: ["3m", "3s_vs_5z"]
+  algo_args.train.seed:
+    _type: choice
+    _value: [0, 1]
+
+  # Exploration and Exploitation
+  # PPO
+  algo_args.train.entropy_coef:
+    _type: choice
+    _value: [0.001, 0.01, 0.1]
+
+trialCommand: python -u single_train.py --env smac --algo mappo --exp_name nni-explore-mappo --run single
+trialCodeDirectory: ../../../
+# experimentWorkingDirectory: nni-experiments
+trialGpuNumber: 1
+trialConcurrency: 3
+tuner:
+  name: GridSearch
+trainingService:
+  platform: local
+  useActiveGpu: True
+  maxTrialNumberPerGpu: 5
+  gpuIndices: [0]

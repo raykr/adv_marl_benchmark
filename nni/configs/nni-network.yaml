@@ -1,0 +1,54 @@
+experimentName: nni-network-rnn
+searchSpace:
+  # common hyperparameters [don't change]
+  algo_args.train.log_dir:
+    _type: choice
+    _value: ["#nni_dynamic"]
+  # end common hyperparameters
+  
+  algo_args.train.num_env_steps:
+    _type: choice
+    _value: [3000000]
+  main_args.algo:
+    _type: choice
+    _value: ["mappo", "maddpg", "qmix"]
+  main_args.env:
+    _type: choice
+    _value: ["smac"]
+  main_args.run:
+    _type: choice
+    _value: [
+        "single",
+        # 'perturbation',
+        # "traitor",
+      ]
+  env_args.map_name:
+    _type: choice
+    _value: ["3m", "3s_vs_5z", "4m_vs_3m", "4s_vs_5z"]
+  algo_args.train.seed:
+    _type: choice
+    _value: [0, 1]
+
+  # Network Architecture
+  # algo_args.train.hidden_sizes:
+  #   _type: choice
+  #   _value: [[64, 64], [128, 128], [64, 64, 64], [128, 128, 128]]
+  # algo_args.train.activation_func:
+  #   _type: choice
+  #   _value: ["relu", "tanh", "softmax"]
+  algo_args.train.use_recurrent_policy:
+    _type: choice
+    _value: [true, false]
+
+trialCommand: python -u ../../single_train.py --env smac --algo mappo --exp_name nni-network-rnn --run single
+trialCodeDirectory: .
+# experimentWorkingDirectory: nni-experiments
+trialGpuNumber: 1
+trialConcurrency: 3
+tuner:
+  name: GridSearch
+trainingService:
+  platform: local
+  useActiveGpu: True
+  maxTrialNumberPerGpu: 5
+  gpuIndices: [0]

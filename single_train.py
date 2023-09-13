@@ -2,10 +2,23 @@ import os
 import argparse
 import json
 from pprint import pprint
-from amb.utils.config_utils import get_one_yaml_args, update_args, parse_timestep
+from amb.utils.config_utils import convert_nested_dict, get_one_yaml_args, update_args, parse_timestep, nni_update_args
+import torch
+import nni
+
+# show tensor shape in vscode debugger
+def custom_repr(self):
+    return f'{{Tensor:{tuple(self.shape)}}} {original_repr(self)}'
+
+original_repr = torch.Tensor.__repr__
+torch.Tensor.__repr__ = custom_repr
 
 def main():
     """Main function."""
+    # merge nni parameters
+    nni_params = nni.get_next_parameter()
+    nni_dict = convert_nested_dict(nni_params)
+
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--algo",
@@ -15,6 +28,10 @@ def main():
             "maddpg",
             "mappo",
             "qmix",
+            "vdn",
+            "iql",
+            "qtran",
+            "coma",
         ],
         help="Algorithm name. Choose from: maddpg, mappo, igs.",
     )
@@ -79,6 +96,12 @@ def main():
     values = [process(v) for v in unparsed_args[1::2]]
     unparsed_dict = {k: v for k, v in zip(keys, values)}
     args = vars(args)  # convert to dict
+
+    # Since subsequent configuration files require parameters in args, 
+    # it is necessary to update args first
+    if "main_args" in nni_dict:
+        nni_update_args(args, nni_dict["main_args"])
+
     if args["load_config"] != "":  # load config from existing config file
         with open(args["load_config"], encoding='utf-8') as file:
             all_config = json.load(file)
@@ -117,6 +140,10 @@ def main():
     if "perturb_timesteps" in algo_args["train"]:
         algo_args["train"]["perturb_timesteps"] = parse_timestep(algo_args["train"]["perturb_timesteps"], algo_args["train"]["episode_length"])
 
+    if "algo_args" in nni_dict:
+        nni_update_args(algo_args, nni_dict["algo_args"])
+    if "env_args" in nni_dict:
+        nni_update_args(env_args, nni_dict["env_args"])
     pprint([args, algo_args, env_args])
 
     # start training
@@ -126,6 +153,10 @@ def main():
         runner.render()
     else:
         runner.run()
+    
+    # nni final
+    nni.report_final_result(0)
+    
     runner.close()
 
 
