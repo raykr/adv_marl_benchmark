@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from amb.data.episode_buffer import EpisodeBuffer
-from amb.runners.traitor.base_runner import BaseRunner
+from amb.runners.perturbation.base_runner import BaseRunner
 from amb.utils.popart import PopArt
 from amb.utils.trans_utils import _t2n, gather, scatter
 from amb.utils.env_utils import (
@@ -12,7 +12,7 @@ from amb.utils.env_utils import (
 
 class OnPolicyRunner(BaseRunner):
     def __init__(self, args, algo_args, env_args):
-        """Initialize the traitor/OnPolicyRunner class.
+        """Initialize the perturbation/OnPolicyRunner class.
         Args:
             args: command-line arguments parsed by argparse. Three keys: algo, env, exp_name.
             algo_args: arguments related to algo, loaded from config file and updated with unparsed command-line arguments.
@@ -93,12 +93,10 @@ class OnPolicyRunner(BaseRunner):
             self.algo.prep_rollout()
 
             for step in range(self.algo_args['train']['episode_length']):
-                # Sample actions from actors and values from critics
-                adv_values, adv_actions, adv_action_log_probs, adv_rnn_states, adv_rnn_states_critic = self.collect(step)
-
+                # 1. Get actions before attack (do not update rnn hidden states)
                 actions_collector = []
                 for agent_id in range(self.num_agents):
-                    actions, temp_rnn_state = self.victims[agent_id].perform(
+                    actions, _ = self.victims[agent_id].perform(
                         obs[:, agent_id],
                         rnn_states[:, agent_id],
                         masks[:, agent_id],
@@ -106,11 +104,48 @@ class OnPolicyRunner(BaseRunner):
                         if available_actions[0] is not None else None,
                         deterministic=False
                     )
-                    rnn_states[:, agent_id] = _t2n(temp_rnn_state)
                     actions_collector.append(_t2n(actions))
                 actions = np.stack(actions_collector, axis=1)
 
-                scatter(actions, adv_agent_ids, adv_actions, axis=1)
+                # 2. Collect adversarial actions
+                adv_values, adv_actions, adv_action_log_probs, \
+                    adv_rnn_states, adv_rnn_states_critic = self.collect(step)
+                target_adv_actions = actions.copy()
+                scatter(target_adv_actions, adv_agent_ids, adv_actions, axis=1)
+
+                # 3. Perform attack to perturb the observations
+                obs_adv_collector = []
+                for agent_id in range(self.num_agents):
+                    obs_adv = self.attack.perturb(
+                        self.victims[agent_id],
+                        obs[:, agent_id],
+                        rnn_states[:, agent_id],
+                        masks[:, agent_id],
+                        available_actions[:, agent_id]
+                        if available_actions[0] is not None else None,
+                        target_adv_actions[:, agent_id]
+                    )
+                    obs_adv_collector.append(_t2n(obs_adv))
+                _obs_adv = np.stack(obs_adv_collector, axis=1)
+
+                _obs_adv = gather(_obs_adv, adv_agent_ids, axis=1)
+                obs_adv = obs.copy()
+                scatter(obs_adv, adv_agent_ids, _obs_adv, axis=1)
+
+                # 4. Get actions after attack (update rnn hidden states)
+                actions_collector = []
+                for agent_id in range(self.num_agents):
+                    actions, temp_rnn_state = self.victims[agent_id].perform(
+                        obs_adv[:, agent_id],
+                        rnn_states[:, agent_id],
+                        masks[:, agent_id],
+                        available_actions[:, agent_id]
+                        if available_actions[0] is not None else None,
+                        deterministic=False,
+                    )
+                    rnn_states[:, agent_id] = _t2n(temp_rnn_state)
+                    actions_collector.append(_t2n(actions))
+                actions = np.array(actions_collector).transpose(1, 0, 2)
                 
                 # actions: (n_threads, n_agents, action_dim)
                 obs, share_obs, rewards, dones, infos, available_actions = self.envs.step(actions)

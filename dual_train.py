@@ -1,6 +1,7 @@
 import os
 import argparse
 import json
+from pprint import pprint
 from amb.utils.config_utils import get_one_yaml_args, update_args
 
 def main():
@@ -133,6 +134,8 @@ def main():
             
     update_args(unparsed_dict, angel=angel_args, env=env_args, demon=demon_args)  # update args from command line
     algo_args = {"angel": angel_args, "demon": demon_args}
+
+    pprint([args, algo_args, env_args])
 
     # start training
     from amb.runners import get_runner

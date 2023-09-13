@@ -149,3 +149,22 @@ def save_config(args, algo_args, env_args, run_dir):
     output = json.dumps(config_json, separators=(',', ':\t'), indent=4, sort_keys=True)
     with open(os.path.join(run_dir, "config.json"), 'w', encoding='utf-8') as out:
         out.write(output)
+
+
+def parse_timestep(timesteps, ep_length):
+    if timesteps is None:
+        return [True for _ in range(ep_length)]
+    if not isinstance(timesteps, str):
+        return timesteps
+    timesteps = timesteps.strip().replace(" ", "").split(",")
+    parsed_steps = []
+    for tp in timesteps:
+        if "-" in tp:
+            start, end = tp.split("-")
+            parsed_steps.extend(list(range(int(start), int(end) + 1)))
+        else:
+            parsed_steps.append(int(tp))
+    steps_bool = [False for _ in range(ep_length)]
+    for step in parsed_steps:
+        steps_bool[step] = True
+    return steps_bool

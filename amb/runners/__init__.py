@@ -7,8 +7,12 @@ def get_runner(run, algo):
             from amb.runners.single.off_policy_runner import OffPolicyRunner
             return OffPolicyRunner
     if run == "perturbation":
-        from amb.runners.perturbation.base_runner import BaseRunner
-        return BaseRunner
+        if algo == "mappo":
+            from amb.runners.perturbation.on_policy_runner import OnPolicyRunner
+            return OnPolicyRunner
+        elif algo == "maddpg":
+            from amb.runners.perturbation.off_policy_runner import OffPolicyRunner
+            return OffPolicyRunner
     if run == "traitor":
         if algo == "mappo":
             from amb.runners.traitor.on_policy_runner import OnPolicyRunner

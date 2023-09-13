@@ -13,6 +13,8 @@ torch_threads: 4
 # train:
 # number of parallel environments for perturbation
 n_rollout_threads: 10
+# number of steps per environment per training data collection
+episode_length: 200
 # episodes of perturbation
 perturb_episodes: 20
 # render:
@@ -31,6 +33,10 @@ adaptive_alpha: True
 perturb_alpha: 0.05
 # the criterion function when calculating the distance of actions
 criterion: default
+# the id of adversarial agents
+adv_agent_ids: [0]
+# the range of timestep that can be perturbed, e.g.: "1-10,15,20"
+perturb_timesteps: ~
 # logger:
 # logging directory
 log_dir: "./results"

@@ -1,7 +1,8 @@
 import os
 import argparse
 import json
-from amb.utils.config_utils import get_one_yaml_args, update_args
+from pprint import pprint
+from amb.utils.config_utils import get_one_yaml_args, update_args, parse_timestep
 
 def main():
     """Main function."""
@@ -13,7 +14,6 @@ def main():
         choices=[
             "maddpg",
             "mappo",
-            "igs",
             "qmix",
         ],
         help="Algorithm name. Choose from: maddpg, mappo, igs.",
@@ -91,9 +91,9 @@ def main():
         victim_args = all_config["algo_args"]["victim"]
         env_args = all_config["env_args"]
     else:  # load config from corresponding yaml file
-        if args["run"] == "single" or args["run"] == "perturbation":
+        if args["run"] == "single":
             algo_args = get_one_yaml_args(args["algo"])
-        elif args["run"] == "traitor":
+        elif args["run"] == "perturbation" or args["run"] == "traitor":
             algo_args = get_one_yaml_args(args["algo"] + "_traitor")
 
         if args["load_victim"] != "":
@@ -114,6 +114,10 @@ def main():
     update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
     algo_args = {"train": algo_args, "victim": victim_args}
 
+    if "perturb_timesteps" in algo_args["train"]:
+        algo_args["train"]["perturb_timesteps"] = parse_timestep(algo_args["train"]["perturb_timesteps"], algo_args["train"]["episode_length"])
+
+    pprint([args, algo_args, env_args])
 
     # start training
     from amb.runners import get_runner
