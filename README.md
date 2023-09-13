@@ -10,14 +10,14 @@
 ### Pipelines
 
 * Single MARL training
-* Perturbation-based attacks
+* Perturbation-based attacks & traitors
 * Adversarial traitors
+* Dual MARL training
 
 ### Algorithms
 
 * MAPPO
 * MADDPG
-* Iterative Gradient Sign Perturbations
 
 ### Environments
 
@@ -49,6 +49,10 @@ rm -rf SC2.4.10.zip
 
 cd StarCraftII/
 wget https://raw.githubusercontent.com/Blizzard/s2client-proto/master/stableid.json
+
+pip install pysc2
+# enum34 is deprecated in newer python version, and should be deleted.
+pip uninstall enum34
 ```
 
 Add following lines into `~/.bashrc`:
@@ -56,6 +60,8 @@ Add following lines into `~/.bashrc`:
 ```bash
 export SC2PATH="/path/to/your/StarCraftII"
 ```
+
+Copy the `amb/envs/smac/SMAC_Maps` directory to `StarCraftII/Maps`.
 
 ### Install Multi-Agent MuJoCo
 
@@ -67,11 +73,8 @@ cd ~/.mujoco
 wget https://github.com/deepmind/mujoco/releases/download/2.1.0/mujoco210-linux-x86_64.tar.gz
 tar xzvf mujoco210-linux-x86_64.tar.gz
 rm -rf mujoco210-linux-x86_64.tar.gz
-
-pip install pysc2
 ```
 
-Copy the `amb/envs/smac/SMAC_Maps` directory to `StarCraftII/Maps`.
 
 Add following commands to your `~/.bashrc`:
 ```bash
@@ -82,7 +85,9 @@ Then, install mujoco-py by running the following commands:
 
 ```bash
 # ubuntu only. If there are more troubles (e.g., -lGL cannot be found, etc.), please refer to the official github of mujoco-py.
-sudo apt install libosmesa6-dev libgl1-mesa-glx libglfw3 patchelf
+sudo apt install libglew-dev libosmesa6-dev libgl1-mesa-glx libglfw3 patchelf
+# newer Cython version will cause error
+pip install "Cython<3"
 # install mujoco-py
 pip install "mujoco-py<2.2,>=2.1"
 ```
@@ -117,7 +122,7 @@ pip install gfootball
 Run following commands after all enviroments are installed.
 
 ```bash
-pip install gym==0.21.0 pyglet==1.5.0 importlib-metadata==4.13.0
+pip install gym==0.21.0 pyglet==1.5.0 importlib-metadata==4.13.0 numpy==1.21.5 protobuf==3.20.3
 ```
 
 ## Usage Examples
@@ -125,31 +130,40 @@ pip install gym==0.21.0 pyglet==1.5.0 importlib-metadata==4.13.0
 ### Single Algorithm Training
 
 ```bash
-python -u train.py --env <env_name> --algo <algo_name> --exp_name <exp_name> --run single
+python -u single_train.py --env <env_name> --algo <algo_name> --exp_name <exp_name> --run single
 ```
 
 ### Perturbation-based Attack
 
 ```bash
-python -u train.py --env <env_name> --algo <perturbation_name> --exp_name <exp_name> --run perturbation --victim <victim_algo_name> --victim.model_dir <dir/to/your/model>
+python -u single_train.py --env <env_name> --algo <perturbation_algo_name> --exp_name <exp_name> --run perturbation --victim <victim_algo_name> --victim.model_dir <dir/to/your/model>
 ```
 
 ### Adversarial Traitors
 
 ```bash
-python -u train.py --env <env_name> --algo <traitor_algo_name> --exp_name <exp_name> --run traitor --victim <victim_algo_name> --victim.model_dir <dir/to/your/model>
+python -u single_train.py --env <env_name> --algo <traitor_algo_name> --exp_name <exp_name> --run traitor --victim <victim_algo_name> --victim.model_dir <dir/to/your/model>
 ```
 
-### Load Victim Config fron JSON
+### Dual Algorithm Training
+
+```bash
+# In dual training, "angel" and "demon" are two competitive teams, where we only train "angel" but fix "demon".
+python -u dual_train.py --env <env_name> --angel <angel_algo_name> --demon <demon_algo_name> --exp_name <exp_name> --run dual
+```
+
+### Load Victim Config from Directory
 
 ```bash
 # It will load environment and victim configurations from JSON, together with the victim's checkpoints in "models/" directory
-python -u train.py --algo <adv_algo_name> --exp_name <exp_name> --run [traitor|perturbation] --load_victim <dir/to/victim/results>
+python -u single_train.py --algo <adv_algo_name> --exp_name <exp_name> --run [traitor|perturbation] --load_victim <dir/to/victim/results>
+# In dual training, you can load angel and demon separately, even from single training checkpoint.
+python -u dual_train.py --env <env_name> --load_angel <dir/to/angel/results> --load_victim <dir/to/demon/results> --exp_name <exp_name> --run dual
 ```
 
 ### Argument Decided Parameters
 
 ```bash
 # Here is an example. "A.B" -> A means namespace (algo, env, victim), and B means the parameter name.
-python -u train.py --algo.lr 5e-4 --victim.share_param False --env.map_name 2s3z
+python -u single_train.py --algo.lr 5e-4 --victim.share_param False --env.map_name 2s3z
 ```

@@ -3,6 +3,7 @@
 **/nni-experiments/**
 **/ckpts/**
 .VSCodeCounter/
+perturbation_rewards.txt
 
 ##### Python.gitignore #####
 # Byte-compiled / optimized / DLL files

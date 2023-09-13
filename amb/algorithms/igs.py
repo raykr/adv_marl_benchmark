@@ -31,9 +31,11 @@ class IGS:
                 self.criterion = torch.nn.MSELoss()
 
     def perturb(self, agent: BaseAgent, obs, rnn_states, masks, available_actions=None, target_action=None):
+        targeted_attack = False
         obs = check(obs).to(**self.tpdv)
         if target_action is not None:
             target_action = check(target_action).to(**self.tpdv)
+            targeted_attack = True
         else:
             action_dist, _ = agent.forward(obs, rnn_states, masks, available_actions)
             target_action = action_dist.mode
@@ -57,7 +59,10 @@ class IGS:
             loss = self.criterion(actor_out, target_action.detach())
             grad = torch.autograd.grad(loss, obs_adv)[0]
 
-            delta = torch.clamp(obs_adv + self.alpha * grad.sign() - obs, -self.epsilon, self.epsilon)
+            if targeted_attack:
+                delta = torch.clamp(obs_adv - self.alpha * grad.sign() - obs, -self.epsilon, self.epsilon)
+            else:
+                delta = torch.clamp(obs_adv + self.alpha * grad.sign() - obs, -self.epsilon, self.epsilon)
             obs_adv = (obs + delta).detach()
 
         return obs_adv

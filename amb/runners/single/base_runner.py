@@ -229,13 +229,10 @@ class BaseRunner:
         """Render the model"""
         print("start rendering")
 
-        eval_rnn_states = np.zeros(
-            (self.env_num, self.num_agents, self.recurrent_n, self.rnn_hidden_size),
-            dtype=np.float32,
-        )
-        eval_masks = np.ones((self.env_num, self.num_agents, 1), dtype=np.float32)
-
         for _ in range(self.algo_args['train']['render_episodes']):
+            eval_rnn_states = np.zeros((self.env_num, self.num_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
+            eval_masks = np.ones((self.env_num, self.num_agents, 1), dtype=np.float32)
+
             eval_obs, _, eval_available_actions = self.envs.reset()
             rewards = 0
             while True:

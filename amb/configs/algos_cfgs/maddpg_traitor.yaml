@@ -89,6 +89,21 @@ use_policy_active_masks: True
 # adversarial policy parameters
 # the id of adversarial agents
 adv_agent_ids: [0]
+# the range of timestep that can be perturbed, e.g.: "1-10,15,20"
+perturb_timesteps: ~
+# perturbation parameters
+# the budget of perturbation (in L-inf norm)
+perturb_epsilon: 0.2
+# the iterations of gradient backwards for perturbations
+perturb_iters: 10
+# adaptively calculate the proper alpha
+adaptive_alpha: True
+# if adaptive_alpha=False, the budget of perturbation in every iteration
+perturb_alpha: 0.05
+# the criterion function when calculating the distance of actions
+criterion: default
+# if targeted, load the adversarial policies and perform targeted attack
+targeted_attack: False
 # logger:
 # logging directory
 log_dir: "./results"

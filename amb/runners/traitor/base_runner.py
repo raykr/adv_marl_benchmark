@@ -39,6 +39,7 @@ class BaseRunner:
         self.episode_length = algo_args["train"]["episode_length"]
         self.n_rollout_threads = algo_args["train"]["n_rollout_threads"]
         self.n_eval_rollout_threads = algo_args['train']['n_eval_rollout_threads']
+        self.perturb_timesteps = np.array(algo_args["train"]["perturb_timesteps"])
 
         self.share_param = algo_args["train"]['share_param']
         self.victim_share_param = algo_args["victim"]['share_param']
@@ -125,6 +126,7 @@ class BaseRunner:
                 else None
             )
         self.num_agents = self.envs.n_agents
+        self.num_adv_agents = len(algo_args["train"]["adv_agent_ids"])
         self.action_type = self.envs.action_space[0].__class__.__name__
 
         print("share_observation_space: ", self.envs.share_observation_space)
@@ -162,8 +164,6 @@ class BaseRunner:
                 )
                 agent.prep_rollout()
                 self.victims.append(agent)
-
-        self.num_adv_agents = len(algo_args["train"]["adv_agent_ids"])
 
         # cannot support heterogeneous spaces in random-id adv policy
         self.algo = ALGO_REGISTRY[args["algo"]](
@@ -264,9 +264,10 @@ class BaseRunner:
         eval_rnn_states = np.zeros((self.n_eval_rollout_threads, self.num_agents, self.victim_recurrent_n, self.victim_rnn_hidden_size), dtype=np.float32)
         eval_adv_rnn_states = np.zeros((self.n_eval_rollout_threads, self.num_adv_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
         eval_masks = np.ones((self.n_eval_rollout_threads, self.num_agents, 1), dtype=np.float32)
-
+        
         # shape: [n_threads, n_agents]
         adv_agent_ids = np.stack([self.get_certain_adv_ids() for _ in range(self.n_eval_rollout_threads)], axis=0)
+        current_timesteps = np.zeros((self.n_eval_rollout_threads,), dtype=np.int32)
 
         while True:
             eval_actions_collector = []
@@ -297,7 +298,8 @@ class BaseRunner:
                 eval_adv_actions_collector.append(_t2n(eval_adv_actions))
             eval_adv_actions = np.array(eval_adv_actions_collector).transpose(1, 0, 2)
 
-            scatter(eval_actions, adv_agent_ids, eval_adv_actions, axis=1)
+            perturb_mask = self.perturb_timesteps[current_timesteps]
+            scatter(eval_actions[perturb_mask], adv_agent_ids[perturb_mask], eval_adv_actions[perturb_mask], axis=1)
 
             eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions = self.eval_envs.step(eval_actions)
             eval_data = (eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions)
@@ -310,6 +312,9 @@ class BaseRunner:
 
             eval_masks = np.ones((self.n_eval_rollout_threads, self.num_agents, 1), dtype=np.float32)
             eval_masks[eval_dones_env == True] = 0
+
+            current_timesteps += 1
+            current_timesteps[eval_dones_env == True] = 0
 
             for eval_i in range(self.n_eval_rollout_threads):
                 if eval_dones_env[eval_i]:
@@ -326,13 +331,14 @@ class BaseRunner:
         """Render the model"""
         print("start rendering")
 
-        eval_rnn_states = np.zeros((self.env_num, self.num_agents, self.victim_recurrent_n, self.victim_rnn_hidden_size), dtype=np.float32)
-        eval_adv_rnn_states = np.zeros((self.env_num, self.num_adv_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
-        eval_masks = np.ones((self.env_num, self.num_agents, 1), dtype=np.float32)
-
-        adv_agent_ids = np.stack([self.get_certain_adv_ids() for _ in range(self.env_num)], axis=0)
-
         for _ in range(self.algo_args['train']['render_episodes']):
+            eval_rnn_states = np.zeros((self.env_num, self.num_agents, self.victim_recurrent_n, self.victim_rnn_hidden_size), dtype=np.float32)
+            eval_adv_rnn_states = np.zeros((self.env_num, self.num_adv_agents, self.recurrent_n, self.rnn_hidden_size), dtype=np.float32)
+            eval_masks = np.ones((self.env_num, self.num_agents, 1), dtype=np.float32)
+
+            adv_agent_ids = np.stack([self.get_certain_adv_ids() for _ in range(self.env_num)], axis=0)
+            current_timesteps = np.zeros((self.env_num,), dtype=np.int32)
+
             eval_obs, _, eval_available_actions = self.envs.reset()
             rewards = 0
             while True:
@@ -368,7 +374,8 @@ class BaseRunner:
                     eval_adv_actions_collector.append(_t2n(eval_adv_actions))
                 eval_adv_actions = np.array(eval_adv_actions_collector).transpose(1, 0, 2)
 
-                scatter(eval_actions, adv_agent_ids, eval_adv_actions, axis=1)
+                perturb_mask = self.perturb_timesteps[current_timesteps]
+                scatter(eval_actions[perturb_mask], adv_agent_ids[perturb_mask], eval_adv_actions[perturb_mask], axis=1)
 
                 eval_obs, _, eval_rewards, eval_dones, _, eval_available_actions = self.envs.step(eval_actions[0])
                 rewards += eval_rewards[0][0]
@@ -377,6 +384,7 @@ class BaseRunner:
                 if self.manual_delay:
                     time.sleep(0.1)
                 eval_dones_env = np.all(eval_dones)
+                current_timesteps += 1
                 if eval_dones_env:
                     print(f'total reward of this episode: {rewards}')
                     break

@@ -194,3 +194,22 @@ def nni_update_args(dict1, dict2):
                     nni_update_args(dict1[key], value)
                 else:
                     dict1[key] = value
+
+def parse_timestep(timesteps, ep_length):
+    if timesteps is None:
+        return [True for _ in range(ep_length)]
+    if not isinstance(timesteps, str):
+        return timesteps
+    timesteps = timesteps.strip().replace(" ", "").split(",")
+    parsed_steps = []
+    for tp in timesteps:
+        if "-" in tp:
+            start, end = tp.split("-")
+            parsed_steps.extend(list(range(int(start), int(end) + 1)))
+        else:
+            parsed_steps.append(int(tp))
+    steps_bool = [False for _ in range(ep_length)]
+    for step in parsed_steps:
+        steps_bool[step] = True
+    return steps_bool
+
