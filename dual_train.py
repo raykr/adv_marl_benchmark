@@ -2,7 +2,7 @@ import os
 import argparse
 import json
 from pprint import pprint
-from amb.utils.config_utils import get_one_yaml_args, update_args
+from amb.utils.config_utils import get_one_yaml_args, update_args, parse_timestep
 
 def main():
     """Main function."""
@@ -14,7 +14,17 @@ def main():
         choices=[
             "maddpg",
             "mappo",
-            "igs",
+            "qmix",
+        ],
+        help="Algorithm name. Choose from: maddpg, mappo, igs.",
+    )
+    parser.add_argument(
+        "--victim",
+        type=str,
+        default="mappo",
+        choices=[
+            "maddpg",
+            "mappo",
             "qmix",
         ],
         help="Algorithm name. Choose from: maddpg, mappo, igs.",
@@ -69,6 +79,12 @@ def main():
         default="",
         help="If set, load existing demon config file and checkpoint file instead of reading from yaml config file.",
     )
+    parser.add_argument(
+        "--load_victim",
+        type=str,
+        default="",
+        help="If set, load existing angel config file and checkpoint file instead of reading from yaml config file.",
+    )
     args, unparsed_args = parser.parse_known_args()
 
     def process(arg):
@@ -92,8 +108,11 @@ def main():
 
         angel_args = all_config["algo_args"]["angel"]
         demon_args = all_config["algo_args"]["demon"]
+        victim_args = all_config["algo_args"]["victim"]
         env_args = all_config["env_args"]
     else:  # load config from corresponding yaml file
+        env_args = get_one_yaml_args(args["env"], type="env")
+
         if args["load_angel"] != "":
             with open(os.path.join(args["load_angel"], "config.json"), encoding='utf-8') as file:
                 angel_config = json.load(file)
@@ -107,10 +126,29 @@ def main():
                 angel_config["algo_args"]["angel"]["model_dir"] = os.path.join(args["load_angel"], "models", "angel")
                 angel_args = angel_config["algo_args"]["angel"]
 
-            args["env"] = angel_config["main_args"]["env"]
-            env_args = angel_config["env_args"]
+                args["env"] = angel_config["main_args"]["env"]
+                env_args = angel_config["env_args"]
         else:
-            angel_args = get_one_yaml_args(args["angel"])
+            if args["run"] == "dual":
+                angel_args = get_one_yaml_args(args["angel"])
+            elif args["run"] == "perturbation" or args["run"] == "traitor":
+                angel_args = get_one_yaml_args(args["angel"] + "_traitor")
+
+        victim_args = {}
+        if args["load_victim"] != "":
+            with open(os.path.join(args["load_victim"], "config.json"), encoding='utf-8') as file:
+                victim_config = json.load(file)
+            if "algo" in victim_config["main_args"]:
+                args["victim"] = victim_config["main_args"]["algo"]
+                victim_config["algo_args"]["train"]["model_dir"] = os.path.join(args["load_victim"], "models")
+                victim_args = victim_config["algo_args"]["train"]
+            else:
+                raise NotImplementedError
+                # args["demon"] = victim_config["main_args"]["demon"]
+                # victim_config["algo_args"]["demon"]["model_dir"] = os.path.join(args["load_victim"], "models", "angel")
+                # victim_args = victim_config["algo_args"]["demon"]
+        elif args["run"] == "perturbation" or args["run"] == "traitor":
+            victim_args = get_one_yaml_args(args["victim"])
 
         if args["load_demon"] != "":
             with open(os.path.join(args["load_demon"], "config.json"), encoding='utf-8') as file:
@@ -123,23 +161,20 @@ def main():
                 args["demon"] = demon_config["main_args"]["demon"]
                 demon_config["algo_args"]["demon"]["model_dir"] = os.path.join(args["load_demon"], "models", "demon")
                 demon_args = demon_config["algo_args"]["demon"]
-
-            # args["env"] = demon_config["main_args"]["env"]
-            # env_args = demon_config["env_args"]
         else:
             demon_args = get_one_yaml_args(args["demon"])
-
-        if args["load_angel"] == "" and args["load_demon"] == "":
-            env_args = get_one_yaml_args(args["env"], type="env")
             
-    update_args(unparsed_dict, angel=angel_args, env=env_args, demon=demon_args)  # update args from command line
-    algo_args = {"angel": angel_args, "demon": demon_args}
+    update_args(unparsed_dict, angel=angel_args, env=env_args, demon=demon_args, victim=victim_args)  # update args from command line
+    algo_args = {"angel": angel_args, "demon": demon_args, "victim": victim_args}
+
+    if "perturb_timesteps" in algo_args["angel"]:
+        algo_args["angel"]["perturb_timesteps"] = parse_timestep(algo_args["angel"]["perturb_timesteps"], algo_args["angel"]["episode_length"])
 
     pprint([args, algo_args, env_args])
 
     # start training
-    from amb.runners import get_runner
-    runner = get_runner(args["run"], args["angel"])(args, algo_args, env_args)
+    from amb.runners import get_dual_runner
+    runner = get_dual_runner(args["run"], args["angel"])(args, algo_args, env_args)
     if algo_args["angel"]['use_render']:  # render, not train
         runner.render()
     else:

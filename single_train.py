@@ -147,8 +147,8 @@ def main():
     pprint([args, algo_args, env_args])
 
     # start training
-    from amb.runners import get_runner
-    runner = get_runner(args["run"], args["algo"])(args, algo_args, env_args)
+    from amb.runners import get_single_runner
+    runner = get_single_runner(args["run"], args["algo"])(args, algo_args, env_args)
     if algo_args["train"]['use_render']:  # render, not train
         runner.render()
     else:

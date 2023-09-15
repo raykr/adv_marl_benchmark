@@ -103,7 +103,7 @@ def init_dir(env, env_args, algo, exp_name, run_name, seed, logger_path):
         task = get_task_name(env, env_args)
         hms_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())
         results_path = os.path.join(
-            logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time]), random_str(8)
+            logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time])
         )
     print("results_path", results_path)
     log_path = os.path.join(results_path, 'logs')

@@ -330,6 +330,7 @@ class BaseRunner:
     def render(self):
         """Render the model"""
         print("start rendering")
+        self.algo.prep_rollout()
 
         for _ in range(self.algo_args['train']['render_episodes']):
             eval_rnn_states = np.zeros((self.env_num, self.num_agents, self.victim_recurrent_n, self.victim_rnn_hidden_size), dtype=np.float32)
