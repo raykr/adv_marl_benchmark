@@ -1,4 +1,4 @@
-def get_runner(run, algo):
+def get_single_runner(run, algo):
     if run == "single":
         if algo == "mappo":
             from amb.runners.single.on_policy_runner import OnPolicyRunner
@@ -20,10 +20,26 @@ def get_runner(run, algo):
         elif algo == "maddpg":
             from amb.runners.traitor.off_policy_runner import OffPolicyRunner
             return OffPolicyRunner
+
+def get_dual_runner(run, algo):
     if run == "dual":
         if algo == "mappo":
             from amb.runners.dual.on_policy_runner import OnPolicyRunner
             return OnPolicyRunner
         elif algo == "maddpg":
             from amb.runners.dual.off_policy_runner import OffPolicyRunner
+            return OffPolicyRunner
+    if run == "perturbation":
+        if algo == "mappo":
+            from amb.runners.perturbation.on_policy_runner import OnPolicyRunner
+            return OnPolicyRunner
+        elif algo == "maddpg":
+            from amb.runners.perturbation.off_policy_runner import OffPolicyRunner
+            return OffPolicyRunner
+    if run == "traitor":
+        if algo == "mappo":
+            from amb.runners.dual_traitor.on_policy_runner import OnPolicyRunner
+            return OnPolicyRunner
+        elif algo == "maddpg":
+            from amb.runners.dual_traitor.off_policy_runner import OffPolicyRunner
             return OffPolicyRunner

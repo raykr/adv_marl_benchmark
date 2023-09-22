@@ -69,7 +69,7 @@ recurrent_n: 1
 # discount factor
 gamma: 0.99
 # off-policy buffer size
-buffer_size: 20000
+buffer_size: 5000
 # training batch size
 batch_size: 1000
 # coefficient for target model soft update

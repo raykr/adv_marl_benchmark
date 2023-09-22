@@ -138,10 +138,7 @@ class BaseRunner:
     @torch.no_grad()
     def eval(self):
         """Evaluate the model. All algorithms should fit this evaluation pipeline."""
-        for agent in self.angels:
-            agent.prep_rollout()
-        for agent in self.demons:
-            agent.prep_rollout()
+        self.algo.prep_rollout()
 
         self.logger.eval_init(self.n_eval_rollout_threads)  # logger callback at the beginning of evaluation
         eval_episode = 0
@@ -211,6 +208,7 @@ class BaseRunner:
     def render(self):
         """Render the model"""
         print("start rendering")
+        self.algo.prep_rollout()
 
         for _ in range(self.algo_args["angel"]['render_episodes']):
             eval_angel_rnn_states = np.zeros((self.n_eval_rollout_threads, self.num_angels, self.angel_recurrent_n, self.angel_rnn_hidden_size), dtype=np.float32)
@@ -262,7 +260,6 @@ class BaseRunner:
                     time.sleep(0.1)
                 eval_dones_env = np.all(eval_dones[0])
                 if eval_dones_env:
-                    print(eval_infos[0][0], eval_infos[1][0])
                     print(f'total reward of this episode: {rewards}')
                     break
                 
@@ -290,11 +287,11 @@ class BaseRunner:
         """Save the model"""
         self.algo.save(os.path.join(self.save_dir, "angel"))
 
-        if self.demon_share_param:
-            self.demons[0].save(os.path.join(self.save_dir, "demon"))
-        else:
-            for agent_id in range(self.num_demons):
-                self.demons[agent_id].save(os.path.join(self.save_dir, "demon", str(agent_id)))
+        # if self.demon_share_param:
+        #     self.demons[0].save(os.path.join(self.save_dir, "demon"))
+        # else:
+        #     for agent_id in range(self.num_demons):
+        #         self.demons[agent_id].save(os.path.join(self.save_dir, "demon", str(agent_id)))
 
     def close(self):
         """Close environment, writter, and log file."""
