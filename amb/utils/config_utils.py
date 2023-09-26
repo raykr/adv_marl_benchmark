@@ -90,6 +90,8 @@ def get_task_name(env, env_args):
         task = env_args["env_name"]
     elif env == "dexhands":
         task = env_args["task"]
+    elif env == "toy":
+        task = "toy"
     return task
 
 
@@ -105,10 +107,10 @@ def init_dir(env, env_args, algo, exp_name, run_name, seed, logger_path):
         results_path = os.path.join(
             logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time])
         )
-    print("results_path", results_path)
+    print("The experiment path is at:", results_path)
     log_path = os.path.join(results_path, 'logs')
     os.makedirs(log_path, exist_ok=True)
-    from tensorboardX import SummaryWriter
+    from torch.utils.tensorboard import SummaryWriter
     writter = SummaryWriter(log_path)
     models_path = os.path.join(results_path, 'models')
     os.makedirs(models_path, exist_ok=True)

@@ -16,6 +16,7 @@ env_num_agents = {
 
 class FootballEnv:
     def __init__(self, args):
+        self._seed = 0
         self.args = copy.deepcopy(args)
         self.process_args(self.args)
         self.env = football_env.create_environment(**self.args)
@@ -64,7 +65,7 @@ class FootballEnv:
         self.env.close()
 
     def seed(self, seed):
-        self.env.seed(seed)
+        self._seed = seed
 
     def process_args(self, args):
         if "channel_dimensions" in args:
@@ -73,6 +74,7 @@ class FootballEnv:
             args["logdir"] = ""
         if "other_config_options" in args and args["other_config_options"] is None:
             args["other_config_options"] = {}
+        args["other_config_options"]["game_engine_random_seed"] = self._seed
         if self.args["representation"] in ("pixels", "pixels_gray", "extracted"):
             self.img = True
         else:

@@ -70,21 +70,20 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
                 env = SMACv2Env(env_args)
             elif env_name == "mamujoco":
-                from amb.envs.mamujoco.multiagent_mujoco.mujoco_multi import (
-                    MujocoMulti,
+                from amb.envs.mamujoco.mamujoco_env import (
+                    MAMujocoEnv,
                 )
 
-                env = MujocoMulti(env_args=env_args)
+                env = MAMujocoEnv(env_args)
             elif env_name == "pettingzoo_mpe":
                 from amb.envs.pettingzoo_mpe.pettingzoo_mpe_env import (
                     PettingZooMPEEnv,
                 )
 
                 assert env_args["scenario"] in [
-                    "simple_v2",
-                    "simple_spread_v2",
-                    "simple_reference_v2",
-                    "simple_speaker_listener_v3",
+                    "simple_spread_v3",
+                    "simple_reference_v3",
+                    "simple_speaker_listener_v4",
                 ], "only cooperative scenarios in MPE are supported"
                 env = PettingZooMPEEnv(env_args)
             elif env_name == "gym":
@@ -136,11 +135,11 @@ def make_eval_env(env_name, seed, n_threads, env_args):
 
                 env = SMACv2Env(env_args)
             elif env_name == "mamujoco":
-                from amb.envs.mamujoco.multiagent_mujoco.mujoco_multi import (
-                    MujocoMulti,
+                from amb.envs.mamujoco.mamujoco_env import (
+                    MAMujocoEnv,
                 )
 
-                env = MujocoMulti(env_args=env_args)
+                env = MAMujocoEnv(env_args)
             elif env_name == "pettingzoo_mpe":
                 from amb.envs.pettingzoo_mpe.pettingzoo_mpe_env import (
                     PettingZooMPEEnv,
@@ -205,9 +204,9 @@ def make_render_env(env_name, seed, env_args):
         manual_render = False
         manual_delay = False
     elif env_name == "mamujoco":
-        from amb.envs.mamujoco.multiagent_mujoco.mujoco_multi import MujocoMulti
+        from amb.envs.mamujoco.mamujoco_env import MAMujocoEnv
 
-        env = MujocoMulti(env_args=env_args)
+        env = MAMujocoEnv(env_args)
     elif env_name == "pettingzoo_mpe":
         from amb.envs.pettingzoo_mpe.pettingzoo_mpe_env import PettingZooMPEEnv
 
