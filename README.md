@@ -57,6 +57,22 @@ export SC2PATH="/path/to/your/StarCraftII"
 
 Copy the `amb/envs/smac/SMAC_Maps` and `amb/envs/smacv2/SMAC_Maps` directory to `StarCraftII/Maps`.
 
+### Install Google Research Football
+
+Install following dependencies (Linux only):
+
+```shell
+sudo apt-get install git cmake build-essential libgl1-mesa-dev libsdl2-dev \
+libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libboost-all-dev \
+libdirectfb-dev libst-dev mesa-utils xvfb x11vnc python3-pip
+```
+
+Install GRF through pip:
+
+```shell
+pip install gfootball
+```
+
 ## Usage Examples
 
 ### Single Algorithm Training

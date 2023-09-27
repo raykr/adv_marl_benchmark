@@ -13,8 +13,10 @@ dependencies:
   - pyyaml
   - pip
   - setuptools=63.4.1
+  - wheel=0.38.4
   - matplotlib
   - seaborn
+  - psutil
   - Cython<3
   - pip:
     - omegaconf
@@ -26,7 +28,6 @@ dependencies:
     - gymnasium-robotics==1.2.3
     - pettingzoo==1.24.1
     - supersuit==3.9.0
-    - gfootball==2.10.2
     - nni
     - wandb
   
