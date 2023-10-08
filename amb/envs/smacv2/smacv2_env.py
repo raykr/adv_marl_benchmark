@@ -1,14 +1,6 @@
-from __future__ import absolute_import, division, print_function
-
-import time
-from os import replace
-
 import numpy as np
-from absl import logging
-from smacv2.env import StarCraft2Env
-from smacv2.env.starcraft2.wrapper import StarCraftCapabilityEnvWrapper
+from amb.envs.smacv2.core.wrapper import StarCraftCapabilityEnvWrapper
 
-logging.set_verbosity(logging.DEBUG)
 import os.path as osp
 from pathlib import Path
 import yaml

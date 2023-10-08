@@ -4,7 +4,7 @@ from gym import spaces
 # state: [state(1), agent_id(1), last_state(1), last_action(2), agent_adversary(2)]
 class ToyExample:
     def __init__(self, args):
-        self.num_agents = 2
+        self.n_agents = 2
         self.obs_last_state = args["obs_last_state"]
         self.obs_last_action = args["obs_last_action"]
         self.obs_shape = 2
@@ -42,17 +42,17 @@ class ToyExample:
                 reward = 1.0
         self._t += 1
         self.last_action = actions.squeeze()
-        rewards = np.array([[reward] for _ in range(self.num_agents)])
+        rewards = np.array([[reward] for _ in range(self.n_agents)])
         env_done = (self._t >= self.episode_limit)
         return self.get_state(), self.get_state(), rewards, \
-            [env_done, env_done], [{}, {}], np.array([[1, 1] for _ in range(self.num_agents)]).astype(np.int32)
+            [env_done, env_done], [{}, {}], np.array([[1, 1] for _ in range(self.n_agents)]).astype(np.int32)
     
     def get_state(self):
         obs = np.array([[self._state, 0.0], [self._state, 1.0]])
         if self.obs_last_state:
-            obs = [np.concatenate([obs[i], [self.last_state]], axis=0) for i in range(self.num_agents)]
+            obs = [np.concatenate([obs[i], [self.last_state]], axis=0) for i in range(self.n_agents)]
         if self.obs_last_action:
-            obs = [np.concatenate([obs[i], self.last_action], axis=0) for i in range(self.num_agents)]
+            obs = [np.concatenate([obs[i], self.last_action], axis=0) for i in range(self.n_agents)]
         return np.stack(obs)
 
     def get_all_states(self):
@@ -63,9 +63,9 @@ class ToyExample:
                     for adv in [0, 1]:
                         obs = np.array([[state, 0.0], [state, 1.0]])
                         if self.obs_last_state:
-                            obs = [np.concatenate([obs[i], [last_state]], axis=0) for i in range(self.num_agents)]
+                            obs = [np.concatenate([obs[i], [last_state]], axis=0) for i in range(self.n_agents)]
                         if self.obs_last_action:
-                            obs = [np.concatenate([obs[i], last_action], axis=0) for i in range(self.num_agents)]
+                            obs = [np.concatenate([obs[i], last_action], axis=0) for i in range(self.n_agents)]
                         all_obs.append(np.stack(obs))
         
         return np.stack(all_obs)
@@ -75,7 +75,7 @@ class ToyExample:
         self.last_state = self._state
         self._t = 0
         self.last_action = np.array([0, 0])
-        return self.get_state(), self.get_state(), np.array([[1, 1] for _ in range(self.num_agents)]).astype(np.int32)
+        return self.get_state(), self.get_state(), np.array([[1, 1] for _ in range(self.n_agents)]).astype(np.int32)
     
     def seed(self, seed):
         np.random.seed(seed)

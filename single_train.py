@@ -68,6 +68,7 @@ def main():
             "gym",
             "football",
             "smacv2",
+            "toy",
         ],
         help="Environment name. Choose from: smac, mamujoco, pettingzoo_mpe, gym, football, smacv2.",
     )
