@@ -72,7 +72,8 @@ class OffPolicyRunner(BaseRunner):
         self.logger.init()
 
         self.logger.episode_init(0) 
-        self.eval()
+        if self.algo_args['train']['use_eval'] is True:
+            self.eval()
 
         while self.current_timestep < self.algo_args['train']['num_env_steps']:
             self.logger.episode_init(self.current_timestep)  # logger callback at the beginning of each episode

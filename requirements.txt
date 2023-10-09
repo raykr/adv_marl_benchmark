@@ -1,0 +1,12 @@
+# torch>=1.12.0
+setuptools==63.2.0
+protobuf==3.20.3
+numpy==1.21.5
+pyyaml>=5.3.1
+tensorboard>=2.2.1
+tensorboardX
+setproctitle
+wandb
+nni
+metadrive-simulator
+Sphinx

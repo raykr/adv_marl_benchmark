@@ -44,11 +44,11 @@ def get_one_yaml_args(name, type="algo"):
     base_path = os.path.split(os.path.dirname(os.path.abspath(__file__)))[0]
     cfg_path = os.path.join(base_path, "configs", f"{type}s_cfgs", f"{name}.yaml")
 
-
     with open(cfg_path, "r", encoding="utf-8") as file:
         read_args = yaml.load(file, Loader=yaml.FullLoader)
 
     return read_args
+
 
 def update_args(unparsed_dict, **kwargs):
     """Update loaded config with unparsed command-line arguments.
@@ -67,7 +67,7 @@ def update_args(unparsed_dict, **kwargs):
 
     for name in kwargs:
         update_dict(name, unparsed_dict, kwargs[name])
-    
+
 
 def get_task_name(env, env_args):
     """Get task name."""
@@ -80,7 +80,7 @@ def get_task_name(env, env_args):
     elif env == "mamujoco":
         task = f"{env_args['scenario']}-{env_args['agent_conf']}"
     elif env == "pettingzoo_mpe":
-        if env_args['continuous_actions']:
+        if env_args["continuous_actions"]:
             task = f"{env_args['scenario']}-continuous"
         else:
             task = f"{env_args['scenario']}-discrete"
@@ -92,6 +92,8 @@ def get_task_name(env, env_args):
         task = env_args["task"]
     elif env == "toy":
         task = "toy"
+    elif env == "metadrive":
+        task = env_args["scenario"]
     return task
 
 
@@ -99,29 +101,33 @@ def init_dir(env, env_args, algo, exp_name, run_name, seed, logger_path):
     """Init directory for saving results."""
     # check logger_path == nni
     if logger_path == "#nni_dynamic":
-        logger_path = os.path.join(os.environ["NNI_OUTPUT_DIR"], 'tensorboard')
+        logger_path = os.path.join(os.environ["NNI_OUTPUT_DIR"], "tensorboard")
         results_path = logger_path
     else:
         task = get_task_name(env, env_args)
-        hms_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime())
+        hms_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
         results_path = os.path.join(
-            logger_path, env, task, run_name, algo, exp_name, '-'.join(['seed-{:0>5}'.format(seed), hms_time])
+            logger_path, env, task, run_name, algo, exp_name, "-".join(["seed-{:0>5}".format(seed), hms_time])
         )
     print("The experiment path is at:", results_path)
-    log_path = os.path.join(results_path, 'logs')
+    log_path = os.path.join(results_path, "logs")
     os.makedirs(log_path, exist_ok=True)
     from torch.utils.tensorboard import SummaryWriter
+
     writter = SummaryWriter(log_path)
-    models_path = os.path.join(results_path, 'models')
+    models_path = os.path.join(results_path, "models")
     os.makedirs(models_path, exist_ok=True)
     return results_path, log_path, models_path, writter
+
 
 # 生成8位随机字符串
 def random_str(num):
     import random
     import string
-    salt = ''.join(random.sample(string.ascii_letters + string.digits, num))
+
+    salt = "".join(random.sample(string.ascii_letters + string.digits, num))
     return salt
+
 
 def is_json_serializable(value):
     """Check if v is JSON serializable."""
@@ -146,10 +152,10 @@ def convert_json(obj):
         elif isinstance(obj, list):
             return [convert_json(x) for x in obj]
 
-        elif hasattr(obj, '__name__') and not ('lambda' in obj.__name__):
+        elif hasattr(obj, "__name__") and not ("lambda" in obj.__name__):
             return convert_json(obj.__name__)
 
-        elif hasattr(obj, '__dict__') and obj.__dict__:
+        elif hasattr(obj, "__dict__") and obj.__dict__:
             obj_dict = {convert_json(k): convert_json(v) for k, v in obj.__dict__.items()}
             return {str(obj): obj_dict}
 
@@ -160,8 +166,8 @@ def save_config(args, algo_args, env_args, run_dir):
     """Save the configuration of the program."""
     config = {"main_args": args, "algo_args": algo_args, "env_args": env_args}
     config_json = convert_json(config)
-    output = json.dumps(config_json, separators=(',', ':\t'), indent=4, sort_keys=True)
-    with open(os.path.join(run_dir, "config.json"), 'w', encoding='utf-8') as out:
+    output = json.dumps(config_json, separators=(",", ":\t"), indent=4, sort_keys=True)
+    with open(os.path.join(run_dir, "config.json"), "w", encoding="utf-8") as out:
         out.write(output)
 
 
@@ -174,9 +180,9 @@ def convert_nested_dict(params):
         else:
             new_value = value
 
-        if '.' in key:
+        if "." in key:
             print(key)
-            keys = key.split('.')
+            keys = key.split(".")
             current_dict = new_params
             for k in keys[:-1]:
                 if k not in current_dict:
@@ -185,8 +191,9 @@ def convert_nested_dict(params):
             current_dict[keys[-1]] = new_value
         else:
             new_params[key] = new_value
-        
+
     return new_params
+
 
 def nni_update_args(dict1, dict2):
     for key, value in dict2.items():
@@ -196,6 +203,7 @@ def nni_update_args(dict1, dict2):
                     nni_update_args(dict1[key], value)
                 else:
                     dict1[key] = value
+
 
 def parse_timestep(timesteps, ep_length):
     if timesteps is None:
@@ -214,4 +222,3 @@ def parse_timestep(timesteps, ep_length):
     for step in parsed_steps:
         steps_bool[step] = True
     return steps_bool
-

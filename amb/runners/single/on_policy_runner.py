@@ -70,7 +70,8 @@ class OnPolicyRunner(BaseRunner):
         self.logger.init()  # logger callback at the beginning of training
 
         self.logger.episode_init(0) 
-        self.eval()
+        if self.algo_args['train']['use_eval'] is True:
+            self.eval()
 
         self.init_batch()
         episodes = int(self.algo_args['train']['num_env_steps']) // self.algo_args['train']['episode_length'] // self.algo_args['train']['n_rollout_threads']

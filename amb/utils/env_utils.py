@@ -40,6 +40,7 @@ def get_shape_from_act_space(act_space):
         act_shape = act_space.shape[0]
     return act_shape
 
+
 def get_onehot_shape_from_act_space(act_space):
     """Get shape from action space.
     Args:
@@ -53,8 +54,10 @@ def get_onehot_shape_from_act_space(act_space):
         act_shape = act_space.shape[0]
     return act_shape
 
+
 def make_train_env(env_name, seed, n_threads, env_args):
     """Make env for training."""
+
     def get_env_fn(rank):
         def init_env():
             if env_name == "smac":
@@ -98,6 +101,10 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 from amb.envs.toy_example.toy_example import ToyExample
 
                 env = ToyExample(env_args)
+            elif env_name == "metadrive":
+                from amb.envs.metadrive.metadrive_env import MetaDriveEnv
+
+                env = MetaDriveEnv(env_args)
             else:
                 print("Can not support the " + env_name + "environment.")
                 raise NotImplementedError
@@ -120,6 +127,7 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
 def make_eval_env(env_name, seed, n_threads, env_args):
     """Make env for evaluation."""
+
     def get_env_fn(rank):
         def init_env():
             if env_name == "smac":
@@ -158,6 +166,10 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 from amb.envs.toy_example.toy_example import ToyExample
 
                 env = ToyExample(env_args)
+            elif env_name == "metadrive":
+                from amb.envs.metadrive.metadrive_env import MetaDriveEnv
+
+                env = MetaDriveEnv(env_args)
             else:
                 print("Can not support the " + env_name + "environment.")
                 raise NotImplementedError
@@ -188,14 +200,14 @@ def make_render_env(env_name, seed, env_args):
 
         env = StarCraft2Env(args=env_args)
         manual_render = False  # smac does not support manually calling the render() function
-                               # instead, it use save_replay()
+        # instead, it use save_replay()
         manual_delay = False
     elif env_name == "smac_dual":
         from amb.envs.smac.StarCraft2Dual_Env import StarCraft2DualEnv
 
         env = StarCraft2DualEnv(env_args)
         manual_render = False  # smac does not support manually calling the render() function
-                               # instead, it use save_replay()
+        # instead, it use save_replay()
         manual_delay = False
     elif env_name == "smacv2":
         from amb.envs.smacv2.smacv2_env import SMACv2Env
@@ -243,4 +255,3 @@ def set_seed(args):
     torch.manual_seed(args["seed"])
     torch.cuda.manual_seed(args["seed"])
     torch.cuda.manual_seed_all(args["seed"])
-

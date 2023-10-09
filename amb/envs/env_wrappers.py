@@ -158,15 +158,9 @@ def shareworker(remote, parent_remote, env_fn_wrapper):
             ob, s_ob, reward, done, info, available_actions = env.step(data)
             if "bool" in done.__class__.__name__:  # done is a bool
                 if done:  # if done, save the original obs, state, and available actions in info, and then reset
-                    info[0]["original_obs"] = copy.deepcopy(ob)
-                    info[0]["original_state"] = copy.deepcopy(s_ob)
-                    info[0]["original_avail_actions"] = copy.deepcopy(available_actions)
                     ob, s_ob, available_actions = env.reset()
             else:
                 if np.all(done):  # if done, save the original obs, state, and available actions in info, and then reset
-                    info[0]["original_obs"] = copy.deepcopy(ob)
-                    info[0]["original_state"] = copy.deepcopy(s_ob)
-                    info[0]["original_avail_actions"] = copy.deepcopy(available_actions)
                     ob, s_ob, available_actions = env.reset()
 
             remote.send((ob, s_ob, reward, done, info, available_actions))
@@ -174,21 +168,9 @@ def shareworker(remote, parent_remote, env_fn_wrapper):
             ob, s_ob, reward, done, info, available_actions = env.step(data)
             if "bool" in done[0].__class__.__name__:  # done is a bool
                 if done[0]:  # if done, save the original obs, state, and available actions in info, and then reset
-                    info[0][0]["original_obs"] = copy.deepcopy(ob[0])
-                    info[0][0]["original_state"] = copy.deepcopy(s_ob[0])
-                    info[0][0]["original_avail_actions"] = copy.deepcopy(available_actions[0])
-                    info[1][0]["original_obs"] = copy.deepcopy(ob[1])
-                    info[1][0]["original_state"] = copy.deepcopy(s_ob[1])
-                    info[1][0]["original_avail_actions"] = copy.deepcopy(available_actions[1])
                     ob, s_ob, available_actions = env.reset()
             else:
                 if np.all(done[0]):  # if done, save the original obs, state, and available actions in info, and then reset
-                    info[0][0]["original_obs"] = copy.deepcopy(ob[0])
-                    info[0][0]["original_state"] = copy.deepcopy(s_ob[0])
-                    info[0][0]["original_avail_actions"] = copy.deepcopy(available_actions[0])
-                    info[1][0]["original_obs"] = copy.deepcopy(ob[1])
-                    info[1][0]["original_state"] = copy.deepcopy(s_ob[1])
-                    info[1][0]["original_avail_actions"] = copy.deepcopy(available_actions[1])
                     ob, s_ob, available_actions = env.reset()
 
             remote.send((ob, s_ob, reward, done, info, available_actions))
@@ -439,19 +421,9 @@ class ShareDummyVecEnv(ShareVecEnv):
         for i, done in enumerate(dones):
             if "bool" in done.__class__.__name__:  # done is a bool
                 if done:  # if done, save the original obs, state, and available actions in info, and then reset
-                    infos[i][0]["original_obs"] = copy.deepcopy(obs[i])
-                    infos[i][0]["original_state"] = copy.deepcopy(share_obs[i])
-                    infos[i][0]["original_avail_actions"] = copy.deepcopy(
-                        available_actions[i]
-                    )
                     obs[i], share_obs[i], available_actions[i] = self.envs[i].reset()
             else:
                 if np.all(done):  # if done, save the original obs, state, and available actions in info, and then reset
-                    infos[i][0]["original_obs"] = copy.deepcopy(obs[i])
-                    infos[i][0]["original_state"] = copy.deepcopy(share_obs[i])
-                    infos[i][0]["original_avail_actions"] = copy.deepcopy(
-                        available_actions[i]
-                    )
                     obs[i], share_obs[i], available_actions[i] = self.envs[i].reset()
         self.actions = None
 
@@ -487,21 +459,9 @@ class ShareDummyVecDualEnv(ShareDummyVecEnv):
         for i, done in enumerate(dones):
             if "bool" in done[0].__class__.__name__:  # done is a bool
                 if done[0]:  # if done, save the original obs, state, and available actions in info, and then reset
-                    infos[i][0][0]["original_obs"] = copy.deepcopy(obs[i][0])
-                    infos[i][0][0]["original_state"] = copy.deepcopy(share_obs[i][0])
-                    infos[i][0][0]["original_avail_actions"] = copy.deepcopy(available_actions[i][0])
-                    infos[i][1][0]["original_obs"] = copy.deepcopy(obs[i][1])
-                    infos[i][1][0]["original_state"] = copy.deepcopy(share_obs[i][1])
-                    infos[i][1][0]["original_avail_actions"] = copy.deepcopy(available_actions[i][1])
                     obs[i], share_obs[i], available_actions[i] = self.envs[i].reset()
             else:
                 if np.all(done[0]):  # if done, save the original obs, state, and available actions in info, and then reset
-                    infos[i][0][0]["original_obs"] = copy.deepcopy(obs[i][0])
-                    infos[i][0][0]["original_state"] = copy.deepcopy(share_obs[i][0])
-                    infos[i][0][0]["original_avail_actions"] = copy.deepcopy(available_actions[i][0])
-                    infos[i][1][0]["original_obs"] = copy.deepcopy(obs[i][1])
-                    infos[i][1][0]["original_state"] = copy.deepcopy(share_obs[i][1])
-                    infos[i][1][0]["original_avail_actions"] = copy.deepcopy(available_actions[i][1])
                     obs[i], share_obs[i], available_actions[i] = self.envs[i].reset()
 
         self.actions = None
