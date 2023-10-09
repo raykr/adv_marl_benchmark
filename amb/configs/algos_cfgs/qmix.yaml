@@ -66,6 +66,8 @@ epsilon_start: 1.0
 epsilon_finish: 0.05
 epsilon_anneal_time: 100000
 # algo:
+# mixer parameters
+mixer: qmix
 # discount factor
 gamma: 0.99
 # off-policy buffer size
