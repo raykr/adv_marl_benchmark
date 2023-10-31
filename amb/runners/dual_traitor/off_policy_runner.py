@@ -129,7 +129,7 @@ class OffPolicyRunner(BaseRunner):
                     demon_actions_collector.append(_t2n(demon_actions))
                 demon_actions = np.stack(demon_actions_collector, axis=1)
 
-                scatter(victim_actions, adv_agent_ids, adv_actions, axis=1)
+                victim_actions = scatter(victim_actions, adv_agent_ids, adv_actions, axis=1)
                 
                 obs, share_obs, rewards, dones, infos, available_actions = self.envs.step((victim_actions, demon_actions), filled)
                 data = {

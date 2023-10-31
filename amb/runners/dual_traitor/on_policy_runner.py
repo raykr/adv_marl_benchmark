@@ -126,7 +126,7 @@ class OnPolicyRunner(BaseRunner):
                     demon_actions_collector.append(_t2n(demon_actions))
                 demon_actions = np.stack(demon_actions_collector, axis=1)
 
-                scatter(victim_actions, adv_agent_ids, adv_actions, axis=1)
+                victim_actions = scatter(victim_actions, adv_agent_ids, adv_actions, axis=1)
 
                 # actions: (n_threads, n_agents, action_dim)
                 obs, share_obs, rewards, dones, infos, available_actions = self.envs.step((victim_actions, demon_actions))
@@ -308,8 +308,8 @@ class OnPolicyRunner(BaseRunner):
 
     def restore(self):
         """Restore model parameters."""
+        super().restore()
         if self.algo_args["angel"]['model_dir'] is not None:
-            super().restore()
             if self.algo_args["angel"]['use_render'] is False and self.value_normalizer is not None:
                 value_normalizer_state_dict = torch.load(
                     str(self.algo_args["angel"]['model_dir']) + "/value_normalizer.pth"

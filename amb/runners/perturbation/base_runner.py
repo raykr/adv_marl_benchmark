@@ -264,7 +264,7 @@ class BaseRunner:
                     eval_adv_actions_collector.append(_t2n(eval_adv_actions))
                 _eval_adv_actions = np.array(eval_adv_actions_collector).transpose(1, 0, 2)
                 eval_adv_actions = eval_actions.copy()
-                scatter(eval_adv_actions, adv_agent_ids, _eval_adv_actions, axis=1)
+                eval_adv_actions = scatter(eval_adv_actions, adv_agent_ids, _eval_adv_actions, axis=1)
 
             # 3. Perform attack to perturb the observations
             eval_obs_adv_collector = []
@@ -285,7 +285,7 @@ class BaseRunner:
             perturb_mask = self.perturb_timesteps[current_timesteps]
             _eval_obs_adv = gather(_eval_obs_adv, adv_agent_ids, axis=1)
             eval_obs_adv = eval_obs.copy()
-            scatter(eval_obs_adv[perturb_mask], adv_agent_ids[perturb_mask], _eval_obs_adv[perturb_mask], axis=1)
+            eval_obs_adv[perturb_mask] = scatter(eval_obs_adv[perturb_mask], adv_agent_ids[perturb_mask], _eval_obs_adv[perturb_mask], axis=1)
 
             # 4. Get actions after attack (update rnn hidden states)
             eval_actions_collector = []
@@ -378,7 +378,7 @@ class BaseRunner:
                         eval_adv_actions_collector.append(_t2n(eval_adv_actions))
                     _eval_adv_actions = np.array(eval_adv_actions_collector).transpose(1, 0, 2)
                     eval_adv_actions = eval_actions.copy()
-                    scatter(eval_adv_actions, adv_agent_ids, _eval_adv_actions, axis=1)
+                    eval_adv_actions = scatter(eval_adv_actions, adv_agent_ids, _eval_adv_actions, axis=1)
 
                 # 3. Perform attack to perturb the observations
                 eval_obs_adv_collector = []
@@ -399,7 +399,7 @@ class BaseRunner:
                 perturb_mask = self.perturb_timesteps[current_timesteps]
                 _eval_obs_adv = gather(_eval_obs_adv, adv_agent_ids, axis=1)
                 eval_obs_adv = eval_obs.copy()
-                scatter(eval_obs_adv[perturb_mask], adv_agent_ids[perturb_mask], _eval_obs_adv[perturb_mask], axis=1)
+                eval_obs_adv[perturb_mask] = scatter(eval_obs_adv[perturb_mask], adv_agent_ids[perturb_mask], _eval_obs_adv[perturb_mask], axis=1)
 
                 # 4. Get actions after attack (update rnn hidden states)
                 eval_actions_collector = []

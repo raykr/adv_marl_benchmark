@@ -114,7 +114,7 @@ class OffPolicyRunner(BaseRunner):
                     gather(available_actions, adv_agent_ids, 1)
                     if available_actions[0] is not None else None)
                 target_adv_actions = actions.copy()
-                scatter(target_adv_actions, adv_agent_ids, adv_actions, axis=1)
+                target_adv_actions = scatter(target_adv_actions, adv_agent_ids, adv_actions, axis=1)
                 
                 # 3. Perform attack to perturb the observations
                 obs_adv_collector = []
@@ -133,7 +133,7 @@ class OffPolicyRunner(BaseRunner):
 
                 _obs_adv = gather(_obs_adv, adv_agent_ids, axis=1)
                 obs_adv = obs.copy()
-                scatter(obs_adv, adv_agent_ids, _obs_adv, axis=1)
+                obs_adv = scatter(obs_adv, adv_agent_ids, _obs_adv, axis=1)
 
                 # 4. Get actions after attack (update rnn hidden states)
                 actions_collector = []

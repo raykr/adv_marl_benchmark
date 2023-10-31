@@ -42,4 +42,5 @@ def gather(a, b, axis):
 
 def scatter(a, b, value, axis):
     b = b.reshape(b.shape + (1,) * (a.ndim - b.ndim))
-    return np.put_along_axis(a, b, value, axis=axis)
+    np.put_along_axis(a, b, value, axis=axis)
+    return a

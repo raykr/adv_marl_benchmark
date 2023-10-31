@@ -14,7 +14,7 @@ torch_threads: 4
 # number of parallel environments for training data collection
 n_rollout_threads: 10
 # max length of an episode
-episode_length: 70
+episode_length: 150
 # number of total steps
 num_env_steps: 10000000
 # number of warmup steps
@@ -88,6 +88,7 @@ use_policy_active_masks: True
 mixing_embed_dim: 32
 hypernet_layers: 2
 hypernet_embed: 64
+mixer: "qmix"
 # logger:
 # logging directory
 log_dir: "./results"
