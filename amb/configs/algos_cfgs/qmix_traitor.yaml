@@ -20,9 +20,9 @@ num_env_steps: 10000000
 # number of warmup steps
 warmup_steps: 5000
 # number of steps per train
-train_interval: 500
+train_interval: 1
 # ratio of training iterations to train_interval
-update_per_train: 0.01
+update_per_train: 1
 # logging interval
 log_interval: 20000
 # evaluation interval
@@ -46,7 +46,7 @@ render_episodes: 10
 # model:
 # network parameters
 # hidden sizes for mlp module in the network
-hidden_sizes: [128, 128]
+hidden_sizes: [256, 256]
 # activation function, choose from sigmoid, tanh, relu, leaky_relu, selu
 activation_func: relu
 # whether to use feature normalization
@@ -55,7 +55,7 @@ use_feature_normalization: True
 initialization_method: orthogonal_
 # optimizer parameters
 # actor learning rate
-lr: 0.0005
+lr: 0.001
 # recurrent parameters
 # whether to use rnn policy (data is chunked for training)
 use_recurrent_policy: False
