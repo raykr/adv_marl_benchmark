@@ -16,7 +16,7 @@ n_rollout_threads: 20
 # number of total steps
 num_env_steps: 10000000
 # max length of an episode
-episode_length: 210
+episode_length: 150
 # number of warmup steps
 warmup_steps: 50000
 # number of steps per train

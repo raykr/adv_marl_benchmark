@@ -111,7 +111,7 @@ class OnPolicyRunner(BaseRunner):
                 adv_values, adv_actions, adv_action_log_probs, \
                     adv_rnn_states, adv_rnn_states_critic = self.collect(step)
                 target_adv_actions = actions.copy()
-                scatter(target_adv_actions, adv_agent_ids, adv_actions, axis=1)
+                target_adv_actions = scatter(target_adv_actions, adv_agent_ids, adv_actions, axis=1)
 
                 # 3. Perform attack to perturb the observations
                 obs_adv_collector = []
@@ -130,7 +130,7 @@ class OnPolicyRunner(BaseRunner):
 
                 _obs_adv = gather(_obs_adv, adv_agent_ids, axis=1)
                 obs_adv = obs.copy()
-                scatter(obs_adv, adv_agent_ids, _obs_adv, axis=1)
+                obs_adv = scatter(obs_adv, adv_agent_ids, _obs_adv, axis=1)
 
                 # 4. Get actions after attack (update rnn hidden states)
                 actions_collector = []
@@ -322,8 +322,8 @@ class OnPolicyRunner(BaseRunner):
 
     def restore(self):
         """Restore model parameters."""
+        super().restore()
         if self.algo_args['train']['model_dir'] is not None:
-            super().restore()
             if self.algo_args['train']['use_render'] is False and self.value_normalizer is not None:
                 value_normalizer_state_dict = torch.load(
                     str(self.algo_args['train']['model_dir']) + "/value_normalizer.pth"

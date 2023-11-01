@@ -207,7 +207,7 @@ def nni_update_args(dict1, dict2):
 
 def parse_timestep(timesteps, ep_length):
     if timesteps is None:
-        return [True for _ in range(ep_length)]
+        return [True for _ in range(1010)]
     if not isinstance(timesteps, str):
         return timesteps
     timesteps = timesteps.strip().replace(" ", "").split(",")

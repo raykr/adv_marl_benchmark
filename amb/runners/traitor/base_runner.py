@@ -194,7 +194,11 @@ class BaseRunner:
         return adv_ids
     
     def get_adv_rewards(self, data):
-        rewards = data["rewards"]
+        if self.args["env"] == "mamujoco":
+            rewards = np.array([data["infos"][i][0]["reward_run"] for i in range(len(data["infos"]))])
+            rewards = rewards.reshape(data["rewards"].shape)
+        else:
+            rewards = data["rewards"]
         return -rewards
 
     def run(self):
@@ -299,7 +303,7 @@ class BaseRunner:
             eval_adv_actions = np.array(eval_adv_actions_collector).transpose(1, 0, 2)
 
             perturb_mask = self.perturb_timesteps[current_timesteps]
-            scatter(eval_actions[perturb_mask], adv_agent_ids[perturb_mask], eval_adv_actions[perturb_mask], axis=1)
+            eval_actions[perturb_mask] = scatter(eval_actions[perturb_mask], adv_agent_ids[perturb_mask], eval_adv_actions[perturb_mask], axis=1)
 
             eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions = self.eval_envs.step(eval_actions)
             eval_data = (eval_obs, eval_share_obs, eval_rewards, eval_dones, eval_infos, eval_available_actions)
@@ -376,7 +380,7 @@ class BaseRunner:
                 eval_adv_actions = np.array(eval_adv_actions_collector).transpose(1, 0, 2)
 
                 perturb_mask = self.perturb_timesteps[current_timesteps]
-                scatter(eval_actions[perturb_mask], adv_agent_ids[perturb_mask], eval_adv_actions[perturb_mask], axis=1)
+                eval_actions[perturb_mask] = scatter(eval_actions[perturb_mask], adv_agent_ids[perturb_mask], eval_adv_actions[perturb_mask], axis=1)
 
                 eval_obs, _, eval_rewards, eval_dones, _, eval_available_actions = self.envs.step(eval_actions[0])
                 rewards += eval_rewards[0][0]

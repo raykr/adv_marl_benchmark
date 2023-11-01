@@ -269,8 +269,8 @@ class OnPolicyRunner(BaseRunner):
 
     def restore(self):
         """Restore model parameters."""
+        super().restore()
         if self.algo_args["angel"]['model_dir'] is not None:
-            super().restore()
             if self.algo_args["angel"]['use_render'] is False and self.value_normalizer is not None:
                 value_normalizer_state_dict = torch.load(
                     str(self.algo_args["angel"]['model_dir']) + "/value_normalizer.pth"

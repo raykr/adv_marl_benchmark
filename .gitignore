@@ -4,6 +4,7 @@
 **/ckpts/**
 .VSCodeCounter/
 perturbation_rewards.txt
+/run*.sh
 
 ##### Python.gitignore #####
 # Byte-compiled / optimized / DLL files
