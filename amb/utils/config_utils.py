@@ -94,6 +94,8 @@ def get_task_name(env, env_args):
         task = "toy"
     elif env == "metadrive":
         task = env_args["scenario"]
+    elif env == "quads":
+        task = env_args["scenario"]
     return task
 
 

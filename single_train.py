@@ -70,6 +70,7 @@ def main():
             "smacv2",
             "toy",
             "metadrive",
+            "quads",
         ],
         help="Environment name. Choose from: smac, mamujoco, pettingzoo_mpe, gym, football, smacv2.",
     )

@@ -105,6 +105,10 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 from amb.envs.metadrive.metadrive_env import MetaDriveEnv
 
                 env = MetaDriveEnv(env_args)
+            elif env_name == "quads":
+                from amb.envs.quads.quadrotor_multi_env import QuadrotorMultiEnv
+
+                env = QuadrotorMultiEnv(env_args)
             else:
                 print("Can not support the " + env_name + "environment.")
                 raise NotImplementedError
@@ -170,6 +174,10 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 from amb.envs.metadrive.metadrive_env import MetaDriveEnv
 
                 env = MetaDriveEnv(env_args)
+            elif env_name == "quads":
+                from amb.envs.quads.quadrotor_multi_env import QuadrotorMultiEnv
+
+                env = QuadrotorMultiEnv(env_args)
             else:
                 print("Can not support the " + env_name + "environment.")
                 raise NotImplementedError

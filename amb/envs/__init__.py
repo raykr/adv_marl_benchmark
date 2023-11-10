@@ -9,6 +9,7 @@ from amb.envs.gym.gym_logger import GYMLogger
 from amb.envs.football.football_logger import FootballLogger
 from amb.envs.toy_example.toy_logger import ToyLogger
 from amb.envs.metadrive.metadrive_logger import MetaDriveLogger
+from amb.envs.quads.quadrotor_multi_logger import QuadrotorMultiLogger
 
 FLAGS = flags.FLAGS
 FLAGS(["train_sc.py"])
@@ -23,4 +24,5 @@ LOGGER_REGISTRY = {
     "smacv2": SMACv2Logger,
     "toy": ToyLogger,
     "metadrive": MetaDriveLogger,
+    "quads": QuadrotorMultiLogger,
 }
