@@ -8,5 +8,4 @@ tensorboardX
 setproctitle
 wandb
 nni
-metadrive-simulator
 Sphinx
