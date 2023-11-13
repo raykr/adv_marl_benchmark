@@ -3,15 +3,15 @@ import argparse
 import json
 from pprint import pprint
 from amb.utils.config_utils import convert_nested_dict, get_one_yaml_args, update_args, parse_timestep, nni_update_args
-import torch
 import nni
 
-# show tensor shape in vscode debugger
-def custom_repr(self):
-    return f'{{Tensor:{tuple(self.shape)}}} {original_repr(self)}'
+# import torch
+# # show tensor shape in vscode debugger
+# def custom_repr(self):
+#     return f'{{Tensor:{tuple(self.shape)}}} {original_repr(self)}'
 
-original_repr = torch.Tensor.__repr__
-torch.Tensor.__repr__ = custom_repr
+# original_repr = torch.Tensor.__repr__
+# torch.Tensor.__repr__ = custom_repr
 
 def main():
     """Main function."""
@@ -71,6 +71,7 @@ def main():
             "toy",
             "metadrive",
             "quads",
+            "dexhands",
         ],
         help="Environment name. Choose from: smac, mamujoco, pettingzoo_mpe, gym, football, smacv2.",
     )
@@ -138,6 +139,18 @@ def main():
             env_args = get_one_yaml_args(args["env"], type="env")
             
     update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
+
+    if args["env"] == "dexhands":
+        import isaacgym  # isaacgym has to be imported before PyTorch
+
+    # note: isaac gym does not support multiple instances, thus cannot eval separately
+    if args["env"] == "dexhands":
+        algo_args["use_eval"] = False
+        algo_args["episode_length"] = env_args["hands_episode_length"]
+
+    if args["env"] == "metadrive":
+        algo_args["use_eval"] = False
+
     algo_args = {"train": algo_args, "victim": victim_args}
 
     if "perturb_timesteps" in algo_args["train"]:

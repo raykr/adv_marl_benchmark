@@ -1,5 +1,5 @@
-import socket
 from absl import flags
+from amb.envs.dexhands.dexhands_logger import DexHandsLogger
 from amb.envs.smac.smac_logger import SMACLogger
 from amb.envs.smac.smac_dual_logger import SMACDualLogger
 from amb.envs.smacv2.smacv2_logger import SMACv2Logger
@@ -25,4 +25,5 @@ LOGGER_REGISTRY = {
     "toy": ToyLogger,
     "metadrive": MetaDriveLogger,
     "quads": QuadrotorMultiLogger,
+    "dexhands": DexHandsLogger,
 }

@@ -96,6 +96,8 @@ def get_task_name(env, env_args):
         task = env_args["scenario"]
     elif env == "quads":
         task = env_args["scenario"]
+    else:
+        raise NotImplementedError
     return task
 
 

@@ -57,6 +57,10 @@ def get_onehot_shape_from_act_space(act_space):
 
 def make_train_env(env_name, seed, n_threads, env_args):
     """Make env for training."""
+    if env_name == "dexhands":
+        from harl.envs.dexhands.dexhands_env import DexHandsEnv
+
+        return DexHandsEnv({"n_threads": n_threads, **env_args})
 
     def get_env_fn(rank):
         def init_env():
@@ -131,6 +135,8 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
 def make_eval_env(env_name, seed, n_threads, env_args):
     """Make env for evaluation."""
+    if env_name == "dexhands":  # dexhands does not support running multiple instances
+        raise NotImplementedError
 
     def get_env_fn(rank):
         def init_env():
@@ -246,6 +252,13 @@ def make_render_env(env_name, seed, env_args):
         env = ToyExample(env_args)
         manual_render = False
         manual_delay = False
+    elif env_name == "dexhands":
+        from harl.envs.dexhands.dexhands_env import DexHandsEnv
+
+        env = DexHandsEnv({"n_threads": 64, **env_args})
+        manual_render = False  # dexhands renders automatically
+        manual_delay = False
+        env_num = 64
     else:
         print("Can not support the " + env_name + "environment.")
         raise NotImplementedError

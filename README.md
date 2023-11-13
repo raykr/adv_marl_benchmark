@@ -73,6 +73,12 @@ Install GRF through pip:
 pip install gfootball
 ```
 
+### Install Bi-Dexhands
+
+Firstly install IsaacGym correctly, Details regarding installation of IsaacGym can be found [here](https://developer.nvidia.com/isaac-gym).
+
+Then you maybe need to fix bugs of IsaacGym, please refer to [this issue](https://forums.developer.nvidia.com/t/attributeerror-module-numpy-has-no-attribute-float/270702)
+
 ## Usage Examples
 
 ### Single Algorithm Training
