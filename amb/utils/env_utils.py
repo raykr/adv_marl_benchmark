@@ -113,6 +113,14 @@ def make_train_env(env_name, seed, n_threads, env_args):
                 from amb.envs.quads.quadrotor_multi_env import QuadrotorMultiEnv
 
                 env = QuadrotorMultiEnv(env_args)
+            elif env_name == "network":
+                from amb.envs.network.network_env import NetworkEnv
+
+                env = NetworkEnv(env_args)
+            elif env_name == "voltage":
+                from amb.envs.voltage.voltage_env import ValtageEnv
+
+                env = ValtageEnv(env_args)
             else:
                 print("Can not support the " + env_name + "environment.")
                 raise NotImplementedError
@@ -184,6 +192,14 @@ def make_eval_env(env_name, seed, n_threads, env_args):
                 from amb.envs.quads.quadrotor_multi_env import QuadrotorMultiEnv
 
                 env = QuadrotorMultiEnv(env_args)
+            elif env_name == "network":
+                from amb.envs.network.network_env import NetworkEnv
+
+                env = NetworkEnv(env_args)
+            elif env_name == "voltage":
+                from amb.envs.voltage.voltage_env import ValtageEnv
+
+                env = ValtageEnv(env_args)
             else:
                 print("Can not support the " + env_name + "environment.")
                 raise NotImplementedError
@@ -259,6 +275,10 @@ def make_render_env(env_name, seed, env_args):
         manual_render = False  # dexhands renders automatically
         manual_delay = False
         env_num = 64
+    elif env_name == "network":
+        from amb.envs.network.network_env import NetworkEnv
+
+        env = NetworkEnv(env_args)
     else:
         print("Can not support the " + env_name + "environment.")
         raise NotImplementedError

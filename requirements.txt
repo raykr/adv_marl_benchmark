@@ -9,3 +9,5 @@ setproctitle
 wandb
 nni
 Sphinx
+pandapower
+numba==0.56.4

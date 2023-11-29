@@ -72,6 +72,8 @@ def main():
             "metadrive",
             "quads",
             "dexhands",
+            "network",
+            "voltage",
         ],
         help="Environment name. Choose from: smac, mamujoco, pettingzoo_mpe, gym, football, smacv2.",
     )
@@ -160,7 +162,7 @@ def main():
         nni_update_args(algo_args, nni_dict["algo_args"])
     if "env_args" in nni_dict:
         nni_update_args(env_args, nni_dict["env_args"])
-    pprint([args, algo_args, env_args])
+    # pprint([args, algo_args, env_args])
 
     # start training
     from amb.runners import get_single_runner
@@ -171,7 +173,7 @@ def main():
         runner.run()
     
     # nni final
-    nni.report_final_result(0)
+    # nni.report_final_result(0)
     
     runner.close()
 

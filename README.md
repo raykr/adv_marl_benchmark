@@ -79,6 +79,18 @@ Firstly install IsaacGym correctly, Details regarding installation of IsaacGym c
 
 Then you maybe need to fix bugs of IsaacGym, please refer to [this issue](https://forums.developer.nvidia.com/t/attributeerror-module-numpy-has-no-attribute-float/270702)
 
+### Install network system environment dependencies
+
+```shell
+pip install sumo sumolib traci
+```
+
+### Install voltage control environment dependencies
+
+```shell
+pip install pandapower
+```
+
 ## Usage Examples
 
 ### Single Algorithm Training
@@ -90,13 +102,13 @@ python -u single_train.py --env <env_name> --algo <algo_name> --exp_name <exp_na
 ### Perturbation-based Attack
 
 ```bash
-python -u single_train.py --env <env_name> --algo <perturbation_algo_name> --exp_name <exp_name> --run perturbation --victim <victim_algo_name> --victim.model_dir <dir/to/your/model>
+python -u single_train.py --env <env_name> --algo <perturbation_algo_name> --exp_name <exp_name> --run perturbation --victim <victim_algo_name> --load_victim <dir/to/your/logdir>
 ```
 
 ### Adversarial Traitors
 
 ```bash
-python -u single_train.py --env <env_name> --algo <traitor_algo_name> --exp_name <exp_name> --run traitor --victim <victim_algo_name> --victim.model_dir <dir/to/your/model>
+python -u single_train.py --env <env_name> --algo <traitor_algo_name> --exp_name <exp_name> --run traitor --victim <victim_algo_name> --load_victim <dir/to/your/logdir>
 ```
 
 ### Dual Algorithm Training

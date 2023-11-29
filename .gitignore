@@ -5,6 +5,7 @@
 .VSCodeCounter/
 perturbation_rewards.txt
 /run*.sh
+amb/envs/voltage/data
 
 ##### Python.gitignore #####
 # Byte-compiled / optimized / DLL files

@@ -96,6 +96,10 @@ def get_task_name(env, env_args):
         task = env_args["scenario"]
     elif env == "quads":
         task = env_args["scenario"]
+    elif env == "network":
+        task = env_args["scenario"]
+    elif env == "voltage":
+        task = env_args["env"]
     else:
         raise NotImplementedError
     return task

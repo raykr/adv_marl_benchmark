@@ -1,0 +1,3 @@
+scenario: large_grid
+network_cfg: config_ia2c_grid.ini
+output_dir: results/network_data # from root of repo
