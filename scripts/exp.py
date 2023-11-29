@@ -12,13 +12,22 @@ def execute_command(command):
         if not command.strip() or command.strip().startswith("#"):
             return
         
+        scenario = ""
+        # 判断--env.map_name是否在command中
+        if "--env.map_name" in command:
+            scenario = command.split("--env.map_name")[1].split("--")[0].strip()
+        elif "--env.scenario" in command:
+            scenario = command.split("--env.scenario")[1].split("--")[0].strip()
+        else:
+            scenario = ""
+        
         # 从 command 中提取 exp_name 后面的字符串 python -u ../single_train.py --env smac --env.map_name 3m --algo mappo --run single --exp_name mappo_smac_3m_gae_false --algo.use_gae False
         env_name = command.split("--env")[1].split("--")[0].strip()
-        map_name = command.split("--env.map_name")[1].split("--")[0].strip()
         algo_name = command.split("--algo ")[1].split("--")[0].strip()
         exp_name = command.split("--exp_name")[1].split("--")[0].strip()
-        trick_name = exp_name.replace(f"{algo_name}_{env_name}_{map_name}_", "")
-        folder = f"{env_name}/{map_name}/{algo_name}/{trick_name}"
+        trick_name = exp_name.replace(f"{algo_name}_{env_name}_{scenario}_", "")
+        run = command.split("--run")[1].split("--")[0].strip()
+        folder = f"{env_name}/{scenario}/{algo_name}/{run}/{trick_name}"
         os.makedirs(f"logs/{folder}", exist_ok=True)
         
         with open(f'logs/{folder}/stdout.log', 'w') as stdout_file, open(f'logs/{folder}/stderr.log', 'w') as stderr_file:
@@ -26,7 +35,6 @@ def execute_command(command):
             process = subprocess.Popen(
                 command, shell=True, stdout=stdout_file, stderr=stderr_file, text=True
             )
-            time.sleep(2)
             process.wait()  # 等待命令执行完成
 
         if process.returncode == 0:
@@ -36,7 +44,6 @@ def execute_command(command):
             if "Error" in error_output:
                 print(f"Error detected in stderr for command '{command}'. Restarting the process...")
                 process.terminate() # 终止进程
-                time.sleep(2) 
                 return execute_command(command)
             else:
                 return f"Error executing command '{command}', please check the logs\n"

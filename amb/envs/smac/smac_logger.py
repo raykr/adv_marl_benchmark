@@ -91,13 +91,13 @@ class SMACLogger(BaseLogger):
         }
         self.log_env(eval_env_infos)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
+        ## nni report
+        # nni.report_intermediate_result(eval_avg_rew)
         print(
             "Evaluation win rate is {}, evaluation average episode reward is {}.\n".format(
                 eval_win_rate, eval_avg_rew
             )
         )
-        ## nni report
-        nni.report_intermediate_result(eval_avg_rew)
 
         if self.args["run"] == "single":
             self.log_file.write(

@@ -16,7 +16,8 @@ class IGS:
         self.epsilon = args["perturb_epsilon"]
         self.num_iters = args["perturb_iters"]
         self.adaptive_alpha = args["adaptive_alpha"]
-        if self.adaptive_alpha:
+        # when num_itemrs = 0, adaptive_alpha is not used
+        if self.adaptive_alpha and self.num_iters > 0:
             self.alpha = self.epsilon / self.num_iters
         else:
             self.alpha = args["perturb_alpha"]
