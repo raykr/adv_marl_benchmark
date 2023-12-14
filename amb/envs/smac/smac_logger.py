@@ -59,7 +59,6 @@ class SMACLogger(BaseLogger):
 
         incre_win_rate = np.sum(incre_battles_won) / np.sum(incre_battles_game) if np.sum(incre_battles_game) > 0 else 0.0
         self.writter.add_scalar("env/incre_win_rate", incre_win_rate, self.timestep)
-        self.wandb and self.wandb.log({"env/incre_win_rate": incre_win_rate}, step=self.timestep)
 
         self.last_battles_game = battles_game
         self.last_battles_won = battles_won

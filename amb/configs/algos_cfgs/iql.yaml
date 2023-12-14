@@ -92,4 +92,7 @@ use_policy_active_masks: True
 # logger:
 # logging directory
 log_dir: "./results"
-use_wandb: False
+# whether to slice save pth (Deafult: False)
+slice: False
+# slice save timestep interval
+slice_timestep_interval: 1000000

@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 from amb.data.episode_buffer import EpisodeBuffer
@@ -80,7 +81,8 @@ class OnPolicyRunner(BaseRunner):
             if self.algo_args['train']['use_linear_lr_decay']:  # linear decay of learning rate
                 self.algo.lr_decay(episode, episodes)
 
-            self.logger.episode_init(episode * self.algo_args['train']['episode_length'] * self.algo_args['train']['n_rollout_threads'])  # logger callback at the beginning of each episode
+            self.current_timestep = episode * self.algo_args['train']['episode_length'] * self.algo_args['train']['n_rollout_threads']
+            self.logger.episode_init(self.current_timestep)  # logger callback at the beginning of each episode
 
             self.algo.prep_rollout()
 
@@ -126,6 +128,9 @@ class OnPolicyRunner(BaseRunner):
                 if self.algo_args['train']['use_eval']:
                     self.eval()
                 self.save()
+
+                if self.algo_args["train"]["slice"] and self.current_timestep % self.algo_args['train']['slice_timestep_interval'] == 0:
+                    self.save_slice(self.current_timestep)
 
             for buffer in self.buffers:
                 buffer.after_update()
@@ -242,6 +247,17 @@ class OnPolicyRunner(BaseRunner):
             torch.save(
                 self.value_normalizer.state_dict(),
                 str(self.save_dir) + "/value_normalizer.pth",
+            )
+
+    def save_slice(self, timestep):
+        slice_dir = os.path.join(os.path.dirname(self.save_dir), "slice", str(timestep))
+        if not os.path.exists(slice_dir):
+            os.makedirs(slice_dir)
+        self.algo.save(str(slice_dir))
+        if self.value_normalizer is not None:
+            torch.save(
+                self.value_normalizer.state_dict(),
+                str(slice_dir) + f"/value_normalizer.pth",
             )
 
     def restore(self):

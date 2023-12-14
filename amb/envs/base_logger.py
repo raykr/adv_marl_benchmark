@@ -22,15 +22,10 @@ class BaseLogger:
         self.writter = writter
         self.run_dir = run_dir
         self.log_file = open(os.path.join(run_dir, "progress.txt"), "w", encoding='utf-8')
+        self.result_file = open(os.path.join(run_dir, "result.txt"), "a", encoding="utf-8")
         if args["run"] == "perturbation":
             self.adv_file = open(os.path.join(run_dir, "perturbation_rewards.txt"), "w", encoding="utf-8")
         
-        # wandb
-        self.wandb = None
-        if "use_wandb" in algo_args["train"] and algo_args["train"]["use_wandb"]:
-            import wandb
-            self.wandb = wandb
-
     def get_task_name(self):
         """Get the task name."""
         raise NotImplementedError
@@ -91,12 +86,10 @@ class BaseLogger:
 
         average_episode_len = np.mean(self.episode_lens) if len(self.episode_lens) > 0 else 0.0
         self.writter.add_scalar("env/ep_length_mean", average_episode_len, self.timestep)
-        self.wandb and self.wandb.log({"env/ep_length_mean": average_episode_len}, step=self.timestep)
 
         aver_episode_rewards = np.mean(self.done_episodes_rewards)
         critic_train_info["average_step_rewards"] = aver_episode_rewards / average_episode_len
         self.writter.add_scalar("env/train_episode_rewards", aver_episode_rewards, self.timestep)
-        self.wandb and self.wandb.log({"env/train_episode_rewards": aver_episode_rewards}, step=self.timestep)
 
         self.log_train(actor_train_infos, critic_train_info)
 
@@ -139,7 +132,7 @@ class BaseLogger:
         self.eval_episode_rewards[tid].append(np.sum(self.one_episode_rewards[tid], axis=0))
         self.one_episode_rewards[tid] = []
 
-    def eval_log(self, eval_episode):
+    def eval_log(self, eval_episode, slice=False, slice_tag=None):
         """Log evaluation information."""
         self.eval_episode_rewards = np.concatenate(
             [rewards for rewards in self.eval_episode_rewards if rewards]
@@ -148,7 +141,7 @@ class BaseLogger:
             "eval_return_mean": self.eval_episode_rewards,
             "eval_return_std": [np.std(self.eval_episode_rewards)],
         }
-        self.log_env(eval_env_infos)
+        self.log_env(eval_env_infos, slice, slice_tag)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
         # nni report
         # nni.report_intermediate_result(eval_avg_rew)
@@ -160,7 +153,15 @@ class BaseLogger:
             )
             self.log_file.flush()
 
-    def eval_log_adv(self, eval_episode):
+        if self.args["run"] == "traitor" or self.args["run"] == "perturbation":
+            if slice:
+                self.result_file.write(",".join(map(str, [self.timestep, "vanilla", slice_tag, eval_avg_rew])) + "\n")
+            else:
+                self.result_file.write(",".join(map(str, [self.timestep, "vanilla", "final", eval_avg_rew])) + "\n")
+            self.result_file.flush()
+
+
+    def eval_log_adv(self, eval_episode, slice=False, slice_tag=None):
         """Log evaluation information."""
         self.eval_episode_rewards = np.concatenate(
             [rewards for rewards in self.eval_episode_rewards if rewards]
@@ -169,7 +170,7 @@ class BaseLogger:
             "eval_adv_return_mean": self.eval_episode_rewards,
             "eval_adv_return_std": [np.std(self.eval_episode_rewards)],
         }
-        self.log_env(eval_env_infos)
+        self.log_env(eval_env_infos, slice, slice_tag)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
         print("Evaluation adv average episode reward is {}.\n".format(eval_avg_rew))
         if self.args["run"] == "perturbation":
@@ -188,6 +189,12 @@ class BaseLogger:
             )
             self.log_file.flush()
 
+            if slice:
+                self.result_file.write(",".join(map(str, [self.timestep, "adv", slice_tag, eval_avg_rew])) + "\n")
+            else:
+                self.result_file.write(",".join(map(str, [self.timestep, "adv", "final", eval_avg_rew])) + "\n")
+            self.result_file.flush()
+
     def log_train(self, actor_train_infos, critic_train_info):
         """Log training information."""
         # log actor
@@ -195,19 +202,21 @@ class BaseLogger:
             for k, v in actor_train_infos[agent_id].items():
                 agent_k = "agent%i/" % agent_id + k
                 self.writter.add_scalar(agent_k, v, self.timestep)
-                self.wandb and self.wandb.log({agent_k: v}, step=self.timestep)
         # log critic
         for k, v in critic_train_info.items():
             critic_k = "critic/" + k
             self.writter.add_scalar(critic_k, v, self.timestep)
-            self.wandb and self.wandb.log({critic_k: v}, step=self.timestep)
 
-    def log_env(self, env_infos):
+    def log_env(self, env_infos, slice=False, slice_tag=None):
         """Log environment information."""
         for k, v in env_infos.items():
             if len(v) > 0:
                 self.writter.add_scalar("env/{}".format(k), np.mean(v), self.timestep)
-                self.wandb and self.wandb.log({"env/{}".format(k): np.mean(v)}, step=self.timestep)
+                if slice:
+                    self.writter.add_scalars("env/{}_{}".format("slice", k), {slice_tag: np.mean(v)}, self.timestep)
+                else:
+                    self.writter.add_scalars("env/{}_{}".format("slice", k), {"final": np.mean(v)}, self.timestep)
+                
 
     def close(self):
         """Close the logger."""

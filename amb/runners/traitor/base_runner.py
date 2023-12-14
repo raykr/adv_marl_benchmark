@@ -59,43 +59,6 @@ class BaseRunner:
             )
             save_config(args, algo_args, env_args, self.run_dir)
 
-            # init wandb and save config
-            wandb_dir = self.run_dir
-            wandb_name = (
-                args["env"]
-                + "_"
-                + get_task_name(args["env"], env_args)
-                + "_"
-                + args["run"]
-                + "_"
-                + args["algo"]
-                + "_seed-"
-                + str(algo_args["train"]["seed"])
-                + "_"
-                + time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-            )
-            if "use_wandb" in algo_args["train"] and algo_args["train"]["use_wandb"]:
-                # nni wandb path
-                if algo_args["train"]["log_dir"] == "#nni_dynamic":
-                    wandb_dir = os.path.join(os.environ["NNI_OUTPUT_DIR"])
-                    wandb_name = nni.get_trial_id()
-
-                import wandb
-
-                wandb.init(
-                    project=args["exp_name"],
-                    name=wandb_name,
-                    config={
-                        "args": args,
-                        "algo_args": algo_args,
-                        "env_args": env_args,
-                    },
-                    notes=socket.gethostname(),
-                    entity="adv_marl_benchmark",
-                    dir=wandb_dir,
-                    job_type="training",
-                )
-        
         setproctitle.setproctitle(
             str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"])
         )
@@ -205,7 +168,7 @@ class BaseRunner:
         raise NotImplementedError
 
     @torch.no_grad()
-    def eval(self):
+    def _eval(self, slice=False, slice_tag=None):
         """Evaluate the model. All algorithms should fit this evaluation pipeline."""
         self.algo.prep_rollout()
 
@@ -252,11 +215,11 @@ class BaseRunner:
                     self.logger.eval_thread_done(eval_i)  # logger callback when an episode is done
 
             if eval_episode >= self.algo_args["train"]["eval_episodes"]:
-                self.logger.eval_log(eval_episode)  # logger callback at the end of evaluation
+                self.logger.eval_log(eval_episode, slice, slice_tag)  # logger callback at the end of evaluation
                 break
 
     @torch.no_grad()
-    def eval_adv(self):
+    def _eval_adv(self, slice=False, slice_tag=None):
         """Evaluate the model. All algorithms should fit this evaluation pipeline."""
         self.algo.prep_rollout()
 
@@ -327,8 +290,45 @@ class BaseRunner:
                     adv_agent_ids[eval_i] = self.get_certain_adv_ids()
 
             if eval_episode >= self.algo_args["train"]["eval_episodes"]:
-                self.logger.eval_log_adv(eval_episode)  # logger callback at the end of evaluation
+                self.logger.eval_log_adv(eval_episode, slice, slice_tag)  # logger callback at the end of evaluation
                 break
+
+    def _eval_slice(self, eval_fn):
+        pth_dir_list = os.listdir(os.path.join(os.path.dirname(self.algo_args['victim']['model_dir']), 'slice'))
+        # 如果pth_dir_list为空就跳出
+        if len(pth_dir_list) == 0:
+            return
+        # 将pth_dir_list中的文件夹按照数字大小排序
+        pth_dir_list.sort(key=lambda x: int(x))
+        # 遍历self.algo_args['victim']['model_dir']目录下的所有文件夹
+        for folder_name in pth_dir_list:
+            victim_model_dir = os.path.join(os.path.dirname(self.algo_args['victim']['model_dir']), 'slice', folder_name)
+            # restore slice victim
+            if os.path.isdir(victim_model_dir):
+                print("Restore victim from", victim_model_dir)
+                if self.victim_share_param:
+                    self.victims[0].restore(victim_model_dir)
+                else:
+                    for agent_id in range(self.num_agents):
+                        self.victims[agent_id].restore(os.path.join(victim_model_dir, str(agent_id)))
+
+                eval_fn(slice=True, slice_tag=folder_name)
+
+    @torch.no_grad()
+    def eval(self):
+        # eval default model
+        self._eval()
+        # eval slice model
+        if self.algo_args["train"]["slice"]:
+            self._eval_slice(self._eval)
+
+    @torch.no_grad()
+    def eval_adv(self):
+        # eval default model
+        self._eval_adv()
+        # eval slice model
+        if self.algo_args["train"]["slice"]:
+            self._eval_slice(self._eval_adv)
 
     @torch.no_grad()
     def render(self):

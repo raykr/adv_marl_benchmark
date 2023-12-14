@@ -1,7 +1,6 @@
 import argparse
 import os
 import subprocess
-import time
 from concurrent.futures import ThreadPoolExecutor
 
 

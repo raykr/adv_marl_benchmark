@@ -1,4 +1,5 @@
 """Base runner for off-policy algorithms."""
+import os
 import torch
 import numpy as np
 from amb.data.episode_buffer import EpisodeBuffer
@@ -125,6 +126,9 @@ class OffPolicyRunner(BaseRunner):
                     if self.algo_args['train']['use_eval']:
                         self.eval()
                     self.save()
+
+                    if self.algo_args["train"]["slice"] and self.current_timestep % self.algo_args['train']['slice_timestep_interval'] == 0:
+                        self.save_slice(self.current_timestep)
             
             self.current_timestep += self.buffer.get_timesteps(self.n_rollout_threads)
             self.buffer.move(self.n_rollout_threads)
@@ -184,3 +188,8 @@ class OffPolicyRunner(BaseRunner):
         self.buffer.insert(data, step)
 
 
+    def save_slice(self, timestep):
+        slice_dir = os.path.join(os.path.dirname(self.save_dir), "slice", str(timestep))
+        if not os.path.exists(slice_dir):
+            os.makedirs(slice_dir)
+        self.algo.save(str(slice_dir))
