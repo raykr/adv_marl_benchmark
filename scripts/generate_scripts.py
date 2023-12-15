@@ -3,17 +3,17 @@ import os
 ATTACK_ALL = [
     "random_noise",
     "iterative_perturbation",
-    "random_policy",
     "adaptive_action",
+    "random_policy",
     "traitor",
 ]
 
 ATTACK_CONF = {
-    "random_noise": "--run perturbation --algo.num_env_steps 0 --algo.use_eval False --algo.perturb_iters 0 --algo.adaptive_alpha False --algo.targeted_attack False",
-    "iterative_perturbation": "--run perturbation --algo.num_env_steps 0  --algo.use_eval False --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack False",
-    "random_policy": "--run traitor --algo.num_env_steps 0 --algo.use_eval False",
-    "adaptive_action": "--run perturbation --algo.num_env_steps 5000000 --algo.use_eval False --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True",
-    "traitor": "--run traitor --algo.num_env_steps 5000000 --algo.use_eval False",
+    "random_noise": "--run perturbation --algo.num_env_steps 0 --algo.perturb_iters 0 --algo.adaptive_alpha False --algo.targeted_attack False",
+    "iterative_perturbation": "--run perturbation --algo.num_env_steps 0  --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack False",
+    "adaptive_action": "--run perturbation --algo.num_env_steps 5000000 --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True",
+    "random_policy": "--run traitor --algo.num_env_steps 0",
+    "traitor": "--run traitor --algo.num_env_steps 5000000",
 }
 
 # 如果是list，则遍历所有的值生成命令
@@ -108,30 +108,34 @@ def generate_train_scripts(conf, file_name):
                 command = f"python -u ../single_train.py --run single {base_cfg} --exp_name {exp_name} {trick_str} >> {log_dir}/train.log 2>&1"
                 f.write(command + "\n")
             elif isinstance(value, list):  # 如果是list，则遍历list生成命令
-                print(key, value)
                 for v in value:
                     if isinstance(v, list):
                         # 原样转成字符串
                         v = '"' + str(v) + '"'
-                        print(v)
-                    exp_name = f"{key}_{v}"
                     trick_str = f" --algo.{key} {v}"
+                    v = (
+                        str(v)
+                        .replace('"', "")
+                        .replace("[", "")
+                        .replace("]", "")
+                        .replace(",", "_")
+                        .replace(" ", "")
+                    )
+                    exp_name = f"{key}_{v}"
                     # 生成命令
                     log_dir = os.path.join(outs_dir, exp_name)
                     os.makedirs(log_dir, exist_ok=True)
                     command = f"python -u ../single_train.py --run single {base_cfg} --exp_name {exp_name} {trick_str} >> {log_dir}/train.log 2>&1"
                     f.write(command + "\n")
 
-        f.write("\n")
-
     print("Generate train scripts done!", file_name)
+
 
 
 def generate_eval_scripts(conf, file_name):
     # 将conf中带--的转换为字符串
     base_cfg = " ".join([f"{k} {v}" for k, v in conf.items() if k.startswith("--")])
     # 提取变量
-    slice = False if "--algo.slice" not in conf else conf["--algo.slice"]
     env = conf["--env"]
     scenario = (
         conf["--env.scenario"] if "--env.scenario" in conf else conf["--env.map_name"]
@@ -146,37 +150,36 @@ def generate_eval_scripts(conf, file_name):
     with open(file_name, "w") as f:
         # 读取victims_dir目录列表
         victims_dirs = os.listdir(models_dir)
-        # 排序
+        # 排序,但是default要放在最前
+        victims_dirs.remove("default")
         victims_dirs.sort()
-        print(f"victims_dirs: {victims_dirs}")
+        victims_dirs.insert(0, "default")
 
         # 遍历victims_dirs
         for victim_dir in victims_dirs:
-            print(victim_dir)
             # 查看victim_dir是否是目录，如果是看子目录有几个
             if os.path.isdir(os.path.join(models_dir, victim_dir)):
                 # 读取子目录列表
                 sub_victims_dirs = os.listdir(os.path.join(models_dir, victim_dir))
                 # 遍历子目录列表
                 for sub_victim_dir in sub_victims_dirs:
-                    if attacks is None:
-                        attacks = ATTACK_ALL
+                    # 构建数据输出目录，如果没有则创建
+                    outs_dir = os.path.join(
+                        "logs",
+                        env,
+                        scenario,
+                        algo,
+                        victim_dir,
+                    )
+                    os.makedirs(outs_dir, exist_ok=True)
                     # 遍历所有攻击算法
-                    for attack in attacks:
-                        # 构建数据输出目录，如果没有则创建
-                        outs_dir = os.path.join(
-                            "logs",
-                            env,
-                            scenario,
-                            algo,
-                            victim_dir,
-                        )
-                        os.makedirs(outs_dir, exist_ok=True)
+                    for attack in attacks if attacks else ATTACK_ALL:
                         # 生成命令
-                        command = f"python -u ../single_train.py {base_cfg} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {victim_dir}_{attack} {ATTACK_CONF[attack]} >> {outs_dir}/{attack}.log 2>&1"
+                        command = f"python -u ../single_train.py {base_cfg} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} {ATTACK_CONF[attack]} --exp_name {victim_dir}_{attack} >> {outs_dir}/{attack}.log 2>&1"
                         f.write(command + "\n")
-                    f.write("\n")
-        print("Generate eval scripts done!", file_name)
+            f.write("\n")
+            
+    print("Generate eval scripts done!", file_name)
 
 
 # generate_train_scripts(
@@ -266,8 +269,8 @@ generate_eval_scripts(
         "attacks": [
             "random_noise",
             "iterative_perturbation",
-            "random_policy",
             "adaptive_action",
+            "random_policy",
             "traitor",
         ],
     },
