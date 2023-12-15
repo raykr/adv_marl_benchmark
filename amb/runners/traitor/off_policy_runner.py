@@ -75,10 +75,6 @@ class OffPolicyRunner(BaseRunner):
         )
         self.logger.init()
 
-        self.logger.episode_init(0) 
-        self.eval()
-        self.eval_adv()
-
         while self.current_timestep < self.algo_args['train']['num_env_steps']:
             self.logger.episode_init(self.current_timestep)  # logger callback at the beginning of each episode
             obs, share_obs, available_actions, adv_agent_ids = self.init_batch()
@@ -162,6 +158,14 @@ class OffPolicyRunner(BaseRunner):
             
             self.current_timestep += self.buffer.get_timesteps(self.n_rollout_threads)
             self.buffer.move(self.n_rollout_threads)
+        
+        self.logger.episode_init(self.current_timestep) 
+        self.eval()
+        self.logger.eval_log_slice("vanilla", "final")
+        self.eval_adv()
+        self.logger.eval_log_slice("adv", "final")
+        if self.algo_args['train']['slice']:
+            self.eval_slice()
 
     @torch.no_grad()
     def collect(self, obs, rnn_states, masks, available_actions):

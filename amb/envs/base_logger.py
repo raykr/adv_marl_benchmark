@@ -22,9 +22,10 @@ class BaseLogger:
         self.writter = writter
         self.run_dir = run_dir
         self.log_file = open(os.path.join(run_dir, "progress.txt"), "w", encoding='utf-8')
-        self.result_file = open(os.path.join(run_dir, "result.txt"), "a", encoding="utf-8")
         if args["run"] == "perturbation":
             self.adv_file = open(os.path.join(run_dir, "perturbation_rewards.txt"), "w", encoding="utf-8")
+        if args["run"] == "traitor" or args["run"] == "perturbation":
+            self.result_file = open(os.path.join(run_dir, "result.txt"), "w", encoding="utf-8")
         
     def get_task_name(self):
         """Get the task name."""
@@ -132,7 +133,7 @@ class BaseLogger:
         self.eval_episode_rewards[tid].append(np.sum(self.one_episode_rewards[tid], axis=0))
         self.one_episode_rewards[tid] = []
 
-    def eval_log(self, eval_episode, slice=False, slice_tag=None):
+    def eval_log(self, eval_episode):
         """Log evaluation information."""
         self.eval_episode_rewards = np.concatenate(
             [rewards for rewards in self.eval_episode_rewards if rewards]
@@ -141,7 +142,7 @@ class BaseLogger:
             "eval_return_mean": self.eval_episode_rewards,
             "eval_return_std": [np.std(self.eval_episode_rewards)],
         }
-        self.log_env(eval_env_infos, slice, slice_tag)
+        self.log_env(eval_env_infos)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
         # nni report
         # nni.report_intermediate_result(eval_avg_rew)
@@ -153,15 +154,7 @@ class BaseLogger:
             )
             self.log_file.flush()
 
-        if self.args["run"] == "traitor" or self.args["run"] == "perturbation":
-            if slice:
-                self.result_file.write(",".join(map(str, [self.timestep, "vanilla", slice_tag, eval_avg_rew])) + "\n")
-            else:
-                self.result_file.write(",".join(map(str, [self.timestep, "vanilla", "final", eval_avg_rew])) + "\n")
-            self.result_file.flush()
-
-
-    def eval_log_adv(self, eval_episode, slice=False, slice_tag=None):
+    def eval_log_adv(self, eval_episode):
         """Log evaluation information."""
         self.eval_episode_rewards = np.concatenate(
             [rewards for rewards in self.eval_episode_rewards if rewards]
@@ -170,7 +163,7 @@ class BaseLogger:
             "eval_adv_return_mean": self.eval_episode_rewards,
             "eval_adv_return_std": [np.std(self.eval_episode_rewards)],
         }
-        self.log_env(eval_env_infos, slice, slice_tag)
+        self.log_env(eval_env_infos)
         eval_avg_rew = np.mean(self.eval_episode_rewards)
         print("Evaluation adv average episode reward is {}.\n".format(eval_avg_rew))
         if self.args["run"] == "perturbation":
@@ -189,11 +182,12 @@ class BaseLogger:
             )
             self.log_file.flush()
 
-            if slice:
-                self.result_file.write(",".join(map(str, [self.timestep, "adv", slice_tag, eval_avg_rew])) + "\n")
-            else:
-                self.result_file.write(",".join(map(str, [self.timestep, "adv", "final", eval_avg_rew])) + "\n")
-            self.result_file.flush()
+    def eval_log_slice(self, eval_type, slice_tag):
+        eval_avg_rew = np.mean(self.eval_episode_rewards)
+        self.result_file.write(",".join(map(str, [self.timestep, eval_type, slice_tag, eval_avg_rew])) + "\n")
+        self.result_file.flush()
+        if slice_tag != "final" and slice_tag != "":
+            self.writter.add_scalars("env/slice_return_mean", {eval_type: eval_avg_rew}, slice_tag)
 
     def log_train(self, actor_train_infos, critic_train_info):
         """Log training information."""
@@ -207,16 +201,11 @@ class BaseLogger:
             critic_k = "critic/" + k
             self.writter.add_scalar(critic_k, v, self.timestep)
 
-    def log_env(self, env_infos, slice=False, slice_tag=None):
+    def log_env(self, env_infos):
         """Log environment information."""
         for k, v in env_infos.items():
             if len(v) > 0:
                 self.writter.add_scalar("env/{}".format(k), np.mean(v), self.timestep)
-                if slice:
-                    self.writter.add_scalars("env/{}_{}".format("slice", k), {slice_tag: np.mean(v)}, self.timestep)
-                else:
-                    self.writter.add_scalars("env/{}_{}".format("slice", k), {"final": np.mean(v)}, self.timestep)
-                
 
     def close(self):
         """Close the logger."""

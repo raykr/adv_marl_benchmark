@@ -9,11 +9,11 @@ ATTACK_ALL = [
 ]
 
 ATTACK_CONF = {
-    "random_noise": " --run perturbation --algo.num_env_steps 0 --algo.perturb_iters 0 --algo.adaptive_alpha False --algo.targeted_attack False ",
-    "iterative_perturbation": " --run perturbation --algo.num_env_steps 0 --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack False ",
-    "random_policy": " --run traitor --algo.num_env_steps 0 ",
-    "adaptive_action": " --run perturbation --algo.num_env_steps 5000000 --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True ",
-    "traitor": " --run traitor --algo.num_env_steps 5000000 ",
+    "random_noise": "--run perturbation --algo.num_env_steps 0 --algo.use_eval False --algo.perturb_iters 0 --algo.adaptive_alpha False --algo.targeted_attack False",
+    "iterative_perturbation": "--run perturbation --algo.num_env_steps 0  --algo.use_eval False --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack False",
+    "random_policy": "--run traitor --algo.num_env_steps 0 --algo.use_eval False",
+    "adaptive_action": "--run perturbation --algo.num_env_steps 5000000 --algo.use_eval False --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True",
+    "traitor": "--run traitor --algo.num_env_steps 5000000 --algo.use_eval False",
 }
 
 # 如果是list，则遍历所有的值生成命令
@@ -192,18 +192,18 @@ def generate_eval_scripts(conf, file_name):
 #     "train_halfcheetah-2x3_mappo.sh",
 # )
 
-# generate_train_scripts(
-#     {
-#         "--env": "mamujoco",
-#         "--env.scenario": "HalfCheetah",
-#         "--env.agent_conf": "6x1",
-#         "--algo": "mappo",
-#         "--algo.num_env_steps": 5000000,
-#         "--algo.slice": True,
-#         "--algo.slice_timestep_interval": 1000000,
-#     },
-#     "train_halfcheetah-6x1_mappo.sh",
-# )
+generate_train_scripts(
+    {
+        "--env": "mamujoco",
+        "--env.scenario": "HalfCheetah",
+        "--env.agent_conf": "6x1",
+        "--algo": "mappo",
+        "--algo.num_env_steps": 10000000,
+        "--algo.slice": True,
+        "--algo.slice_timestep_interval": 1000000,
+    },
+    "train_halfcheetah-6x1_mappo.sh",
+)
 
 # generate_train_scripts(
 #     {

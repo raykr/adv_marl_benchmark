@@ -168,7 +168,7 @@ class BaseRunner:
         raise NotImplementedError
 
     @torch.no_grad()
-    def _eval(self, slice=False, slice_tag=None):
+    def eval(self):
         """Evaluate the model. All algorithms should fit this evaluation pipeline."""
         self.algo.prep_rollout()
 
@@ -215,11 +215,11 @@ class BaseRunner:
                     self.logger.eval_thread_done(eval_i)  # logger callback when an episode is done
 
             if eval_episode >= self.algo_args["train"]["eval_episodes"]:
-                self.logger.eval_log(eval_episode, slice, slice_tag)  # logger callback at the end of evaluation
+                self.logger.eval_log(eval_episode)  # logger callback at the end of evaluation
                 break
 
     @torch.no_grad()
-    def _eval_adv(self, slice=False, slice_tag=None):
+    def eval_adv(self):
         """Evaluate the model. All algorithms should fit this evaluation pipeline."""
         self.algo.prep_rollout()
 
@@ -290,10 +290,10 @@ class BaseRunner:
                     adv_agent_ids[eval_i] = self.get_certain_adv_ids()
 
             if eval_episode >= self.algo_args["train"]["eval_episodes"]:
-                self.logger.eval_log_adv(eval_episode, slice, slice_tag)  # logger callback at the end of evaluation
+                self.logger.eval_log_adv(eval_episode)  # logger callback at the end of evaluation
                 break
 
-    def _eval_slice(self, eval_fn):
+    def eval_slice(self):
         pth_dir_list = os.listdir(os.path.join(os.path.dirname(self.algo_args['victim']['model_dir']), 'slice'))
         # 如果pth_dir_list为空就跳出
         if len(pth_dir_list) == 0:
@@ -311,24 +311,11 @@ class BaseRunner:
                 else:
                     for agent_id in range(self.num_agents):
                         self.victims[agent_id].restore(os.path.join(victim_model_dir, str(agent_id)))
-
-                eval_fn(slice=True, slice_tag=folder_name)
-
-    @torch.no_grad()
-    def eval(self):
-        # eval default model
-        self._eval()
-        # eval slice model
-        if self.algo_args["train"]["slice"]:
-            self._eval_slice(self._eval)
-
-    @torch.no_grad()
-    def eval_adv(self):
-        # eval default model
-        self._eval_adv()
-        # eval slice model
-        if self.algo_args["train"]["slice"]:
-            self._eval_slice(self._eval_adv)
+                
+                self.eval()
+                self.logger.eval_log_slice("vanilla", folder_name)
+                self.eval_adv()
+                self.logger.eval_log_slice("adv", folder_name)
 
     @torch.no_grad()
     def render(self):

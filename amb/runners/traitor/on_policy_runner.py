@@ -73,10 +73,7 @@ class OnPolicyRunner(BaseRunner):
             return
         print("start running")
         self.logger.init()  # logger callback at the beginning of training
-
-        self.logger.episode_init(0) 
-        self.eval()
-        self.eval_adv()
+        self.current_timestep = 0
 
         obs, share_obs, available_actions, adv_agent_ids = self.init_batch()
         rnn_states = np.zeros((self.n_rollout_threads, self.num_agents, self.victim_recurrent_n, self.victim_rnn_hidden_size), dtype=np.float32)
@@ -88,7 +85,8 @@ class OnPolicyRunner(BaseRunner):
             if self.algo_args['train']['use_linear_lr_decay']:  # linear decay of learning rate
                 self.algo.lr_decay(episode, episodes)
 
-            self.logger.episode_init(episode * self.algo_args['train']['episode_length'] * self.algo_args['train']['n_rollout_threads'])  # logger callback at the beginning of each episode
+            self.current_timestep = episode * self.algo_args['train']['episode_length'] * self.algo_args['train']['n_rollout_threads']
+            self.logger.episode_init(self.current_timestep)  # logger callback at the beginning of each episode
 
             self.algo.prep_rollout()
 
@@ -167,6 +165,14 @@ class OnPolicyRunner(BaseRunner):
 
             for buffer in self.buffers:
                 buffer.after_update()
+
+        self.logger.episode_init(self.current_timestep) 
+        self.eval()
+        self.logger.eval_log_slice("vanilla", "final")
+        self.eval_adv()
+        self.logger.eval_log_slice("adv", "final")
+        if self.algo_args['train']['slice']:
+            self.eval_slice()
 
     @torch.no_grad()
     def collect(self, step):
