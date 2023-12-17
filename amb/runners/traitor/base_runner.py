@@ -294,10 +294,11 @@ class BaseRunner:
                 break
 
     def eval_slice(self):
-        pth_dir_list = os.listdir(os.path.join(os.path.dirname(self.algo_args['victim']['model_dir']), 'slice'))
-        # 如果pth_dir_list为空就跳出
-        if len(pth_dir_list) == 0:
+        # 判断os.path.dirname(self.algo_args['victim']['model_dir'])下是否有slice文件夹，如果没有则return
+        slice_path = os.path.join(os.path.dirname(self.algo_args['victim']['model_dir']), 'slice')
+        if not os.path.exists(slice_path) or len(os.listdir(slice_path)) == 0:
             return
+        pth_dir_list = os.listdir(slice_path)
         # 将pth_dir_list中的文件夹按照数字大小排序
         pth_dir_list.sort(key=lambda x: int(x))
         # 遍历self.algo_args['victim']['model_dir']目录下的所有文件夹
