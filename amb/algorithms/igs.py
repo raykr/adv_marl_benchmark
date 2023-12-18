@@ -1,3 +1,4 @@
+from numpy import int32
 import torch
 from amb.agents.base_agent import BaseAgent
 from amb.utils.env_utils import check
@@ -44,7 +45,7 @@ class IGS:
         # the input of target_action should have the same shape with action_dist.mode
         if self.action_type == "Discrete":
             if target_action.shape[-1] == 1:
-                target_action = target_action.squeeze(-1)
+                target_action = target_action.squeeze(-1).long()
             else:
                 target_action = target_action.argmax(dim=-1)
             

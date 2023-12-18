@@ -182,18 +182,18 @@ def generate_eval_scripts(conf, file_name):
     print("Generate eval scripts done!", file_name)
 
 
-# generate_train_scripts(
-#     {
-#         "--env": "mamujoco",
-#         "--env.scenario": "HalfCheetah",
-#         "--env.agent_conf": "2x3",
-#         "--algo": "mappo",
-#         "--algo.num_env_steps": 5000000,
-#         "--algo.slice": True,
-#         "--algo.slice_timestep_interval": 1000000,
-#     },
-#     "train_halfcheetah-2x3_mappo.sh",
-# )
+generate_train_scripts(
+    {
+        "--env": "mamujoco",
+        "--env.scenario": "HalfCheetah",
+        "--env.agent_conf": "2x3",
+        "--algo": "mappo",
+        "--algo.num_env_steps": 10000000,
+        "--algo.slice": True,
+        "--algo.slice_timestep_interval": 1000000,
+    },
+    "train_halfcheetah-2x3_mappo.sh",
+)
 
 generate_train_scripts(
     {
@@ -208,53 +208,53 @@ generate_train_scripts(
     "train_halfcheetah-6x1_mappo.sh",
 )
 
-# generate_train_scripts(
-#     {
-#         "--env": "smac",
-#         "--env.map_name": "3m",
-#         "--algo": "mappo",
-#         "--algo.num_env_steps": 5000000,
-#         "--algo.slice": True,
-#         "--algo.slice_timestep_interval": 1000000,
-#     },
-#     "train_3m_mappo.sh",
-# )
+generate_train_scripts(
+    {
+        "--env": "smac",
+        "--env.map_name": "3m",
+        "--algo": "mappo",
+        "--algo.num_env_steps": 5000000,
+        "--algo.slice": True,
+        "--algo.slice_timestep_interval": 1000000,
+    },
+    "train_3m_mappo.sh",
+)
 
-# generate_train_scripts(
-#     {
-#         "--env": "smac",
-#         "--env.map_name": "2s3z",
-#         "--algo": "mappo",
-#         "--algo.num_env_steps": 5000000,
-#         "--algo.slice": True,
-#         "--algo.slice_timestep_interval": 1000000,
-#     },
-#     "train_2s3z_mappo.sh",
-# )
+generate_train_scripts(
+    {
+        "--env": "smac",
+        "--env.map_name": "2s3z",
+        "--algo": "mappo",
+        "--algo.num_env_steps": 5000000,
+        "--algo.slice": True,
+        "--algo.slice_timestep_interval": 1000000,
+    },
+    "train_2s3z_mappo.sh",
+)
 
-# generate_train_scripts(
-#     {
-#         "--env": "smac",
-#         "--env.map_name": "3m",
-#         "--algo": "qmix",
-#         "--algo.num_env_steps": 5000000,
-#         "--algo.slice": True,
-#         "--algo.slice_timestep_interval": 1000000,
-#     },
-#     "train_3m_qmix.sh",
-# )
+generate_train_scripts(
+    {
+        "--env": "smac",
+        "--env.map_name": "3m",
+        "--algo": "qmix",
+        "--algo.num_env_steps": 5000000,
+        "--algo.slice": True,
+        "--algo.slice_timestep_interval": 1000000,
+    },
+    "train_3m_qmix.sh",
+)
 
-# generate_train_scripts(
-#     {
-#         "--env": "smac",
-#         "--env.map_name": "2s3z",
-#         "--algo": "qmix",
-#         "--algo.num_env_steps": 5000000,
-#         "--algo.slice": True,
-#         "--algo.slice_timestep_interval": 1000000,
-#     },
-#     "train_2s3z_qmix.sh",
-# )
+generate_train_scripts(
+    {
+        "--env": "smac",
+        "--env.map_name": "2s3z",
+        "--algo": "qmix",
+        "--algo.num_env_steps": 5000000,
+        "--algo.slice": True,
+        "--algo.slice_timestep_interval": 1000000,
+    },
+    "train_2s3z_qmix.sh",
+)
 
 # ---------------------------eval--------------------------------
 generate_eval_scripts(
@@ -275,4 +275,59 @@ generate_eval_scripts(
         ],
     },
     "eval_halfcheetah-6x1_mappo.sh",
+)
+generate_eval_scripts(
+    {
+        "--env": "mamujoco",
+        "--env.scenario": "HalfCheetah",
+        "--env.agent_conf": "2x3",
+        "--algo": "mappo",
+        "--algo.slice": True,
+        "--algo.slice_timestep_interval": 1000000,
+        "models_dir": "results/mamujoco/HalfCheetah-2x3/single/mappo",
+        "attacks": [
+            "random_noise",
+            "iterative_perturbation",
+            "adaptive_action",
+            "random_policy",
+            "traitor",
+        ],
+    },
+    "eval_halfcheetah-2x3_mappo.sh",
+)
+generate_eval_scripts(
+    {
+        "--env": "smac",
+        "--env.map_name": "3m",
+        "--algo": "mappo",
+        "--algo.slice": True,
+        "--algo.slice_timestep_interval": 1000000,
+        "models_dir": "results/smac/3m/single/mappo",
+        "attacks": [
+            "random_noise",
+            "iterative_perturbation",
+            "adaptive_action",
+            "random_policy",
+            "traitor",
+        ],
+    },
+    "eval_3m_mappo.sh",
+)
+generate_eval_scripts(
+    {
+        "--env": "smac",
+        "--env.map_name": "2s3z",
+        "--algo": "mappo",
+        "--algo.slice": True,
+        "--algo.slice_timestep_interval": 1000000,
+        "models_dir": "results/smac/2s3z/single/mappo",
+        "attacks": [
+            "random_noise",
+            "iterative_perturbation",
+            "adaptive_action",
+            "random_policy",
+            "traitor",
+        ],
+    },
+    "eval_2s3z_mappo.sh",
 )

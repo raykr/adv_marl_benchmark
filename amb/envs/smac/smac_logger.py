@@ -137,3 +137,12 @@ class SMACLogger(BaseLogger):
                 + "\n"
             )
             self.log_file.flush()
+
+    def eval_log_slice(self, eval_type, slice_tag):
+        eval_avg_rew = np.mean(self.eval_episode_rewards)
+        eval_battles_won = self.eval_battles_won / self.algo_args["train"]["eval_episodes"]
+        self.result_file.write(",".join(map(str, [self.timestep, eval_type, slice_tag, eval_avg_rew, eval_battles_won])) + "\n")
+        self.result_file.flush()
+        if slice_tag != "final" and slice_tag != "":
+            self.writter.add_scalars("env/slice_return_mean", {eval_type: eval_avg_rew}, slice_tag)
+            self.writter.add_scalars("env/slice_win_rate", {eval_type: eval_battles_won}, slice_tag)
