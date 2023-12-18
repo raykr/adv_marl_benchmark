@@ -206,7 +206,8 @@ class VoltageControl(MultiAgentEnv):
         else:
             terminated = False
         if terminated:
-            print (f"Episode terminated at time: {self.steps} with return: {self.sum_rewards:2.4f}.")
+            pass
+            # print (f"Episode terminated at time: {self.steps} with return: {self.sum_rewards:2.4f}.")
 
         return reward, terminated, info
 
@@ -469,7 +470,7 @@ class VoltageControl(MultiAgentEnv):
         """
         t = self.steps
         history = self.history
-        print("===>?", t, self.pv_histories[t:t+history, :])
+        # print("===>?", t, self.pv_histories[t:t+history, :])
         return self.pv_histories[t:t+history, :]
 
     def _get_active_demand_history(self):

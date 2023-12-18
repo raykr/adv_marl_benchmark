@@ -35,7 +35,8 @@ class ValtageEnv:
         available_actions are 0-1 numpy.ndarrays that have shape (num_agents, action_num) for discrete action spaces,
         and None for continuous action spaces.
         """
-        return self.env.get_obs(), [self.env.get_state()] * self.n_agents, self.env.get_avail_actions()
+        obs, state = self.env.reset()
+        return obs, [state] * self.n_agents, self.env.get_avail_actions()
 
     def step(self, actions):
         """Process a step of the environment.
@@ -51,9 +52,8 @@ class ValtageEnv:
         obs = np.array(self.env.get_obs())
         share_obs = np.array([self.env.get_state()] * self.n_agents)
         actions = actions.squeeze(1)
+        # print(f"actions.shape: {actions.shape}", actions)
         reward, termiated, info = self.env.step(actions)
-        # if termiated:
-        #     self.env.reset()
         rewards = np.array([[reward]] * self.n_agents)
         dones = np.array([termiated] * self.n_agents)
         infos = [info] * self.n_agents
