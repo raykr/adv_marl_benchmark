@@ -114,7 +114,7 @@ def main():
         args["algo"] = all_config["main_args"]["algo"]
         args["env"] = all_config["main_args"]["env"]
         args["run"] = all_config["main_args"]["run"]
-        args["exp_name"] = all_config["main_args"]["exp_name"]
+        args["exp_name"] = all_config["main_args"]["exp_name"] if "exp_name" in all_config["main_args"] and all_config["main_args"]["exp_name"] != "" else args["exp_name"]
 
         algo_args = all_config["algo_args"]["train"]
         victim_args = all_config["algo_args"]["victim"]

@@ -1,19 +1,11 @@
 import os
 
-ATTACK_ALL = [
-    "random_noise",
-    "iterative_perturbation",
-    "adaptive_action",
-    "random_policy",
-    "traitor",
-]
-
 ATTACK_CONF = {
     "random_noise": "--run perturbation --algo.num_env_steps 0 --algo.perturb_iters 0 --algo.adaptive_alpha False --algo.targeted_attack False",
     "iterative_perturbation": "--run perturbation --algo.num_env_steps 0  --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack False",
-    "adaptive_action": "--run perturbation --algo.num_env_steps 5000000 --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True",
     "random_policy": "--run traitor --algo.num_env_steps 0",
     "traitor": "--run traitor --algo.num_env_steps 5000000",
+    "adaptive_action": "--run perturbation --algo.num_env_steps 5000000 --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True",
 }
 
 # 如果是list，则遍历所有的值生成命令
@@ -21,8 +13,8 @@ ATTACK_CONF = {
 TRICKS = {
     "mappo": {
         "entropy_coef": [0.0001, 0.001, 0.1, 0.5, 1.0],
-        "gamma": [0.9, 0.95],
-        "hidden_sizes": [[64, 64], [256, 256]],
+        "gamma": [0.95, 1],
+        "hidden_sizes": [[64, 64], [512, 512]],
         "activation_func": ["leaky_relu", "selu", "sigmoid", "tanh"],
         "initialization_method": ["xavier_uniform_"],
         "use_recurrent_policy": [True],
@@ -31,11 +23,11 @@ TRICKS = {
         "critic_lr": [0.00005, 0.005],
         "use_gae": [False],
         "use_popart": [False],
-        "share_param": [False],
+        "share_param": [False]
     },
     "maddpg": {
         "expl_noise": [0.001, 0.01, 0.5, 1.0],
-        "gamma": [0.9, 0.95],
+        "gamma": [0.95, 1],
         "hidden_sizes": [[64, 64], [512, 512]],
         "activation_func": ["leaky_relu", "selu", "sigmoid", "tanh"],
         "initialization_method": ["xavier_uniform_"],
@@ -43,16 +35,16 @@ TRICKS = {
         "use_feature_normalization": [False],
         "lr": [0.00005, 0.005],
         "critic_lr": [0.00005, 0.005],
-        "n_step": [5, 10, 50],
+        "n_step": [10, 50],
         "share_param": [False],
-        "batch_size": [500, 5000],
+        "batch_size": [500, 5000]
     },
     "qmix": {
         "epsilon_anneal_time": [50000, 200000],
         "epsilon_finish": [0.01, 0.1],
         "eps_delta_l": {"epsilon_anneal_time": 80000, "epsilon_finish": 0.24},
         "eps_delta_r": {"epsilon_anneal_time": 104211, "epsilon_finish": 0.01},
-        "gamma": [0.9, 0.95],
+        "gamma": [0.95, 1],
         "hidden_sizes": [[64, 64], [256, 256]],
         "activation_func": ["leaky_relu", "selu", "sigmoid", "tanh"],
         "initialization_method": ["xavier_uniform_"],
@@ -60,41 +52,28 @@ TRICKS = {
         "use_feature_normalization": [False],
         "lr": [0.00005, 0.005],
         "critic_lr": [0.00005, 0.005],
-        "n_step": [5, 10, 50],
+        "n_step": [10, 50],
         "share_param": [False],
-        "batch_size": [500, 5000],
-    },
+        "batch_size": [500, 5000]
+    }
 }
 
-
-def generate_train_scripts(conf, file_name):
-    # 将conf中带--的转换为字符串
-    base_cfg = " ".join([f"{k} {v}" for k, v in conf.items() if k.startswith("--")])
-
-    # 提取变量
-    slice = False if "--algo.slice" not in conf else conf["--algo.slice"]
-    env = conf["--env"]
-    scenario = (
-        conf["--env.scenario"] if "--env.scenario" in conf else conf["--env.map_name"]
-    )
-    if "--env.agent_conf" in conf:
-        scenario += "-" + conf["--env.agent_conf"]
-    algo = conf["--algo"]
-
-    tricks = TRICKS[algo]
-
-    # 构建数据输出目录，如果没有则创建
+def generate_train_scripts(env, scenario, algo):
+     # 构建数据输出目录，如果没有则创建
     outs_dir = os.path.join("logs", env, scenario, algo)
-
+    # settings目录
+    settings_dir = os.path.join("settings", env, scenario)
+    # baseline配置文件
+    config_path = os.path.join(settings_dir, algo + ".json")
     # 生成脚本文件
-    with open(file_name, "w") as f:
+    with open(f"train_{env}_{scenario}_{algo}.sh", "w") as f:
         # 生成默认命令
         default_dir = os.path.join(outs_dir, "default")
         os.makedirs(default_dir, exist_ok=True)
-        command = f"python -u ../single_train.py --run single {base_cfg} --exp_name default >> {default_dir}/train.log 2>&1"
+        command = f"python -u ../single_train.py --load_config {config_path} --exp_name default > {default_dir}/train.log 2>&1"
         f.write(command + "\n")
         # 遍历tricks
-        for key, value in tricks.items():
+        for key, value in TRICKS[algo].items():
             trick_str = ""
             exp_name = ""
             if isinstance(value, dict):  # 如果是dict，则特殊处理，组合命令
@@ -105,7 +84,7 @@ def generate_train_scripts(conf, file_name):
                 # 生成命令
                 log_dir = os.path.join(outs_dir, exp_name)
                 os.makedirs(log_dir, exist_ok=True)
-                command = f"python -u ../single_train.py --run single {base_cfg} --exp_name {exp_name} {trick_str} >> {log_dir}/train.log 2>&1"
+                command = f"python -u ../single_train.py --load_config {config_path} --exp_name {exp_name} {trick_str} > {log_dir}/train.log 2>&1"
                 f.write(command + "\n")
             elif isinstance(value, list):  # 如果是list，则遍历list生成命令
                 for v in value:
@@ -125,37 +104,36 @@ def generate_train_scripts(conf, file_name):
                     # 生成命令
                     log_dir = os.path.join(outs_dir, exp_name)
                     os.makedirs(log_dir, exist_ok=True)
-                    command = f"python -u ../single_train.py --run single {base_cfg} --exp_name {exp_name} {trick_str} >> {log_dir}/train.log 2>&1"
+                    command = f"python -u ../single_train.py --load_config {config_path} --exp_name {exp_name} {trick_str} > {log_dir}/train.log 2>&1"
                     f.write(command + "\n")
+        
+    print("Generate train scripts done!", f"train_{env}_{scenario}_{algo}.sh")
 
-    print("Generate train scripts done!", file_name)
 
-
-
-def generate_eval_scripts(conf, file_name):
-    # 将conf中带--的转换为字符串
-    base_cfg = " ".join([f"{k} {v}" for k, v in conf.items() if k.startswith("--")])
-    # 提取变量
-    env = conf["--env"]
-    scenario = (
-        conf["--env.scenario"] if "--env.scenario" in conf else conf["--env.map_name"]
-    )
-    if "--env.agent_conf" in conf:
-        scenario += "-" + conf["--env.agent_conf"]
-    algo = conf["--algo"]
-    models_dir = conf["models_dir"]
-    attacks = conf["attacks"]
+def generate_eval_scripts(env, scenario, algo, slice=False, group="model"):
+    models_dir = os.path.join("results", env, scenario, "single", algo)
+    attacks = ATTACK_CONF
+    # 根据环境不同，生成各自的命令
+    # 注意此处algo mappo是用作攻击的，此处设置为固定使用mappo作为攻击RL算法
+    base_cfg = f"--algo mappo --env {env}"
+    if env == "smac":
+        base_cfg += f" --env.map_name {scenario}"
+    else:
+        base_cfg += f" --env.scenario {scenario}"
+        if env == "mamujoco":
+            base_cfg += f" --env.agent_conf 3x1"
 
     # 生成脚本文件
-    with open(file_name, "w") as f:
+    with open(f"eval_{env}_{scenario}_{algo}.sh", "w") as f:
         # 读取victims_dir目录列表
         victims_dirs = os.listdir(models_dir)
         # 排序,但是default要放在最前
         victims_dirs.remove("default")
         victims_dirs.sort()
         victims_dirs.insert(0, "default")
-
-        # 遍历victims_dirs
+       
+        victim_tuples = []
+         # 遍历victims_dirs
         for victim_dir in victims_dirs:
             # 查看victim_dir是否是目录，如果是看子目录有几个
             if os.path.isdir(os.path.join(models_dir, victim_dir)):
@@ -163,6 +141,28 @@ def generate_eval_scripts(conf, file_name):
                 sub_victims_dirs = os.listdir(os.path.join(models_dir, victim_dir))
                 # 遍历子目录列表
                 for sub_victim_dir in sub_victims_dirs:
+                    victim_tuples.append((victim_dir, sub_victim_dir))
+        
+        if group == "model":
+            for victim_dir, sub_victim_dir in victim_tuples:
+                # 构建数据输出目录，如果没有则创建
+                outs_dir = os.path.join(
+                    "logs",
+                    env,
+                    scenario,
+                    algo,
+                    victim_dir,
+                )
+                os.makedirs(outs_dir, exist_ok=True)
+                # 遍历所有攻击算法
+                for attack_method, attack_cfg in attacks.items():
+                    # 生成命令
+                    command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {victim_dir}_{attack_method} {attack_cfg} > {outs_dir}/{attack_method}.log 2>&1"
+                    f.write(command + "\n")
+            f.write("\n")
+        elif group == "attack":
+            for attack_method, attack_cfg in attacks.items():
+                for victim_dir, sub_victim_dir in victim_tuples:
                     # 构建数据输出目录，如果没有则创建
                     outs_dir = os.path.join(
                         "logs",
@@ -172,162 +172,28 @@ def generate_eval_scripts(conf, file_name):
                         victim_dir,
                     )
                     os.makedirs(outs_dir, exist_ok=True)
-                    # 遍历所有攻击算法
-                    for attack in attacks if attacks else ATTACK_ALL:
-                        # 生成命令
-                        command = f"python -u ../single_train.py {base_cfg} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} {ATTACK_CONF[attack]} --exp_name {victim_dir}_{attack} >> {outs_dir}/{attack}.log 2>&1"
-                        f.write(command + "\n")
+                    # 生成命令
+                    command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {outs_dir}/{attack_method}.log 2>&1"
+                    f.write(command + "\n")
+                f.write("\n")
             f.write("\n")
             
-    print("Generate eval scripts done!", file_name)
+    print("Generate eval scripts done!", f"eval_{env}_{scenario}_{algo}.sh")
 
 
-generate_train_scripts(
-    {
-        "--env": "mamujoco",
-        "--env.scenario": "HalfCheetah",
-        "--env.agent_conf": "2x3",
-        "--algo": "mappo",
-        "--algo.num_env_steps": 10000000,
-        "--algo.slice": True,
-        "--algo.slice_timestep_interval": 1000000,
-    },
-    "train_halfcheetah-2x3_mappo.sh",
-)
+# generate_train_scripts("mamujoco", "HalfCheetah-6x1", "mappo")
+# generate_train_scripts("mamujoco", "HalfCheetah-6x1", "maddpg")
+# generate_train_scripts("mamujoco", "Hopper-3x1", "mappo")
+# generate_train_scripts("mamujoco", "Hopper-3x1", "maddpg")
+# generate_train_scripts("pettingzoo_mpe", "simple_speaker_listener_v4", "mappo")
+# generate_train_scripts("pettingzoo_mpe", "simple_speaker_listener_v4", "maddpg")
+# generate_train_scripts("pettingzoo_mpe", "simple_spread_v3", "mappo")
+# generate_train_scripts("pettingzoo_mpe", "simple_spread_v3", "maddpg")
+# generate_train_scripts("smac", "3m", "mappo")
+# generate_train_scripts("smac", "3m", "qmix")
+# generate_train_scripts("smac", "2s3z", "mappo")
+# generate_train_scripts("smac", "2s3z", "qmix")
 
-generate_train_scripts(
-    {
-        "--env": "mamujoco",
-        "--env.scenario": "HalfCheetah",
-        "--env.agent_conf": "6x1",
-        "--algo": "mappo",
-        "--algo.num_env_steps": 10000000,
-        "--algo.slice": True,
-        "--algo.slice_timestep_interval": 1000000,
-    },
-    "train_halfcheetah-6x1_mappo.sh",
-)
 
-generate_train_scripts(
-    {
-        "--env": "smac",
-        "--env.map_name": "3m",
-        "--algo": "mappo",
-        "--algo.num_env_steps": 5000000,
-        "--algo.slice": True,
-        "--algo.slice_timestep_interval": 1000000,
-    },
-    "train_3m_mappo.sh",
-)
-
-generate_train_scripts(
-    {
-        "--env": "smac",
-        "--env.map_name": "2s3z",
-        "--algo": "mappo",
-        "--algo.num_env_steps": 5000000,
-        "--algo.slice": True,
-        "--algo.slice_timestep_interval": 1000000,
-    },
-    "train_2s3z_mappo.sh",
-)
-
-generate_train_scripts(
-    {
-        "--env": "smac",
-        "--env.map_name": "3m",
-        "--algo": "qmix",
-        "--algo.num_env_steps": 5000000,
-        "--algo.slice": True,
-        "--algo.slice_timestep_interval": 1000000,
-    },
-    "train_3m_qmix.sh",
-)
-
-generate_train_scripts(
-    {
-        "--env": "smac",
-        "--env.map_name": "2s3z",
-        "--algo": "qmix",
-        "--algo.num_env_steps": 5000000,
-        "--algo.slice": True,
-        "--algo.slice_timestep_interval": 1000000,
-    },
-    "train_2s3z_qmix.sh",
-)
-
-# ---------------------------eval--------------------------------
-generate_eval_scripts(
-    {
-        "--env": "mamujoco",
-        "--env.scenario": "HalfCheetah",
-        "--env.agent_conf": "6x1",
-        "--algo": "mappo",
-        "--algo.slice": True,
-        "--algo.slice_timestep_interval": 1000000,
-        "models_dir": "results/mamujoco/HalfCheetah-6x1/single/mappo",
-        "attacks": [
-            "random_noise",
-            "iterative_perturbation",
-            "adaptive_action",
-            "random_policy",
-            "traitor",
-        ],
-    },
-    "eval_halfcheetah-6x1_mappo.sh",
-)
-generate_eval_scripts(
-    {
-        "--env": "mamujoco",
-        "--env.scenario": "HalfCheetah",
-        "--env.agent_conf": "2x3",
-        "--algo": "mappo",
-        "--algo.slice": True,
-        "--algo.slice_timestep_interval": 1000000,
-        "models_dir": "results/mamujoco/HalfCheetah-2x3/single/mappo",
-        "attacks": [
-            "random_noise",
-            "iterative_perturbation",
-            "adaptive_action",
-            "random_policy",
-            "traitor",
-        ],
-    },
-    "eval_halfcheetah-2x3_mappo.sh",
-)
-generate_eval_scripts(
-    {
-        "--env": "smac",
-        "--env.map_name": "3m",
-        "--algo": "mappo",
-        "--algo.slice": True,
-        "--algo.slice_timestep_interval": 1000000,
-        "models_dir": "results/smac/3m/single/mappo",
-        "attacks": [
-            "random_noise",
-            "iterative_perturbation",
-            "adaptive_action",
-            "random_policy",
-            "traitor",
-        ],
-    },
-    "eval_3m_mappo.sh",
-)
-generate_eval_scripts(
-    {
-        "--env": "smac",
-        "--env.map_name": "2s3z",
-        "--algo": "mappo",
-        "--algo.slice": True,
-        "--algo.slice_timestep_interval": 1000000,
-        "models_dir": "results/smac/2s3z/single/mappo",
-        "attacks": [
-            "random_noise",
-            "iterative_perturbation",
-            "adaptive_action",
-            "random_policy",
-            "traitor",
-        ],
-    },
-    "eval_2s3z_mappo.sh",
-)
+# generate_eval_scripts("smac", "2s3z", "mappo", group="attack")
+# generate_eval_scripts("smac", "2s3z", "qmix", group="attack")
