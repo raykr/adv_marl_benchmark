@@ -76,6 +76,7 @@ class OnPolicyRunner(BaseRunner):
 
         self.init_batch()
         episodes = int(self.algo_args['train']['num_env_steps']) // self.algo_args['train']['episode_length'] // self.algo_args['train']['n_rollout_threads']
+        save_count = 0
         
         for episode in range(1, episodes + 1):
             if self.algo_args['train']['use_linear_lr_decay']:  # linear decay of learning rate
@@ -128,8 +129,9 @@ class OnPolicyRunner(BaseRunner):
                 if self.algo_args['train']['use_eval']:
                     self.eval()
                 self.save()
+                save_count += 1
 
-                if self.algo_args["train"]["slice"] and self.current_timestep % self.algo_args['train']['slice_timestep_interval'] == 0:
+                if self.algo_args["train"]["slice"] and save_count % self.algo_args['train']['slice_interval'] == 0:
                     self.save_slice(self.current_timestep)
 
             for buffer in self.buffers:

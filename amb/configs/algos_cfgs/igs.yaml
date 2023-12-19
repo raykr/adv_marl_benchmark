@@ -42,5 +42,5 @@ perturb_timesteps: ~
 log_dir: "./results"
 # whether to slice save pth (Deafult: False)
 slice: False
-# slice save timestep interval
-slice_timestep_interval: 1000000
+# num of save interval per slice model
+slice_interval: 10

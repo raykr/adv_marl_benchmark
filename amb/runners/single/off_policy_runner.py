@@ -71,6 +71,7 @@ class OffPolicyRunner(BaseRunner):
             self.algo_args['train']['update_per_train'] * self.algo_args['train']['train_interval']
         )
         self.logger.init()
+        save_count = 0
 
         self.logger.episode_init(0) 
         if self.algo_args['train']['use_eval'] is True:
@@ -126,8 +127,9 @@ class OffPolicyRunner(BaseRunner):
                     if self.algo_args['train']['use_eval']:
                         self.eval()
                     self.save()
+                    save_count += 1
 
-                    if self.algo_args["train"]["slice"] and self.current_timestep % self.algo_args['train']['slice_timestep_interval'] == 0:
+                    if self.algo_args["train"]["slice"] and save_count % self.algo_args['train']['slice_interval'] == 0:
                         self.save_slice(self.current_timestep)
             
             self.current_timestep += self.buffer.get_timesteps(self.n_rollout_threads)
