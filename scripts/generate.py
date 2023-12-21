@@ -1,3 +1,5 @@
+import argparse
+import json
 import os
 
 ATTACK_CONF = {
@@ -8,63 +10,24 @@ ATTACK_CONF = {
     "adaptive_action": "--run perturbation --algo.num_env_steps 5000000 --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True",
 }
 
-# 如果是list，则遍历所有的值生成命令
-# 如果是dict，则属于组合参数，需要特殊处理
-TRICKS = {
-    "mappo": {
-        "entropy_coef": [0.0001, 0.001, 0.1, 0.5, 1.0],
-        "gamma": [0.95, 1],
-        "hidden_sizes": [[64, 64], [512, 512]],
-        "activation_func": ["leaky_relu", "selu", "sigmoid", "tanh"],
-        "initialization_method": ["xavier_uniform_"],
-        "use_recurrent_policy": [True],
-        "use_feature_normalization": [False],
-        "lr": [0.00005, 0.005],
-        "critic_lr": [0.00005, 0.005],
-        "use_gae": [False],
-        "use_popart": [False],
-        "share_param": [False]
-    },
-    "maddpg": {
-        "expl_noise": [0.001, 0.01, 0.5, 1.0],
-        "gamma": [0.95, 1],
-        "hidden_sizes": [[64, 64], [512, 512]],
-        "activation_func": ["leaky_relu", "selu", "sigmoid", "tanh"],
-        "initialization_method": ["xavier_uniform_"],
-        "use_recurrent_policy": [True],
-        "use_feature_normalization": [False],
-        "lr": [0.00005, 0.005],
-        "critic_lr": [0.00005, 0.005],
-        "n_step": [10, 50],
-        "share_param": [False],
-        "batch_size": [500, 5000]
-    },
-    "qmix": {
-        "epsilon_anneal_time": [50000, 200000],
-        "epsilon_finish": [0.01, 0.1],
-        "eps_delta_l": {"epsilon_anneal_time": 80000, "epsilon_finish": 0.24},
-        "eps_delta_r": {"epsilon_anneal_time": 104211, "epsilon_finish": 0.01},
-        "gamma": [0.95, 1],
-        "hidden_sizes": [[64, 64], [256, 256]],
-        "activation_func": ["leaky_relu", "selu", "sigmoid", "tanh"],
-        "initialization_method": ["xavier_uniform_"],
-        "use_recurrent_policy": [True],
-        "use_feature_normalization": [False],
-        "lr": [0.00005, 0.005],
-        "critic_lr": [0.00005, 0.005],
-        "n_step": [10, 50],
-        "share_param": [False],
-        "batch_size": [500, 5000]
-    }
+ATTACK_CONF_STAGE_2 = {
+    "traitor": "--run traitor --algo.num_env_steps 0",
+    "adaptive_action": "--run perturbation --algo.num_env_steps 0 --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True",
 }
 
+
 def generate_train_scripts(env, scenario, algo):
-     # 构建数据输出目录，如果没有则创建
+    # 构建数据输出目录，如果没有则创建
     outs_dir = os.path.join("logs", env, scenario, algo)
     # settings目录
     settings_dir = os.path.join("settings", env, scenario)
     # baseline配置文件
     config_path = os.path.join(settings_dir, algo + ".json")
+    # tricks配置文件
+    tricks_path = os.path.join("settings", "tricks.json")
+    # 读取tricks.json
+    with open(tricks_path, "r") as f:
+        TRICKS = json.load(f)
     # 生成脚本文件
     with open(f"train_{env}_{scenario}_{algo}.sh", "w") as f:
         # 生成默认命令
@@ -73,6 +36,7 @@ def generate_train_scripts(env, scenario, algo):
         command = f"python -u ../single_train.py --load_config {config_path} --exp_name default > {default_dir}/train.log 2>&1"
         f.write(command + "\n")
         # 遍历tricks
+        os.path.join(settings_dir, "tricks.json")
         for key, value in TRICKS[algo].items():
             trick_str = ""
             exp_name = ""
@@ -106,13 +70,13 @@ def generate_train_scripts(env, scenario, algo):
                     os.makedirs(log_dir, exist_ok=True)
                     command = f"python -u ../single_train.py --load_config {config_path} --exp_name {exp_name} {trick_str} > {log_dir}/train.log 2>&1"
                     f.write(command + "\n")
-        
-    print("Generate train scripts done!", f"train_{env}_{scenario}_{algo}.sh")
+
+    cli = '| xargs -I {} -P 4 bash -c "{} || echo \'{}\' >> errors.txt"'
+    print(f"You can run the following command to train all experiments: \ncat train_{env}_{scenario}_{algo}.sh {cli}")
 
 
-def generate_eval_scripts(env, scenario, algo, slice=False, group="model"):
+def generate_eval_scripts(env, scenario, algo, slice=False, stage=0):
     models_dir = os.path.join("results", env, scenario, "single", algo)
-    attacks = ATTACK_CONF
     # 根据环境不同，生成各自的命令
     # 注意此处algo mappo是用作攻击的，此处设置为固定使用mappo作为攻击RL算法
     base_cfg = f"--algo mappo --env {env}"
@@ -124,16 +88,17 @@ def generate_eval_scripts(env, scenario, algo, slice=False, group="model"):
             base_cfg += f" --env.agent_conf 3x1"
 
     # 生成脚本文件
-    with open(f"eval_{env}_{scenario}_{algo}.sh", "w") as f:
+    file_name = f"eval_{env}_{scenario}_{algo}.sh" if stage == 0 else f"eval_{env}_{scenario}_{algo}_stage_{stage}.sh"
+    with open(file_name, "w") as f:
         # 读取victims_dir目录列表
         victims_dirs = os.listdir(models_dir)
         # 排序,但是default要放在最前
         victims_dirs.remove("default")
         victims_dirs.sort()
         victims_dirs.insert(0, "default")
-       
+
         victim_tuples = []
-         # 遍历victims_dirs
+        # 遍历victims_dirs
         for victim_dir in victims_dirs:
             # 查看victim_dir是否是目录，如果是看子目录有几个
             if os.path.isdir(os.path.join(models_dir, victim_dir)):
@@ -142,8 +107,8 @@ def generate_eval_scripts(env, scenario, algo, slice=False, group="model"):
                 # 遍历子目录列表
                 for sub_victim_dir in sub_victims_dirs:
                     victim_tuples.append((victim_dir, sub_victim_dir))
-        
-        if group == "model":
+
+        for attack_method, attack_cfg in ATTACK_CONF.items() if stage != 2 else ATTACK_CONF_STAGE_2.items():
             for victim_dir, sub_victim_dir in victim_tuples:
                 # 构建数据输出目录，如果没有则创建
                 outs_dir = os.path.join(
@@ -154,46 +119,58 @@ def generate_eval_scripts(env, scenario, algo, slice=False, group="model"):
                     victim_dir,
                 )
                 os.makedirs(outs_dir, exist_ok=True)
-                # 遍历所有攻击算法
-                for attack_method, attack_cfg in attacks.items():
-                    # 生成命令
-                    command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {victim_dir}_{attack_method} {attack_cfg} > {outs_dir}/{attack_method}.log 2>&1"
-                    f.write(command + "\n")
+
+                if stage == 1 and attack_method in ["adaptive_action", "traitor"] and victim_dir != "default":
+                    continue
+                if stage == 2:
+                    if attack_method in ["adaptive_action", "traitor"] and victim_dir != "default":
+                        type = "traitor" if attack_method == "traitor" else "perturbation"
+                        adv_model_dir = os.path.join("results", env, scenario, type, "mappo-" + algo, f"{attack_method}_default")
+                        if not os.path.exists(adv_model_dir):
+                            continue
+                        latest_models_dir = os.path.join(adv_model_dir, sorted(os.listdir(adv_model_dir))[-1], "models")
+                        # 生成命令
+                        command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --algo.model_dir {latest_models_dir} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {outs_dir}/{attack_method}.log 2>&1"
+                        f.write(command + "\n")
+                    continue
+                # 生成命令
+                command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {outs_dir}/{attack_method}.log 2>&1"
+                f.write(command + "\n")
             f.write("\n")
-        elif group == "attack":
-            for attack_method, attack_cfg in attacks.items():
-                for victim_dir, sub_victim_dir in victim_tuples:
-                    # 构建数据输出目录，如果没有则创建
-                    outs_dir = os.path.join(
-                        "logs",
-                        env,
-                        scenario,
-                        algo,
-                        victim_dir,
-                    )
-                    os.makedirs(outs_dir, exist_ok=True)
-                    # 生成命令
-                    command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {outs_dir}/{attack_method}.log 2>&1"
-                    f.write(command + "\n")
-                f.write("\n")
-            f.write("\n")
+        f.write("\n")
+
             
-    print("Generate eval scripts done!", f"eval_{env}_{scenario}_{algo}.sh")
+    cli = '| xargs -I {} -P 4 bash -c "{} || echo \'{}\' >> errors.txt"'
+    print(f"You can run the following command to eval experiments:")
+    print(f"\n    cat {file_name} {cli}   \n")
+    if stage == 1:
+        print(f"After all of the above experiments have been completed, you can generate stage 2 scripts with the following command: ")
+        print(f"\n    python generate.py eval -e {env} -s {scenario} -a {algo} --stage 2   \n")
 
 
-# generate_train_scripts("mamujoco", "HalfCheetah-6x1", "mappo")
-# generate_train_scripts("mamujoco", "HalfCheetah-6x1", "maddpg")
-# generate_train_scripts("mamujoco", "Hopper-3x1", "mappo")
-# generate_train_scripts("mamujoco", "Hopper-3x1", "maddpg")
-# generate_train_scripts("pettingzoo_mpe", "simple_speaker_listener_v4", "mappo")
-# generate_train_scripts("pettingzoo_mpe", "simple_speaker_listener_v4", "maddpg")
-# generate_train_scripts("pettingzoo_mpe", "simple_spread_v3", "mappo")
-# generate_train_scripts("pettingzoo_mpe", "simple_spread_v3", "maddpg")
-# generate_train_scripts("smac", "3m", "mappo")
-# generate_train_scripts("smac", "3m", "qmix")
-# generate_train_scripts("smac", "2s3z", "mappo")
-# generate_train_scripts("smac", "2s3z", "qmix")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "mode",
+        type=str,
+        choices=["train", "eval"],
+        help="mode: train or eval",
+    )
+    parser.add_argument("-e", "--env", type=str, default="smac", help="env name")
+    parser.add_argument(
+        "-s", "--scenario", type=str, default="2s3z", help="scenario or map name"
+    )
+    parser.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
+    parser.add_argument(
+        "--stage",
+        type=int,
+        default=0,
+        choices=[0, 1, 2],
+        help="stage_0: eval all; stage_one: only eval default model in adaptive_action and traitor; stage_two:load adv model to eval.",
+    )
+    args = parser.parse_args()
 
-
-# generate_eval_scripts("smac", "2s3z", "mappo", group="attack")
-# generate_eval_scripts("smac", "2s3z", "qmix", group="attack")
+    if args.mode == "train":
+        generate_train_scripts(args.env, args.scenario, args.algo)
+    elif args.mode == "eval":
+        generate_eval_scripts(args.env, args.scenario, args.algo, stage=args.stage)
