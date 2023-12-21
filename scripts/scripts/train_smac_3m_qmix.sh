@@ -6,7 +6,7 @@ python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name eps_delta_l  --algo.epsilon_anneal_time 80000 --algo.epsilon_finish 0.24 > logs/smac/3m/qmix/eps_delta_l/train.log 2>&1
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name eps_delta_r  --algo.epsilon_anneal_time 104211 --algo.epsilon_finish 0.01 > logs/smac/3m/qmix/eps_delta_r/train.log 2>&1
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name gamma_0.95  --algo.gamma 0.95 > logs/smac/3m/qmix/gamma_0.95/train.log 2>&1
-python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name gamma_1  --algo.gamma 1 > logs/smac/3m/qmix/gamma_1/train.log 2>&1
+python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name gamma_1.0  --algo.gamma 1.0 > logs/smac/3m/qmix/gamma_1.0/train.log 2>&1
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name hidden_sizes_64_64  --algo.hidden_sizes "[64, 64]" > logs/smac/3m/qmix/hidden_sizes_64_64/train.log 2>&1
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name hidden_sizes_256_256  --algo.hidden_sizes "[256, 256]" > logs/smac/3m/qmix/hidden_sizes_256_256/train.log 2>&1
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name activation_func_leaky_relu  --algo.activation_func leaky_relu > logs/smac/3m/qmix/activation_func_leaky_relu/train.log 2>&1
@@ -18,10 +18,6 @@ python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name use_feature_normalization_False  --algo.use_feature_normalization False > logs/smac/3m/qmix/use_feature_normalization_False/train.log 2>&1
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name lr_5e-05  --algo.lr 5e-05 > logs/smac/3m/qmix/lr_5e-05/train.log 2>&1
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name lr_0.005  --algo.lr 0.005 > logs/smac/3m/qmix/lr_0.005/train.log 2>&1
-python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name critic_lr_5e-05  --algo.critic_lr 5e-05 > logs/smac/3m/qmix/critic_lr_5e-05/train.log 2>&1
-python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name critic_lr_0.005  --algo.critic_lr 0.005 > logs/smac/3m/qmix/critic_lr_0.005/train.log 2>&1
-python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name n_step_10  --algo.n_step 10 > logs/smac/3m/qmix/n_step_10/train.log 2>&1
+python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name n_step_5  --algo.n_step 5 > logs/smac/3m/qmix/n_step_5/train.log 2>&1
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name n_step_50  --algo.n_step 50 > logs/smac/3m/qmix/n_step_50/train.log 2>&1
 python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name share_param_False  --algo.share_param False > logs/smac/3m/qmix/share_param_False/train.log 2>&1
-python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name batch_size_500  --algo.batch_size 500 > logs/smac/3m/qmix/batch_size_500/train.log 2>&1
-python -u ../single_train.py --load_config settings/smac/3m/qmix.json --exp_name batch_size_5000  --algo.batch_size 5000 > logs/smac/3m/qmix/batch_size_5000/train.log 2>&1
