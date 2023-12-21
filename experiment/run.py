@@ -21,7 +21,7 @@ if __name__ == '__main__':
     args = args.parse_args()
     
     # 执行command
-    command = "cat " + args.script + " | xargs -I {} -P " + str(args.num_workers) + " bash -c '{} || echo \"{}\" >> errors.txt'"
+    command = "cat " + args.script + " | parallel -j " + str(args.num_workers) + " 2>> errors.txt"
     print(command)
     subprocess.run(command, shell=True)
 

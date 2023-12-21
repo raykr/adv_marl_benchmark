@@ -77,9 +77,8 @@ def generate_train_scripts(env, scenario, algo, out_dir, config_path=None):
                     command = f"python -u ../single_train.py --load_config {config_path} --exp_name {exp_name} {trick_str} > {log_dir}/train.log 2>&1"
                     f.write(command + "\n")
 
-    cli = '| xargs -I {} -P 4 bash -c "{} || echo \'{}\' >> errors.txt"'
     print(f"You can run the following command to train all experiments:")
-    print(f"\n    cat {file_name} {cli}   \n")
+    print(f"\n    cat {file_name} | parallel -j 2 2>> errors.txt  \n")
 
 
 def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0):
@@ -149,9 +148,8 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0):
         f.write("\n")
 
             
-    cli = '| xargs -I {} -P 4 bash -c "{} || echo \'{}\' >> errors.txt"'
     print(f"You can run the following command to eval experiments:")
-    print(f"\n    cat {file_name} {cli}   \n")
+    print(f"\n    cat {file_name} | parallel -j 2 2>> errors.txt  \n")
     if stage == 1:
         print(f"After all of the above experiments have been completed, you can generate stage 2 scripts with the following command: ")
         print(f"\n    python generate.py eval -e {env} -s {scenario} -a {algo} --stage 2   \n")

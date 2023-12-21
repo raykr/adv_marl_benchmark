@@ -6,6 +6,7 @@
 perturbation_rewards.txt
 /run*.sh
 amb/envs/voltage/data
+errors.txt
 
 ##### Python.gitignore #####
 # Byte-compiled / optimized / DLL files
