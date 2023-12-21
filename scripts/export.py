@@ -18,9 +18,9 @@ ATTACKS = [
     "adaptive_action",
 ]
 
-def export_results(env, scenario, algo, attack, outs_dir):
+def export_results(env, scenario, algo, attack, out_dir):
     # 构建数据输出目录，如果没有则创建
-    csv_file = os.path.join(outs_dir, env, scenario, algo, f"{env}_{scenario}_{algo}_{attack}.csv")
+    csv_file = os.path.join(out_dir, env, scenario, algo, f"{env}_{scenario}_{algo}_{attack}.csv")
     if not os.path.exists(os.path.dirname(csv_file)):
         os.makedirs(os.path.dirname(csv_file))
 
@@ -113,7 +113,7 @@ def _calculate_metrics(df):
     df["w-tpr"] = df["vanilla_win_rate"] - baseline_w
     df["w-trr"] = df["adv_win_rate"] - baseline_w
 
-    print(df)
+    # print(df)
 
 
 if __name__ == "__main__":
@@ -127,16 +127,16 @@ if __name__ == "__main__":
         "-m",
         "--method",
         type=str,
-        default="random_noise",
+        default="all",
         choices=["random_noise", "iterative_perturbation", "adaptive_action", "random_policy", "traitor", "all"],
         help="attack method",
     )
-    args.add_argument("-o", "--outs", type=str, default="./outs", help="outs dir")
+    args.add_argument("-o", "--out", type=str, default="./outs", help="out dir")
     args = args.parse_args()
 
     if args.method == "all":
         for method in ATTACKS:
-            export_results(args.env, args.scenario, args.algo, method, args.outs)
+            export_results(args.env, args.scenario, args.algo, method, args.out)
     else:
-        export_results(args.env, args.scenario, args.algo, args.method, args.outs)
+        export_results(args.env, args.scenario, args.algo, args.method, args.out)
 
