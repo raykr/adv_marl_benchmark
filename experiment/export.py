@@ -59,6 +59,7 @@ def export_results(env, scenario, algo, attack, out_dir):
     # 保存到csv文件的sheet2中
     df.to_csv(csv_file, index=False)
     print("Experiments results exported to", csv_file)
+    print("\n")
 
 def _record_row(df, env, scenario, algo, attack, exp_name):
     #  如果trail_name中含有["random_noise", "iterative_perturbation", "adaptive_action"]
@@ -81,7 +82,7 @@ def _record_row(df, env, scenario, algo, attack, exp_name):
         return
 
     # 判断log_dir是否存在，如果不存在，则插入一条空数据
-    if not os.path.exists(log_dir):
+    if not os.path.exists(log_dir) or len(os.listdir(log_dir)) == 0:
         # df增加一行
         df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None]
         return
@@ -113,7 +114,7 @@ def _calculate_metrics(df):
     df["w-tpr"] = df["vanilla_win_rate"] - baseline_w
     df["w-trr"] = df["adv_win_rate"] - baseline_w
 
-    # print(df)
+    print(df)
 
 
 if __name__ == "__main__":

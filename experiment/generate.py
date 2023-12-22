@@ -1,6 +1,9 @@
 import argparse
 import json
 import os
+from click import command
+
+from cv2 import exp
 
 ATTACK_CONF = {
     "random_noise": "--run perturbation --algo.num_env_steps 0 --algo.perturb_iters 0 --algo.adaptive_alpha False --algo.targeted_attack False",
@@ -16,13 +19,13 @@ ATTACK_CONF_STAGE_2 = {
 }
 
 
-def generate_train_scripts(env, scenario, algo, out_dir, config_path=None):
+def generate_train_scripts(env, scenario, algo, out_dir, config_path=None, trick=None):
     # 构建数据输出目录，如果没有则创建
-    logd_dir = os.path.join("logs", env, scenario, algo)
+    logs_dir = os.path.join("logs", env, scenario, algo)
     # settings目录
     settings_dir = os.path.join("settings", env, scenario)
 
-    os.makedirs(logd_dir, exist_ok=True)
+    os.makedirs(logs_dir, exist_ok=True)
     os.makedirs(settings_dir, exist_ok=True)
     os.makedirs(out_dir, exist_ok=True)
 
@@ -37,10 +40,7 @@ def generate_train_scripts(env, scenario, algo, out_dir, config_path=None):
     file_name = os.path.join(out_dir, f"train_{env}_{scenario}_{algo}.sh")
     with open(file_name, "w") as f:
         # 生成默认命令
-        default_dir = os.path.join(logd_dir, "default")
-        os.makedirs(default_dir, exist_ok=True)
-        command = f"python -u ../single_train.py --load_config {config_path} --exp_name default > {default_dir}/train.log 2>&1"
-        f.write(command + "\n")
+        _write_train_command(f, config_path, "default", logs_dir, trick=trick)
         # 遍历tricks
         os.path.join(settings_dir, "tricks.json")
         for key, value in TRICKS[algo].items():
@@ -52,10 +52,7 @@ def generate_train_scripts(env, scenario, algo, out_dir, config_path=None):
                 for k, v in value.items():
                     trick_str += f" --algo.{k} {v}"
                 # 生成命令
-                log_dir = os.path.join(logd_dir, exp_name)
-                os.makedirs(log_dir, exist_ok=True)
-                command = f"python -u ../single_train.py --load_config {config_path} --exp_name {exp_name} {trick_str} > {log_dir}/train.log 2>&1"
-                f.write(command + "\n")
+                _write_train_command(f, config_path, exp_name, logs_dir, trick_str=trick_str, trick=trick)
             elif isinstance(value, list):  # 如果是list，则遍历list生成命令
                 for v in value:
                     if isinstance(v, list):
@@ -72,16 +69,22 @@ def generate_train_scripts(env, scenario, algo, out_dir, config_path=None):
                     )
                     exp_name = f"{key}_{v}"
                     # 生成命令
-                    log_dir = os.path.join(logd_dir, exp_name)
-                    os.makedirs(log_dir, exist_ok=True)
-                    command = f"python -u ../single_train.py --load_config {config_path} --exp_name {exp_name} {trick_str} > {log_dir}/train.log 2>&1"
-                    f.write(command + "\n")
+                    _write_train_command(f, config_path, exp_name, logs_dir, trick_str=trick_str, trick=trick)
 
     print(f"You can run the following command to train all experiments:")
     print(f"\n    cat {file_name} | parallel -j 2 2>> errors.txt  \n")
 
 
-def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0):
+def _write_train_command(file, config_path, exp_name, logs_dir, trick_str="", trick=None):
+    print(trick)
+    if trick is not None and trick != exp_name:
+        return
+    ld = os.path.join(logs_dir, exp_name)
+    os.makedirs(ld, exist_ok=True)
+    command = f"python -u ../single_train.py --load_config {config_path} --exp_name {exp_name} {trick_str} > {ld}/train.log 2>&1"
+    file.write(command + "\n")
+
+def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, trick=None):
     os.makedirs(out_dir, exist_ok=True)
     models_dir = os.path.join("results", env, scenario, "single", algo)
     # 根据环境不同，生成各自的命令
@@ -119,14 +122,14 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0):
         for attack_method, attack_cfg in ATTACK_CONF.items() if stage != 2 else ATTACK_CONF_STAGE_2.items():
             for victim_dir, sub_victim_dir in victim_tuples:
                 # 构建数据输出目录，如果没有则创建
-                logd_dir = os.path.join(
+                logs_dir = os.path.join(
                     "logs",
                     env,
                     scenario,
                     algo,
                     victim_dir,
                 )
-                os.makedirs(logd_dir, exist_ok=True)
+                os.makedirs(logs_dir, exist_ok=True)
 
                 if stage == 1 and attack_method in ["adaptive_action", "traitor"] and victim_dir != "default":
                     continue
@@ -138,11 +141,15 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0):
                             continue
                         latest_models_dir = os.path.join(adv_model_dir, sorted(os.listdir(adv_model_dir))[-1], "models")
                         # 生成命令
-                        command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --algo.model_dir {latest_models_dir} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {logd_dir}/{attack_method}.log 2>&1"
+                        if trick is not None and trick != victim_dir:
+                            continue
+                        command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --algo.model_dir {latest_models_dir} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {logs_dir}/{attack_method}.log 2>&1"
                         f.write(command + "\n")
                     continue
                 # 生成命令
-                command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {logd_dir}/{attack_method}.log 2>&1"
+                if trick is not None and trick != victim_dir:
+                    continue
+                command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {logs_dir}/{attack_method}.log 2>&1"
                 f.write(command + "\n")
             f.write("\n")
         f.write("\n")
@@ -178,9 +185,10 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--out", type=str, default="./scripts", help="command scripts out dir")
     parser.add_argument("--slice", action="store_true", help="whether to slice eval")
     parser.add_argument("--config_path", type=str, default=None, help="default config path")
+    parser.add_argument("--trick", type=str, default=None, help="only generate the specified trick scripts")
     args = parser.parse_args()
 
     if args.mode == "train":
-        generate_train_scripts(args.env, args.scenario, args.algo, args.out, config_path=args.config_path)
+        generate_train_scripts(args.env, args.scenario, args.algo, args.out, config_path=args.config_path, trick=args.trick)
     elif args.mode == "eval":
-        generate_eval_scripts(args.env, args.scenario, args.algo, args.out, slice=args.slice, stage=args.stage)
+        generate_eval_scripts(args.env, args.scenario, args.algo, args.out, slice=args.slice, stage=args.stage, trick=args.trick)
