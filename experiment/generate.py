@@ -76,7 +76,6 @@ def generate_train_scripts(env, scenario, algo, out_dir, config_path=None, trick
 
 
 def _write_train_command(file, config_path, exp_name, logs_dir, trick_str="", trick=None):
-    print(trick)
     if trick is not None and trick != exp_name:
         return
     ld = os.path.join(logs_dir, exp_name)
