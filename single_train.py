@@ -152,6 +152,10 @@ def main():
 
     if args["env"] == "metadrive":
         algo_args["use_eval"] = False
+    
+    if args["env"] == "network":
+        algo_args["use_eval"] = False
+        algo_args["n_rollout_threads"] = 1
 
     algo_args = {"train": algo_args, "victim": victim_args}
 
