@@ -14,8 +14,8 @@
             "final_activation_func":	"tanh",
             "gamma":	0.99,
             "hidden_sizes":	[
-                256,
-                256
+                128,
+                128
             ],
             "initialization_method":	"orthogonal_",
             "log_dir":	"./results",

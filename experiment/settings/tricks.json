@@ -16,7 +16,7 @@
     "maddpg": {
         "expl_noise": [0.001, 0.01, 0.5, 1.0],
         "gamma": [0.95, 1.0],
-        "hidden_sizes": [[64, 64], [512, 512]],
+        "hidden_sizes": [[64, 64], [256, 256]],
         "activation_func": ["leaky_relu", "selu", "sigmoid", "tanh"],
         "initialization_method": ["xavier_uniform_"],
         "use_recurrent_policy": [true],
