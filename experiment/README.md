@@ -44,7 +44,7 @@ python generate.py eval --env <env_name> --scenario <scenario or map_name> --alg
 
 ### 汇总实验结果
 
-将实验日志中的结果提取出来，汇总到一个csv文件中，默认输出目录`outs`。
+将实验日志中的结果提取出来，汇总到一个csv文件中，默认输出目录`./data`。
 
 ```bash
 python export.py --env <env_name> --scenario <scenario or map_name> --algo <algo_name> --method <all, random_noise, iterative_perturbation, adaptive_action, random_policy, traitor>
