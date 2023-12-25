@@ -93,6 +93,9 @@ def _record_row(df, env, scenario, algo, attack, exp_name):
             # df增加一行
             df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None]
             for line in f.readlines():
+                # 如果为空行，则跳过
+                if line == "\n":
+                    continue
                 arr = line.replace("\n", "").split(",")
                 if arr[2] == "final":
                     df.loc[len(df) -1, arr[1] + "_reward"] = float(arr[3])

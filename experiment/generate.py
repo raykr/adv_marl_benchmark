@@ -83,7 +83,7 @@ def _write_train_command(file, config_path, exp_name, logs_dir, trick_str="", tr
     command = f"python -u ../single_train.py --load_config {config_path} --exp_name {exp_name} {trick_str} > {ld}/train.log 2>&1"
     file.write(command + "\n")
 
-def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, trick=None):
+def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, trick=None, method=None):
     os.makedirs(out_dir, exist_ok=True)
     models_dir = os.path.join("results", env, scenario, "single", algo)
     # 根据环境不同，生成各自的命令
@@ -119,6 +119,8 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
                     victim_tuples.append((victim_dir, sub_victim_dir))
 
         for attack_method, attack_cfg in ATTACK_CONF.items() if stage != 2 else ATTACK_CONF_STAGE_2.items():
+            if method is not None and method != attack_method:
+                continue
             for victim_dir, sub_victim_dir in victim_tuples:
                 # 构建数据输出目录，如果没有则创建
                 logs_dir = os.path.join(
@@ -133,7 +135,7 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
                 if stage == 1 and attack_method in ["adaptive_action", "traitor"] and victim_dir != "default":
                     continue
                 if stage == 2:
-                    if attack_method in ["adaptive_action", "traitor"] and victim_dir != "default":
+                    if attack_method in ["adaptive_action", "traitor"]:
                         type = "traitor" if attack_method == "traitor" else "perturbation"
                         adv_model_dir = os.path.join("results", env, scenario, type, "mappo-" + algo, f"{attack_method}_default")
                         if not os.path.exists(adv_model_dir):
@@ -143,6 +145,8 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
                         if trick is not None and trick != victim_dir:
                             continue
                         command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --algo.model_dir {latest_models_dir} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {logs_dir}/{attack_method}.log 2>&1"
+                        if victim_dir == "default":
+                            command = "# " + command
                         f.write(command + "\n")
                     continue
                 # 生成命令
@@ -184,10 +188,11 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--out", type=str, default="./scripts", help="command scripts out dir")
     parser.add_argument("--slice", action="store_true", help="whether to slice eval")
     parser.add_argument("--config_path", type=str, default=None, help="default config path")
-    parser.add_argument("--trick", type=str, default=None, help="only generate the specified trick scripts")
+    parser.add_argument("-t", "--trick", type=str, default=None, help="only generate the specified trick scripts")
+    parser.add_argument("-m", "--method", type=str, default=None, help="only generate the specified attack algo scripts")
     args = parser.parse_args()
 
     if args.mode == "train":
         generate_train_scripts(args.env, args.scenario, args.algo, args.out, config_path=args.config_path, trick=args.trick)
     elif args.mode == "eval":
-        generate_eval_scripts(args.env, args.scenario, args.algo, args.out, slice=args.slice, stage=args.stage, trick=args.trick)
+        generate_eval_scripts(args.env, args.scenario, args.algo, args.out, slice=args.slice, stage=args.stage, trick=args.trick, method=args.method)
