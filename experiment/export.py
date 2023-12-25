@@ -58,7 +58,7 @@ def export_results(env, scenario, algo, attack, out_dir):
     _calculate_metrics(df)
     # 保存到csv文件的sheet2中
     df.to_csv(csv_file, index=False)
-    print("Experiments results exported to", csv_file)
+    # print("Experiments results exported to", csv_file)
     print("\n")
 
 def _record_row(df, env, scenario, algo, attack, exp_name):
@@ -120,6 +120,26 @@ def _calculate_metrics(df):
     print(df)
 
 
+def combine_exported_csv(env, scenario, algo, out_dir):
+    dir_path = os.path.join(out_dir, env, scenario, algo)
+    # 先将多个csv文件合并成一个，每个csv文件对应一个sheet
+    excel_path = os.path.join(dir_path, f"{env}_{scenario}_{algo}.xlsx")
+    file_names = [file for file in os.listdir(dir_path) if file.endswith(".csv")]
+    # file_names按照 random_noise， iterative_perturbation， adaptive_action， random_policy， traitor 排序
+    file_names.sort(key=lambda x: ATTACKS.index("_".join(os.path.basename(x).split(".")[0].split("_")[3:])))
+    # 使用xlsxwriter引擎，可以写入多个sheet
+    with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+        for file_name in file_names:
+            attack = "_".join(os.path.basename(file_name.split(".")[0]).split("_")[3:])
+            # 读取CSV文件
+            df = pd.read_csv(os.path.join(dir_path, file_name), header=0, index_col=0)
+            # 将DataFrame写入不同的sheet
+            df.to_excel(writer, sheet_name=f'{attack}', index=True)
+            # 删除原来的csv文件
+            os.remove(os.path.join(dir_path, file_name))
+    return excel_path
+
+
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("-e", "--env", type=str, default="smac", help="env name")
@@ -135,7 +155,7 @@ if __name__ == "__main__":
         choices=["random_noise", "iterative_perturbation", "adaptive_action", "random_policy", "traitor", "all"],
         help="attack method",
     )
-    args.add_argument("-o", "--out", type=str, default="./outs", help="out dir")
+    args.add_argument("-o", "--out", type=str, default="./data", help="out dir")
     args = args.parse_args()
 
     if args.method == "all":
@@ -143,4 +163,8 @@ if __name__ == "__main__":
             export_results(args.env, args.scenario, args.algo, method, args.out)
     else:
         export_results(args.env, args.scenario, args.algo, args.method, args.out)
+
+    # combine all csv files
+    excel_path = combine_exported_csv(args.env, args.scenario, args.algo, args.out)
+    print("Experiments results exported to", excel_path)
 

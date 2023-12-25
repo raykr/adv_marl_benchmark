@@ -10,3 +10,5 @@ nni
 Sphinx
 pandapower
 numba==0.56.4
+pandas
+openpyxl
