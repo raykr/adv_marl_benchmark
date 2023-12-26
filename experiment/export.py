@@ -86,21 +86,22 @@ def _record_row(df, env, scenario, algo, attack, exp_name):
         # df增加一行
         df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None]
         return
-    # 遍历log_dir，导出实验结果
-    for date_dir in os.listdir(log_dir):
-        # 读取date_dir下的result.txt
-        with open(os.path.join(log_dir, date_dir, "result.txt"), "r") as f:
-            # df增加一行
-            df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None]
-            for line in f.readlines():
-                # 如果为空行，则跳过
-                if line == "\n":
-                    continue
-                arr = line.replace("\n", "").split(",")
-                if arr[2] == "final":
-                    df.loc[len(df) -1, arr[1] + "_reward"] = float(arr[3])
-                    if len(arr) == 5:
-                        df.loc[len(df) -1, arr[1] + "_win_rate"] = float(arr[4])
+    
+    # 默认导出log_dir下最新的实验结果
+    date_dir = sorted(os.listdir(log_dir))[-1]
+    # 读取date_dir下的result.txt
+    with open(os.path.join(log_dir, date_dir, "result.txt"), "r") as f:
+        # df增加一行
+        df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None]
+        for line in f.readlines():
+            # 如果为空行，则跳过
+            if line == "\n":
+                continue
+            arr = line.replace("\n", "").split(",")
+            if arr[2] == "final":
+                df.loc[len(df) -1, arr[1] + "_reward"] = float(arr[3])
+                if len(arr) == 5:
+                    df.loc[len(df) -1, arr[1] + "_win_rate"] = float(arr[4])
                         
 def _calculate_metrics(df):
     # 先抓出default行的数据
@@ -147,22 +148,11 @@ if __name__ == "__main__":
         "-s", "--scenario", type=str, default="2s3z", help="scenario or map name"
     )
     args.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
-    args.add_argument(
-        "-m",
-        "--method",
-        type=str,
-        default="all",
-        choices=["random_noise", "iterative_perturbation", "adaptive_action", "random_policy", "traitor", "all"],
-        help="attack method",
-    )
     args.add_argument("-o", "--out", type=str, default="./data", help="out dir")
     args = args.parse_args()
 
-    if args.method == "all":
-        for method in ATTACKS:
-            export_results(args.env, args.scenario, args.algo, method, args.out)
-    else:
-        export_results(args.env, args.scenario, args.algo, args.method, args.out)
+    for method in ATTACKS:
+        export_results(args.env, args.scenario, args.algo, method, args.out)
 
     # combine all csv files
     excel_path = combine_exported_csv(args.env, args.scenario, args.algo, args.out)

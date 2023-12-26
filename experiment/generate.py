@@ -94,6 +94,9 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
     elif env == "mamujoco":
         ss = scenario.split("-")
         base_cfg += f" --env.scenario {ss[0]} --env.agent_conf {ss[1]}"
+    elif env == "pettingzoo_mpe":
+        ss = scenario.split("-")
+        base_cfg += f" --env.scenario {ss[0]} --env.continuous_actions {True if ss[1] == 'continuous' else False}"
     else:
         raise NotImplementedError
 

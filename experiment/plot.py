@@ -190,14 +190,20 @@ def plot_attack_reward(excel_path, argv):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', type=str, default='experiment.xlsx', help='Excel file path')
+    parser.add_argument("-e", "--env", type=str, default="smac", help="env name")
+    parser.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
+    parser.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
+    parser.add_argument('-f', '--file', type=str, default=None, help='Excel file path')
     parser.add_argument('-i', '--i18n', type=str, default='en', choices=["en", "zh"], help='Choose the language')
     parser.add_argument('-g', '--groupby', type=str, default='trick', choices=["trick", "scheme"], help='Group by trick or scheme')
     parser.add_argument('--show', action='store_true', help='Whether to show the plot')
     args = parser.parse_args()
     argv = vars(args)
     
-    excel_path = argv["file"]
+    if argv["file"] is not None:
+        excel_path = argv["file"]
+    else:
+        excel_path = os.path.join("data", argv["env"], argv["scenario"], argv["algo"], f"{argv['env']}_{argv['scenario']}_{argv['algo']}.xlsx")
 
     # 评一个trick方案下所有攻击的reward
     # x轴为trick，y轴为reward，每个trick方案一张图
