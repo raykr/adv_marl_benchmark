@@ -1,5 +1,4 @@
 import argparse
-from fileinput import filename
 import json
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -79,6 +78,7 @@ YLIM = {
     "smac_2s3z_qmix": [0, 35],
     "smac_3m_mappo": [0, 25],
     "smac_3m_qmix": [0, 25],
+    "mamujoco_HalfCheetah-6x1_mappo": [-10000, 25000],
 }
 
 # 读取scheme.json
@@ -113,18 +113,32 @@ def plot_trick_reward(excel_path, argv):
     # 把scheme相同的数据分组
     grouped = combined_df.groupby("scheme")
     row_default = grouped.get_group("+").copy()
-    for scheme, group in grouped:
-        if scheme == SCHEME_CFG["tricks"]["default"]:
+    for name, group in grouped:
+        if name == SCHEME_CFG["tricks"]["default"]:
             continue
         # 合并两个df
         plot_data = pd.concat([row_default, group], ignore_index=True)
         # plot_data去除scheme列
         plot_data = plot_data.drop(columns=["scheme"])
         # 画图
-        _plot_bar(plot_data, excel_path, scheme, argv)
+        _plot_bar(plot_data, excel_path, "trick", name, argv)
 
 
-def _plot_bar(df, excel_path, scheme, argv):
+def plot_attack_reward(excel_path, argv):
+    # 读取Excel文件
+    xlsx = pd.ExcelFile(excel_path)
+
+    # 遍历所有工作表，依次画图
+    for i, sheet_name in enumerate(xlsx.sheet_names):
+        # 读取每个工作表中的特定列数据
+        df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0, index_col=0)
+        # 只保留df的exp_name, vanilla_reward, adv_reward列
+        df = df[["exp_name", "vanilla_reward", "adv_reward"]]
+        # 画图
+        _plot_bar(df, excel_path, "attack", sheet_name, argv)
+
+
+def _plot_bar(df, excel_path, category, name, argv):
 
     filename = os.path.basename(excel_path).split(".")[0]
     display = i18n[argv["i18n"]]
@@ -158,14 +172,17 @@ def _plot_bar(df, excel_path, scheme, argv):
     # plt.xlabel(display[scheme[0]])
     plt.xticks(positions + total_bar_space / 2, df['exp_name'], rotation=0 if len(df) < 10 else 45, ha="right")
     plt.ylabel(display["reward"])
+    # 在y=0处添加一条水平线
+    plt.axhline(y=0, color='grey', linestyle='--', linewidth=1)
     # plt.title(scheme_name)
     plt.legend(ncol=10, frameon=True, loc='upper center', bbox_to_anchor=(0.5, 1))
     plt.tight_layout()
 
     # 保存图表到文件
-    save_dir = os.path.join(os.path.dirname(excel_path), argv["i18n"])
+    # ./out/figures/en/png/smac/3m/mappo/smac_3m_mappo_A1.png
+    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"])
     os.makedirs(save_dir, exist_ok=True)
-    figure_name = os.path.join(save_dir, f'bar_{scheme.replace(" ", "-")}.pdf')
+    figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{name}.{argv["type"]}')
     plt.savefig(figure_name, dpi=300, bbox_inches='tight')
     print(f"Saved to {figure_name}")
 
@@ -174,27 +191,15 @@ def _plot_bar(df, excel_path, scheme, argv):
         plt.show()
 
 
-def plot_attack_reward(excel_path, argv):
-    # 读取Excel文件
-    xlsx = pd.ExcelFile(excel_path)
-
-    # 遍历所有工作表，依次画图
-    for i, sheet in enumerate(xlsx.sheet_names):
-        # 读取每个工作表中的特定列数据
-        df = pd.read_excel(excel_path, sheet_name=sheet, header=0, index_col=0)
-        # 只保留df的exp_name, vanilla_reward, adv_reward列
-        df = df[["exp_name", "vanilla_reward", "adv_reward"]]
-        # 画图
-        _plot_bar(df, excel_path, sheet, argv)
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--env", type=str, default="smac", help="env name")
     parser.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
     parser.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
+    parser.add_argument("-o", "--out", type=str, default="./out", help="output dir")
     parser.add_argument('-f', '--file', type=str, default=None, help='Excel file path')
     parser.add_argument('-i', '--i18n', type=str, default='en', choices=["en", "zh"], help='Choose the language')
+    parser.add_argument("-t", "--type", type=str, default='png', choices=["png", "pdf"], help='save figure type')
     parser.add_argument('-g', '--groupby', type=str, default='trick', choices=["trick", "scheme"], help='Group by trick or scheme')
     parser.add_argument('--show', action='store_true', help='Whether to show the plot')
     args = parser.parse_args()
@@ -203,7 +208,7 @@ if __name__ == "__main__":
     if argv["file"] is not None:
         excel_path = argv["file"]
     else:
-        excel_path = os.path.join("data", argv["env"], argv["scenario"], argv["algo"], f"{argv['env']}_{argv['scenario']}_{argv['algo']}.xlsx")
+        excel_path = os.path.join(argv["out"], "data", argv["env"], argv["scenario"], argv["algo"], f"{argv['env']}_{argv['scenario']}_{argv['algo']}.xlsx")
 
     # 评一个trick方案下所有攻击的reward
     # x轴为trick，y轴为reward，每个trick方案一张图

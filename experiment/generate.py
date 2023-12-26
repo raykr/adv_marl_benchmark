@@ -21,13 +21,15 @@ ATTACK_CONF_STAGE_2 = {
 
 def generate_train_scripts(env, scenario, algo, out_dir, config_path=None, trick=None):
     # 构建数据输出目录，如果没有则创建
-    logs_dir = os.path.join("logs", env, scenario, algo)
+    logs_dir = os.path.join(out_dir, "logs", env, scenario, algo)
     # settings目录
     settings_dir = os.path.join("settings", env, scenario)
+    # scripts目录
+    scripts_dir = os.path.join(out_dir, "scripts")
 
     os.makedirs(logs_dir, exist_ok=True)
     os.makedirs(settings_dir, exist_ok=True)
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(scripts_dir, exist_ok=True)
 
     # baseline配置文件
     config_path = os.path.join(settings_dir, algo + ".json") if config_path is None else config_path
@@ -37,7 +39,7 @@ def generate_train_scripts(env, scenario, algo, out_dir, config_path=None, trick
     with open(tricks_path, "r") as f:
         TRICKS = json.load(f)
     # 生成脚本文件
-    file_name = os.path.join(out_dir, f"train_{env}_{scenario}_{algo}.sh")
+    file_name = os.path.join(scripts_dir, f"train_{env}_{scenario}_{algo}.sh")
     with open(file_name, "w") as f:
         # 生成默认命令
         _write_train_command(f, config_path, "default", logs_dir, trick=trick)
@@ -72,7 +74,7 @@ def generate_train_scripts(env, scenario, algo, out_dir, config_path=None, trick
                     _write_train_command(f, config_path, exp_name, logs_dir, trick_str=trick_str, trick=trick)
 
     print(f"You can run the following command to train all experiments:")
-    print(f"\n    cat {file_name} | parallel -j 2 2>> errors.txt  \n")
+    print(f"\n    python parallel -s {file_name} -n 2 -o {out_dir} \n")
 
 
 def _write_train_command(file, config_path, exp_name, logs_dir, trick_str="", trick=None):
@@ -84,7 +86,9 @@ def _write_train_command(file, config_path, exp_name, logs_dir, trick_str="", tr
     file.write(command + "\n")
 
 def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, trick=None, method=None):
-    os.makedirs(out_dir, exist_ok=True)
+    # scripts目录
+    scripts_dir = os.path.join(out_dir, "scripts")
+    os.makedirs(scripts_dir, exist_ok=True)
     models_dir = os.path.join("results", env, scenario, "single", algo)
     # 根据环境不同，生成各自的命令
     # 注意此处algo mappo是用作攻击的，此处设置为固定使用mappo作为攻击RL算法
@@ -101,7 +105,7 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
         raise NotImplementedError
 
     # 生成脚本文件
-    file_name = os.path.join(out_dir, f"eval_{env}_{scenario}_{algo}.sh" if stage == 0 else f"eval_{env}_{scenario}_{algo}_stage_{stage}.sh")
+    file_name = os.path.join(scripts_dir, f"eval_{env}_{scenario}_{algo}.sh" if stage == 0 else f"eval_{env}_{scenario}_{algo}_stage_{stage}.sh")
     with open(file_name, "w") as f:
         # 读取victims_dir目录列表
         victims_dirs = os.listdir(models_dir)
@@ -162,7 +166,7 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
 
             
     print(f"You can run the following command to eval experiments:")
-    print(f"\n    cat {file_name} | parallel -j 2 2>> errors.txt  \n")
+    print(f"\n    python parallel -s {file_name} -n 2 -o {out_dir} \n")
     if stage == 1:
         print(f"After all of the above experiments have been completed, you can generate stage 2 scripts with the following command: ")
         print(f"\n    python generate.py eval -e {env} -s {scenario} -a {algo} --stage 2   \n")
@@ -188,7 +192,7 @@ if __name__ == "__main__":
         choices=[0, 1, 2],
         help="stage_0: eval all; stage_one: only eval default model in adaptive_action and traitor; stage_two:load adv model to eval.",
     )
-    parser.add_argument("-o", "--out", type=str, default="./scripts", help="command scripts out dir")
+    parser.add_argument("-o", "--out", type=str, default="./out", help="out dir")
     parser.add_argument("--slice", action="store_true", help="whether to slice eval")
     parser.add_argument("--config_path", type=str, default=None, help="default config path")
     parser.add_argument("-t", "--trick", type=str, default=None, help="only generate the specified trick scripts")

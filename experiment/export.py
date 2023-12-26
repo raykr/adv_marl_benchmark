@@ -13,9 +13,9 @@ import pandas as pd
 ATTACKS = [
     "random_noise",
     "iterative_perturbation",
+    "adaptive_action",
     "random_policy",
     "traitor",
-    "adaptive_action",
 ]
 
 def export_results(env, scenario, algo, attack, out_dir):
@@ -147,13 +147,14 @@ if __name__ == "__main__":
     args.add_argument("-e", "--env", type=str, default="smac", help="env name")
     args.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
     args.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
-    args.add_argument("-o", "--out", type=str, default="./data", help="out dir")
+    args.add_argument("-o", "--out", type=str, default="./out", help="out dir")
     args = args.parse_args()
 
+    data_dir = os.path.join(args.out, "data")
     for method in ATTACKS:
-        export_results(args.env, args.scenario, args.algo, method, args.out)
+        export_results(args.env, args.scenario, args.algo, method, data_dir)
 
     # combine all csv files
-    excel_path = combine_exported_csv(args.env, args.scenario, args.algo, args.out)
+    excel_path = combine_exported_csv(args.env, args.scenario, args.algo, data_dir)
     print("Experiments results exported to", excel_path)
 
