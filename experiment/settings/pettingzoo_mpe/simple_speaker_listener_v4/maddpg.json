@@ -56,10 +56,6 @@
     "main_args":	{
         "algo":	"maddpg",
         "env":	"pettingzoo_mpe",
-        "exp_name":	"default",
-        "load_config":	"",
-        "load_victim":	"",
-        "run":	"single",
-        "victim":	"mappo"
+        "run":	"single"
     }
 }
