@@ -20,7 +20,7 @@ ATTACKS = [
 
 def export_results(env, scenario, algo, attack, out_dir):
     # 构建数据输出目录，如果没有则创建
-    csv_file = os.path.join(out_dir, env, scenario, algo, f"{env}_{scenario}_{algo}_{attack}.csv")
+    csv_file = os.path.join(out_dir, env, scenario, algo, f"{attack}.csv")
     if not os.path.exists(os.path.dirname(csv_file)):
         os.makedirs(os.path.dirname(csv_file))
 
@@ -127,13 +127,14 @@ def combine_exported_csv(env, scenario, algo, out_dir):
     excel_path = os.path.join(dir_path, f"{env}_{scenario}_{algo}.xlsx")
     file_names = [file for file in os.listdir(dir_path) if file.endswith(".csv")]
     # file_names按照 random_noise， iterative_perturbation， adaptive_action， random_policy， traitor 排序
-    file_names.sort(key=lambda x: ATTACKS.index("_".join(os.path.basename(x).split(".")[0].split("_")[3:])))
+    file_names.sort(key=lambda x: ATTACKS.index(x.split(".")[0]))
     # 使用xlsxwriter引擎，可以写入多个sheet
     with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
         for file_name in file_names:
-            attack = "_".join(os.path.basename(file_name.split(".")[0]).split("_")[3:])
+            attack = file_name.split(".")[0]
             # 读取CSV文件
             df = pd.read_csv(os.path.join(dir_path, file_name), header=0, index_col=0)
+            print(df)
             # 将DataFrame写入不同的sheet
             df.to_excel(writer, sheet_name=f'{attack}', index=True)
             # 删除原来的csv文件
@@ -144,9 +145,7 @@ def combine_exported_csv(env, scenario, algo, out_dir):
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("-e", "--env", type=str, default="smac", help="env name")
-    args.add_argument(
-        "-s", "--scenario", type=str, default="2s3z", help="scenario or map name"
-    )
+    args.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
     args.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
     args.add_argument("-o", "--out", type=str, default="./data", help="out dir")
     args = args.parse_args()
