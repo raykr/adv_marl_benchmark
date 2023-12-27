@@ -1,6 +1,7 @@
 
 
 import argparse
+import os
 import subprocess
 
 
@@ -37,11 +38,36 @@ def plot(args):
     execute_command(f"python plot.py -e {args.env} -s {args.scenario} -a {args.algo} -o {args.out} {'--rsync' if args.rsync else ''}")
 
 
+def get_paths(args):
+    # 往下walk三级目录，返回一个(env, scenario, algo)三元组的列表
+    envs = []
+    for env_name in os.listdir(os.path.join(args.out, "data")):
+        if not os.path.isdir(os.path.join(args.out, "data", env_name)):
+            continue
+        if args.env is not None and args.env != env_name:
+            continue
+
+        for scenario_name in os.listdir(os.path.join(args.out, "data", env_name)):
+            if not os.path.isdir(os.path.join(args.out, "data", env_name, scenario_name)):
+                continue
+            if args.scenario is not None and args.scenario != scenario_name:
+                continue
+
+            for algo_name in os.listdir(os.path.join(args.out, "data", env_name, scenario_name)):
+                if not os.path.isdir(os.path.join(args.out, "data", env_name, scenario_name, algo_name)):
+                    continue
+                if args.algo is not None and args.algo != algo_name:
+                    continue
+
+                envs.append((env_name, scenario_name, algo_name))
+    return envs
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--env", type=str, default="smac", help="env name")
-    parser.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
-    parser.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
+    parser.add_argument("-e", "--env", type=str, default=None, help="env name")
+    parser.add_argument("-s", "--scenario", type=str, default=None, help="scenario or map name")
+    parser.add_argument("-a", "--algo", type=str, default=None, help="algo name")
     parser.add_argument("-o", "--out", type=str, default="./out", help="out dir")
     parser.add_argument("-n", "--num_workers", default=2, type=int, help="Number of workers to use for parallel execution.")
     parser.add_argument("-p", "--phase", type=str, default="train", choices=["train", "eval", "export", "plot"], help="start phase: train, eval, export, plot")
@@ -52,6 +78,15 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--method", type=str, default=None, help="only generate the specified attack algo scripts")
     parser.add_argument('--rsync', action='store_true', help='Whether to rsync the output dir to remote server')
     args = parser.parse_args()
+
+    # 校验
+    if args.phase not in ("export", "plot"):
+        if args.env is None:
+            raise ValueError("env cannot be None")
+        if args.scenario is None:
+            raise ValueError("scenario cannot be None")
+        if args.algo is None:
+            raise ValueError("algo cannot be None")
 
     extra = ""
     if args.trick is not None:
@@ -100,17 +135,31 @@ if __name__ == "__main__":
         plot(args)
     
     elif args.phase == "export":
-        export(args)
-        plot(args) 
+        
+        for env_name, scenario_name, algo_name in get_paths(args):
+            args.env = env_name
+            args.scenario = scenario_name
+            args.algo = algo_name
+
+            # export
+            export(args)
+            # plot
+            plot(args)
 
     elif args.phase == "plot":
-        plot(args)
+
+        for env_name, scenario_name, algo_name in get_paths(args):
+            args.env = env_name
+            args.scenario = scenario_name
+            args.algo = algo_name
+            
+            # plot
+            plot(args)
     
     # rsync
     if args.rsync:
         # 读取.env中的配置项
         from dotenv import load_dotenv
-        import os
 
         # 加载.env文件
         load_dotenv()

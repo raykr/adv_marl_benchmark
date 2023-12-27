@@ -67,7 +67,7 @@ i18n = {
         "trick": "Trick",
         "A": "Exploration and Exploitation",
         "B": "Network Architecture",
-        "C": "Optimizator",
+        "C": "Optimizer",
         "D": "Advantage Estimation",
         "E": "Multi-Agent Feature"
     },
