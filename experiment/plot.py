@@ -8,7 +8,7 @@ import os
 
 # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # macos font
 plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP']  # linux
-matplotlib.rcParams['font.size'] = 10
+matplotlib.rcParams['font.size'] = 16
 matplotlib.rcParams['axes.unicode_minus'] = False  # 解决负号无法显示的问题
 # 定义马卡龙配色方案的颜色
 macaron_colors_1 = ['#83C5BE', '#FFDDD2', '#FFBCBC', '#FFAAA5', '#F8BBD0', '#FF8C94']
@@ -121,7 +121,7 @@ def plot_trick_reward(excel_path, argv):
         # plot_data去除scheme列
         plot_data = plot_data.drop(columns=["scheme"])
         # 画图
-        _plot_bar(plot_data, excel_path, "trick", name, argv)
+        _plot_line(plot_data, excel_path, "trick", name, argv)
 
 
 def plot_attack_reward(excel_path, argv):
@@ -131,7 +131,7 @@ def plot_attack_reward(excel_path, argv):
     # 遍历所有工作表，依次画图
     for i, sheet_name in enumerate(xlsx.sheet_names):
         # 读取每个工作表中的特定列数据
-        df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0, index_col=0)
+        df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
         # 只保留df的exp_name, vanilla_reward, adv_reward列
         df = df[["exp_name", "vanilla_reward", "adv_reward"]]
         # 画图
@@ -168,7 +168,7 @@ def _plot_bar(df, excel_path, category, name, argv):
         plt.bar(bar_positions[i], df[column], color=ray_colors[i], width=bar_width, edgecolor='grey', label=display[column])
 
     # 添加图表细节
-        # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
+    # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
     if filename in YLIM:
         plt.ylim(YLIM[filename])
     # plt.xlabel(display[scheme[0]])
@@ -179,6 +179,54 @@ def _plot_bar(df, excel_path, category, name, argv):
     # plt.title(scheme_name)
     plt.legend(ncol=10, frameon=True, loc='upper center', bbox_to_anchor=(0.5, 1))
     plt.tight_layout()
+
+    # 保存图表到文件
+    # ./out/figures/en/png/smac/3m/mappo/smac_3m_mappo_A1.png
+    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category)
+    os.makedirs(save_dir, exist_ok=True)
+    figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{name}.{argv["type"]}')
+    plt.savefig(figure_name, dpi=300, bbox_inches='tight')
+    print(f"Saved to {figure_name}")
+
+    # 展示图表
+    if argv["show"]:
+        plt.show()
+
+
+def _plot_line(df, excel_path, category, name, argv):
+    filename = os.path.basename(excel_path).split(".")[0]
+    display = i18n[argv["i18n"]]
+
+    # 新画布
+    golden_ratio = 1.618
+    width = 15  # 假设宽度为10单位
+    height = width / golden_ratio  # 根据黄金比例计算高度
+    plt.figure(figsize=(width, height))
+
+    # 定义不同的点形状和颜色
+    markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', 'h', 'x', '*', '+', '1', '2', '3', '4']
+    colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k', 'orange', 'pink', 'brown', 'gray', 'purple', 'olive', 'cyan', 'navy', 'teal']
+
+    # 绘制每一行的数据
+    # 将df列名按照i18n进行替换
+    df.columns = [display[col] if col in display else col for col in df.columns]
+    for i, row in df.iterrows():
+        plt.plot(row.index[1:], row.values[1:], linestyle='--', marker=markers[i], color=colors[i], label=row[display["exp_name"]])
+
+    # 设置图表标题和坐标轴标签
+    # plt.title('Rewards for Different Attack Methods')
+    # plt.xlabel('Attack Methods')
+    plt.ylabel('Reward')
+
+    # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
+    # if filename in YLIM:
+    #     plt.ylim(YLIM[filename])
+
+    # 添加网格虚线
+    plt.grid(True, linestyle='--')
+
+    # 显示图例
+    plt.legend()
 
     # 保存图表到文件
     # ./out/figures/en/png/smac/3m/mappo/smac_3m_mappo_A1.png
