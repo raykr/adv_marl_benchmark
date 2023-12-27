@@ -18,8 +18,8 @@ if __name__ == '__main__':
         type=int,
         help="Number of workers to use for parallel execution.",
     )
-    parser.add_argument("-o", "--out", type=str, default="./out", help="out dir")
-    args = parser.parse_args()
+    parser.add_argument("-o", "--out", type=str, default="out", help="out dir")
+    args, _ = parser.parse_known_args()
     
     # 执行command
     command = "cat " + args.script + " | parallel -j " + str(args.num_workers) + " 2>> " + args.out + "/logs/errors.txt"

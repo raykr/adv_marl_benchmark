@@ -27,7 +27,7 @@ def update_dir_name(dir_path):
 
 
 if __name__ == "__main__":
-    args = argparse.ArgumentParser()
-    args.add_argument("dir_path", type=str, help="dir path")
-    args = args.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dir_path", type=str, help="dir path")
+    args, _ = parser.parse_known_args()
     update_dir_name(args.dir_path)

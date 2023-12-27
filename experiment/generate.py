@@ -192,12 +192,12 @@ if __name__ == "__main__":
         choices=[0, 1, 2],
         help="stage_0: eval all; stage_one: only eval default model in adaptive_action and traitor; stage_two:load adv model to eval.",
     )
-    parser.add_argument("-o", "--out", type=str, default="./out", help="out dir")
+    parser.add_argument("-o", "--out", type=str, default="out", help="out dir")
     parser.add_argument("--slice", action="store_true", help="whether to slice eval")
     parser.add_argument("--config_path", type=str, default=None, help="default config path")
     parser.add_argument("-t", "--trick", type=str, default=None, help="only generate the specified trick scripts")
     parser.add_argument("-m", "--method", type=str, default=None, help="only generate the specified attack algo scripts")
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     if args.mode == "train":
         generate_train_scripts(args.env, args.scenario, args.algo, args.out, config_path=args.config_path, trick=args.trick)

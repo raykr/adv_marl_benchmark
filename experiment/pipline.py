@@ -68,7 +68,7 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--env", type=str, default=None, help="env name")
     parser.add_argument("-s", "--scenario", type=str, default=None, help="scenario or map name")
     parser.add_argument("-a", "--algo", type=str, default=None, help="algo name")
-    parser.add_argument("-o", "--out", type=str, default="./out", help="out dir")
+    parser.add_argument("-o", "--out", type=str, default="out", help="out dir")
     parser.add_argument("-n", "--num_workers", default=2, type=int, help="Number of workers to use for parallel execution.")
     parser.add_argument("-p", "--phase", type=str, default="train", choices=["train", "eval", "export", "plot"], help="start phase: train, eval, export, plot")
     parser.add_argument("--fast", action="store_true", help="use fast mode for eval (stage 1 -> stage 2)")
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--trick", type=str, default=None, help="only generate the specified trick scripts")
     parser.add_argument("-m", "--method", type=str, default=None, help="only generate the specified attack algo scripts")
     parser.add_argument('--rsync', action='store_true', help='Whether to rsync the output dir to remote server')
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     # 校验
     if args.phase not in ("export", "plot"):
@@ -176,4 +176,4 @@ if __name__ == "__main__":
         # --exclude 排除文件
         # -e 指定ssh端口
         # -n 模拟传输过程
-        os.system(f"rsync -av --delete -e 'ssh -p {port}' {args.out} {user}@{remote_server}:{remote_path}")
+        execute_command(f"rsync -av --delete -e 'ssh -p {port}' {args.out} {user}@{remote_server}:{remote_path}")

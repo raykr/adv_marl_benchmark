@@ -168,7 +168,9 @@ def _plot_bar(df, excel_path, category, name, argv):
         plt.bar(bar_positions[i], df[column], color=ray_colors[i], width=bar_width, edgecolor='grey', label=display[column])
 
     # 添加图表细节
-    plt.ylim(YLIM[filename])
+        # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
+    if filename in YLIM:
+        plt.ylim(YLIM[filename])
     # plt.xlabel(display[scheme[0]])
     plt.xticks(positions + total_bar_space / 2, df['exp_name'], rotation=0 if len(df) < 10 else 45, ha="right")
     plt.ylabel(display["reward"])
@@ -180,7 +182,7 @@ def _plot_bar(df, excel_path, category, name, argv):
 
     # 保存图表到文件
     # ./out/figures/en/png/smac/3m/mappo/smac_3m_mappo_A1.png
-    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"])
+    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category)
     os.makedirs(save_dir, exist_ok=True)
     figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{name}.{argv["type"]}')
     plt.savefig(figure_name, dpi=300, bbox_inches='tight')
@@ -196,13 +198,13 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--env", type=str, default="smac", help="env name")
     parser.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
     parser.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
-    parser.add_argument("-o", "--out", type=str, default="./out", help="output dir")
+    parser.add_argument("-o", "--out", type=str, default="out", help="output dir")
     parser.add_argument('-f', '--file', type=str, default=None, help='Excel file path')
     parser.add_argument('-i', '--i18n', type=str, default='en', choices=["en", "zh"], help='Choose the language')
     parser.add_argument("-t", "--type", type=str, default='png', choices=["png", "pdf"], help='save figure type')
     parser.add_argument('-g', '--groupby', type=str, default='trick', choices=["trick", "scheme"], help='Group by trick or scheme')
     parser.add_argument('--show', action='store_true', help='Whether to show the plot')
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
     argv = vars(args)
     
     if argv["file"] is not None:

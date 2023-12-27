@@ -143,12 +143,12 @@ def combine_exported_csv(env, scenario, algo, out_dir):
 
 
 if __name__ == "__main__":
-    args = argparse.ArgumentParser()
-    args.add_argument("-e", "--env", type=str, default="smac", help="env name")
-    args.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
-    args.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
-    args.add_argument("-o", "--out", type=str, default="./out", help="out dir")
-    args = args.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-e", "--env", type=str, default="smac", help="env name")
+    parser.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
+    parser.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
+    parser.add_argument("-o", "--out", type=str, default="out", help="out dir")
+    args, _ = parser.parse_known_args()
 
     data_dir = os.path.join(args.out, "data")
     for method in ATTACKS:
