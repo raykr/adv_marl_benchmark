@@ -5,10 +5,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
 import os
+from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # macos font
 plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP']  # linux
-matplotlib.rcParams['font.size'] = 16
+plt.rc('font',family='Times New Roman')
+matplotlib.rcParams['font.size'] = 14
 matplotlib.rcParams['axes.unicode_minus'] = False  # 解决负号无法显示的问题
 # 定义马卡龙配色方案的颜色
 macaron_colors_1 = ['#83C5BE', '#FFDDD2', '#FFBCBC', '#FFAAA5', '#F8BBD0', '#FF8C94']
@@ -17,6 +19,10 @@ macaron_colors_2 = ['#F8BBD0', '#81D4FA', '#B39DDB', '#C8E6C9', '#FFF59D', '#FFC
 # https://blog.csdn.net/slandarer/article/details/114157177
 macaron_colors_3 = ['#8ECFC9', '#FFBE7A', '#FA7F6F', '#82B0D2', '#BEB8DC', '#E7DAD2', '#999999']
 ray_colors = ["#83C5BE", "#FFDDD2", "#FFAB91", "#FFAB40", "#FFE0B2", "#FF8C94", '#999999']
+# 定义不同的点形状和颜色
+line_markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', 'h', 'x', '*', '+', '1', '2', '3', '4']
+line_colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k', 'orange', 'pink', 'brown', 'gray', 'purple', 'olive', 'cyan', 'navy', 'teal']
+
 
 i18n = {
     "zh": {
@@ -198,25 +204,21 @@ def _plot_line(df, excel_path, category, name, argv):
     display = i18n[argv["i18n"]]
 
     # 新画布
-    golden_ratio = 1.618
-    width = 15  # 假设宽度为10单位
-    height = width / golden_ratio  # 根据黄金比例计算高度
-    plt.figure(figsize=(width, height))
-
-    # 定义不同的点形状和颜色
-    markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', 'h', 'x', '*', '+', '1', '2', '3', '4']
-    colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k', 'orange', 'pink', 'brown', 'gray', 'purple', 'olive', 'cyan', 'navy', 'teal']
+    # golden_ratio = 1.618
+    # width = 15  # 假设宽度为10单位
+    # height = width / golden_ratio  # 根据黄金比例计算高度
+    plt.figure(figsize=(12, 8))
 
     # 绘制每一行的数据
     # 将df列名按照i18n进行替换
     df.columns = [display[col] if col in display else col for col in df.columns]
     for i, row in df.iterrows():
-        plt.plot(row.index[1:], row.values[1:], linestyle='--', marker=markers[i], color=colors[i], label=row[display["exp_name"]])
+        plt.plot(row.index[1:], row.values[1:], linestyle='--', marker=line_markers[i], color=line_colors[i], label=row[display["exp_name"]])
 
     # 设置图表标题和坐标轴标签
     # plt.title('Rewards for Different Attack Methods')
     # plt.xlabel('Attack Methods')
-    plt.ylabel('Reward')
+    plt.ylabel('Episode Reward')
 
     # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
     # if filename in YLIM:
@@ -234,11 +236,127 @@ def _plot_line(df, excel_path, category, name, argv):
     os.makedirs(save_dir, exist_ok=True)
     figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{name}.{argv["type"]}')
     plt.savefig(figure_name, dpi=300, bbox_inches='tight')
+    plt.close()
     print(f"Saved to {figure_name}")
 
     # 展示图表
     if argv["show"]:
         plt.show()
+
+
+def plot_train_reward(argv):
+    # 根据env, scenario, algo,找到对应的文件夹
+    trail_dir = os.path.join("results", argv["env"], argv["scenario"], "single", argv["algo"])
+
+    _plot_tb_data(argv["groupby"], trail_dir, "env/train_episode_rewards", "Episode Reward", 0.9, argv)
+    _plot_tb_data(argv["groupby"], trail_dir, "env/incre_win_rate", "Win Rate", 0.9, argv)
+    _plot_tb_data(argv["groupby"], trail_dir, "env/eval_return_mean", "Episode Reward", 0.6, argv)
+    _plot_tb_data(argv["groupby"], trail_dir, "env/eval_win_rate", "Win Rate", 0.6, argv)
+
+
+def _plot_tb_data(groupby, trail_dir, tag_name, ylabel, weight, argv):
+    skip_tag = False
+    dfs = {}
+    # 遍历文件夹
+    for trick_name in os.listdir(trail_dir):
+        # 取出trick所属分类
+        if trick_name not in SCHEME_CFG["tricks"]:
+            continue
+        trick_tag = SCHEME_CFG["tricks"][trick_name] if groupby == "trick" else SCHEME_CFG["tricks"][trick_name][0]
+
+        if trick_tag not in dfs:
+            dfs[trick_tag] = pd.DataFrame(columns=["step", trick_name])
+
+        # 读取TensorBoard日志
+        log_dir = os.path.join(trail_dir, trick_name)
+        # 取出log_dir下最新的子文件夹
+        log_dir = sorted(os.listdir(log_dir))[-1]
+        log_dir = os.path.join(trail_dir, trick_name, log_dir, "logs")
+        # 判断log_dir是否存在，如果不存在，打印后跳过
+        if not os.path.exists(log_dir):
+            print(f"{log_dir} not exists")
+            continue
+        # 创建EventAccumulator对象以读取TensorBoard日志
+        event_acc = EventAccumulator(log_dir)
+        event_acc.Reload()
+        # 判断tag_name是否在event_acc中，如果不在，打印后跳过
+        if tag_name not in event_acc.Tags()["scalars"]:
+            skip_tag = True
+            break
+        tag_values = event_acc.Scalars(tag_name)
+
+        # 每个trick_name对应一列
+        dfs[trick_tag][trick_name] = np.nan
+        for value in tag_values:
+            # 判断df中是否有step=value.step的行，如果没有，新增一行
+            if not dfs[trick_tag][dfs[trick_tag]["step"] == value.step].empty:
+                dfs[trick_tag].loc[dfs[trick_tag]["step"] == value.step, trick_name] = value.value
+
+            else:
+                # 新增一行全NaN的数据
+                dfs[trick_tag].loc[len(dfs[trick_tag])] = [np.nan for _ in range(len(dfs[trick_tag].columns))]
+                # 填充列
+                dfs[trick_tag].loc[len(dfs[trick_tag]) - 1, "step"] = value.step
+                dfs[trick_tag].loc[len(dfs[trick_tag]) - 1, trick_name] = value.value
+    
+    # 画图
+    if not skip_tag:
+        _plot_train_line(dfs, tag_name.split("/")[1], ylabel, weight, argv)
+
+
+def _plot_train_line(dfs, tag_name, ylabel, weight, argv):
+    # 将tag_data转为df
+    for tag, data in dfs.items():
+        if tag == SCHEME_CFG["tricks"]["default"]:
+            continue
+
+        # Create the plot with shaded area in a similar color but more transparent
+        plt.figure(figsize=(9, 6))
+
+        # 按step升序排序
+        data = data.sort_values(by="step", ascending=True)
+        # 画图
+        # 获取data的列名
+        column_names = data.columns.values.tolist()
+        # 去除step列
+        column_names.remove("step")
+        
+        # 画默认曲线
+        default_df = dfs[SCHEME_CFG["tricks"]["default"]]
+        smoothed_values = tensorboard_smoothing(default_df["default"], weight=weight)   
+        plt.plot(default_df["step"], smoothed_values, color=line_colors[0], label="default")
+        plt.fill_between(default_df["step"], smoothed_values, default_df["default"], color=line_colors[0], alpha=0.2)
+
+        # 画trick曲线
+        for i, column_name in enumerate(column_names):
+            # Apply TensorBoard-style smoothing
+            smoothed_values = tensorboard_smoothing(data[column_name], weight=weight)   
+            plt.plot(data["step"], smoothed_values, color=line_colors[i+1], label=column_name)
+            plt.fill_between(data["step"], smoothed_values, data[column_name], color=line_colors[i+1], alpha=0.2)
+
+        plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
+        plt.xlabel('Step')
+        plt.ylabel(ylabel)
+        plt.legend()
+        plt.grid(True, linestyle='--')
+        plt.tight_layout()
+        
+        save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], tag_name)
+        os.makedirs(save_dir, exist_ok=True)
+        figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{tag_name}_{tag}.{argv["type"]}')
+        plt.savefig(figure_name, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"Saved to {figure_name}")
+
+
+def tensorboard_smoothing(values, weight):
+    last = values[0]
+    smoothed = []
+    for point in values:
+        smoothed_val = last * weight + (1 - weight) * point
+        smoothed.append(smoothed_val)
+        last = smoothed_val
+    return smoothed
 
 
 if __name__ == "__main__":
@@ -267,3 +385,6 @@ if __name__ == "__main__":
     # 评一个攻击下所有trick的reward
     # x轴为trick，y轴为reward，每个攻击方法一张图
     plot_attack_reward(excel_path, argv)
+
+    # 画训练对比曲线图
+    plot_train_reward(argv)

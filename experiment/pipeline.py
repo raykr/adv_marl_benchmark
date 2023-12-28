@@ -35,7 +35,7 @@ def export(args):
 
 
 def plot(args):
-    execute_command(f"python plot.py -e {args.env} -s {args.scenario} -a {args.algo} -o {args.out} {'--rsync' if args.rsync else ''}")
+    execute_command(f"python plot.py -e {args.env} -s {args.scenario} -a {args.algo} -o {args.out}")
 
 
 def get_paths(args):
@@ -63,6 +63,28 @@ def get_paths(args):
     return envs
 
 
+def rsync(args):
+    # 读取.env中的配置项
+    from dotenv import load_dotenv
+
+    # 加载.env文件
+    load_dotenv()
+
+    # 读取环境变量
+    remote_server = os.getenv('REMOTE_SERVER')
+    port = os.getenv('REMOTE_PORT')
+    user = os.getenv('REMOTE_USER')
+    remote_path = os.getenv('REMOTE_PATH')
+
+    # -a 递归传输文件，带信息
+    # -v 显示传输过程
+    # --delete 删除接收端没有的文件
+    # --exclude 排除文件
+    # -e 指定ssh端口
+    # -n 模拟传输过程
+    execute_command(f"rsync -av --delete -e 'ssh -p {port}' {args.out} {user}@{remote_server}:{remote_path}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--env", type=str, default=None, help="env name")
@@ -70,7 +92,7 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--algo", type=str, default=None, help="algo name")
     parser.add_argument("-o", "--out", type=str, default="out", help="out dir")
     parser.add_argument("-n", "--num_workers", default=2, type=int, help="Number of workers to use for parallel execution.")
-    parser.add_argument("-p", "--phase", type=str, default="train", choices=["train", "eval", "export", "plot"], help="start phase: train, eval, export, plot")
+    parser.add_argument("-p", "--phase", type=str, default="train", choices=["train", "eval", "export", "plot", "rsync"], help="start phase: train, eval, export, plot, rsync")
     parser.add_argument("--fast", action="store_true", help="use fast mode for eval (stage 1 -> stage 2)")
     parser.add_argument("--stage", type=int, default=0, choices=[0, 1, 2], help="stage_0: eval all; stage_one: only eval default model in adaptive_action and traitor; stage_two:load adv model to eval.")
     parser.add_argument("-c", "--config_path", type=str, default=None, help="default config path")
@@ -156,24 +178,11 @@ if __name__ == "__main__":
             # plot
             plot(args)
     
-    # rsync
-    if args.rsync:
-        # 读取.env中的配置项
-        from dotenv import load_dotenv
 
-        # 加载.env文件
-        load_dotenv()
+    elif args.phase == "rsync":
+        # rsync
+        rsync(args)
 
-        # 读取环境变量
-        remote_server = os.getenv('REMOTE_SERVER')
-        port = os.getenv('REMOTE_PORT')
-        user = os.getenv('REMOTE_USER')
-        remote_path = os.getenv('REMOTE_PATH')
-
-        # -a 递归传输文件，带信息
-        # -v 显示传输过程
-        # --delete 删除接收端没有的文件
-        # --exclude 排除文件
-        # -e 指定ssh端口
-        # -n 模拟传输过程
-        execute_command(f"rsync -av --delete -e 'ssh -p {port}' {args.out} {user}@{remote_server}:{remote_path}")
+    # sync to remote when --rsync and not in rsync phase
+    if args.rsync and args.phase != "rsync":
+        rsync(args)
