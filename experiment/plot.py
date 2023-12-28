@@ -91,6 +91,7 @@ YLIM = {
 SCHEME_CFG = json.load(open("settings/scheme.json", "r"))
 
 def plot_trick_reward(excel_path, argv):
+    print(argv)
     # 读取Excel文件
     xlsx = pd.ExcelFile(excel_path)
     
@@ -216,8 +217,8 @@ def _plot_line(df, excel_path, category, name, argv):
         plt.plot(row.index[1:], row.values[1:], linestyle='--', marker=line_markers[i], color=line_colors[i], label=row[display["exp_name"]])
 
     # 设置图表标题和坐标轴标签
-    # plt.title('Rewards for Different Attack Methods')
-    # plt.xlabel('Attack Methods')
+    plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
+    plt.xlabel('Adversarial Methods')
     plt.ylabel('Episode Reward')
 
     # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
@@ -257,12 +258,16 @@ def plot_train_reward(argv):
 def _plot_tb_data(groupby, trail_dir, tag_name, ylabel, weight, argv):
     skip_tag = False
     dfs = {}
-    # 遍历文件夹
-    for trick_name in os.listdir(trail_dir):
-        # 取出trick所属分类
-        if trick_name not in SCHEME_CFG["tricks"]:
+    
+    listdir = os.listdir(trail_dir)
+    # 先遍历SCHEME_CFG["tricks"]，再去check目录更好，因为可以保证顺序
+    for trick_name, trick_tag in SCHEME_CFG["tricks"].items():
+        # 如果目录中没有这一项trick，跳过
+        if trick_name not in listdir:
             continue
-        trick_tag = SCHEME_CFG["tricks"][trick_name] if groupby == "trick" else SCHEME_CFG["tricks"][trick_name][0]
+        
+        # 同时支持scheme和trick两种分组方式，因此需要替换trick_tag
+        trick_tag = trick_tag if groupby == "trick" else trick_tag[0]
 
         if trick_tag not in dfs:
             dfs[trick_tag] = pd.DataFrame(columns=["step", trick_name])
@@ -272,10 +277,12 @@ def _plot_tb_data(groupby, trail_dir, tag_name, ylabel, weight, argv):
         # 取出log_dir下最新的子文件夹
         log_dir = sorted(os.listdir(log_dir))[-1]
         log_dir = os.path.join(trail_dir, trick_name, log_dir, "logs")
+
         # 判断log_dir是否存在，如果不存在，打印后跳过
         if not os.path.exists(log_dir):
             print(f"{log_dir} not exists")
             continue
+
         # 创建EventAccumulator对象以读取TensorBoard日志
         event_acc = EventAccumulator(log_dir)
         event_acc.Reload()
