@@ -63,7 +63,7 @@ i18n = {
         "random_noise": "Random Noise",
         "random_policy": "Random Policy",
         "traitor": "Traitor",
-        "reward": "Average Reward",
+        "reward": "Episode Reward",
         "trick": "Trick",
         "A": "Exploration and Exploitation",
         "B": "Network Architecture",

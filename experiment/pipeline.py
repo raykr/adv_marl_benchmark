@@ -12,22 +12,22 @@ def execute_command(command):
 
 def train(args, extra, cfgstr):
     execute_command(f"python generate.py train -e {args.env} -s {args.scenario} -a {args.algo} -o {args.out} {extra} {cfgstr}")
-    execute_command(f"python parallel.py -s {args.out}/scripts/train_{args.env}_{args.scenario}_{args.algo}.sh -n {args.num_workers}")
+    execute_command(f"python parallel.py -s {args.out}/scripts/train_{args.env}_{args.scenario}_{args.algo}.sh -n {args.num_workers} -o {args.out}")
 
 
 def eval_all(args, extra):
     execute_command(f"python generate.py eval -e {args.env} -s {args.scenario} -a {args.algo} -o {args.out} {extra}")
-    execute_command(f"python parallel.py -s {args.out}/scripts/eval_{args.env}_{args.scenario}_{args.algo}.sh -n {args.num_workers}")
+    execute_command(f"python parallel.py -s {args.out}/scripts/eval_{args.env}_{args.scenario}_{args.algo}.sh -n {args.num_workers} -o {args.out}")
 
 
 def eval_stage_1(args, extra):
     execute_command(f"python generate.py eval -e {args.env} -s {args.scenario} -a {args.algo} -o {args.out} {extra} --stage 1")
-    execute_command(f"python parallel.py -s {args.out}/scripts/eval_{args.env}_{args.scenario}_{args.algo}_stage_1.sh -n {args.num_workers}")
+    execute_command(f"python parallel.py -s {args.out}/scripts/eval_{args.env}_{args.scenario}_{args.algo}_stage_1.sh -n {args.num_workers} -o {args.out}")
 
 
 def eval_stage_2(args, extra):
     execute_command(f"python generate.py eval -e {args.env} -s {args.scenario} -a {args.algo} -o {args.out} {extra} --stage 2")
-    execute_command(f"python parallel.py -s {args.out}/scripts/eval_{args.env}_{args.scenario}_{args.algo}_stage_2.sh -n {args.num_workers}")
+    execute_command(f"python parallel.py -s {args.out}/scripts/eval_{args.env}_{args.scenario}_{args.algo}_stage_2.sh -n {args.num_workers} -o {args.out}")
 
 
 def export(args):

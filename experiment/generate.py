@@ -74,7 +74,7 @@ def generate_train_scripts(env, scenario, algo, out_dir, config_path=None, trick
                     _write_train_command(f, config_path, exp_name, logs_dir, trick_str=trick_str, trick=trick)
 
     print(f"You can run the following command to train all experiments:")
-    print(f"\n    python parallel -s {file_name} -n 2 -o {out_dir} \n")
+    print(f"\n    python parallel -s {file_name} -n 2 \n")
 
 
 def _write_train_command(file, config_path, exp_name, logs_dir, trick_str="", trick=None):
@@ -131,6 +131,7 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
             for victim_dir, sub_victim_dir in victim_tuples:
                 # 构建数据输出目录，如果没有则创建
                 logs_dir = os.path.join(
+                    out_dir,
                     "logs",
                     env,
                     scenario,
