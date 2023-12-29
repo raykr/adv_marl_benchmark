@@ -90,8 +90,7 @@ YLIM = {
 # 读取scheme.json
 SCHEME_CFG = json.load(open("settings/scheme.json", "r"))
 
-def plot_trick_reward(excel_path, argv):
-    print(argv)
+def plot_trick_reward(excel_path, argv, ylabel="Episode Reward"):
     # 读取Excel文件
     xlsx = pd.ExcelFile(excel_path)
     
@@ -112,10 +111,16 @@ def plot_trick_reward(excel_path, argv):
             # 填充默认数据列
             combined_df["scheme"] = df["scheme"]
             combined_df["exp_name"] = df["exp_name"]
-            combined_df["vanilla_reward"] = df["vanilla_reward"]
+            if ylabel == "Win Rate":
+                combined_df["vanilla_win_rate"] = df["vanilla_win_rate"]
+            else:
+                combined_df["vanilla_reward"] = df["vanilla_reward"]
         
         # 对combined_df增加一列，以sheet作为列名，值为df中的adv_reward
-        combined_df[sheet] = df["adv_reward"]
+        if ylabel == "Win Rate":
+            combined_df[sheet] = df["adv_win_rate"]
+        else:
+            combined_df[sheet] = df["adv_reward"]
 
     # 把scheme相同的数据分组
     grouped = combined_df.groupby("scheme")
@@ -128,7 +133,7 @@ def plot_trick_reward(excel_path, argv):
         # plot_data去除scheme列
         plot_data = plot_data.drop(columns=["scheme"])
         # 画图
-        _plot_line(plot_data, excel_path, "trick", name, argv)
+        _plot_line(plot_data, excel_path, "trick", name, ylabel, argv)
 
 
 def plot_attack_reward(excel_path, argv):
@@ -200,7 +205,7 @@ def _plot_bar(df, excel_path, category, name, argv):
         plt.show()
 
 
-def _plot_line(df, excel_path, category, name, argv):
+def _plot_line(df, excel_path, category, name, ylabel, argv):
     filename = os.path.basename(excel_path).split(".")[0]
     display = i18n[argv["i18n"]]
 
@@ -219,7 +224,7 @@ def _plot_line(df, excel_path, category, name, argv):
     # 设置图表标题和坐标轴标签
     plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
     plt.xlabel('Adversarial Methods')
-    plt.ylabel('Episode Reward')
+    plt.ylabel(ylabel)
 
     # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
     # if filename in YLIM:
@@ -235,7 +240,7 @@ def _plot_line(df, excel_path, category, name, argv):
     # ./out/figures/en/png/smac/3m/mappo/smac_3m_mappo_A1.png
     save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category)
     os.makedirs(save_dir, exist_ok=True)
-    figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{name}.{argv["type"]}')
+    figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}{"_winrate" if ylabel == "Win Rate" else ""}_{category}_{name}.{argv["type"]}')
     plt.savefig(figure_name, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"Saved to {figure_name}")
@@ -388,6 +393,8 @@ if __name__ == "__main__":
     # 评一个trick方案下所有攻击的reward
     # x轴为trick，y轴为reward，每个trick方案一张图
     plot_trick_reward(excel_path, argv)
+    if argv["env"] == "smac":
+        plot_trick_reward(excel_path, argv, ylabel="Win Rate")
 
     # 评一个攻击下所有trick的reward
     # x轴为trick，y轴为reward，每个攻击方法一张图
