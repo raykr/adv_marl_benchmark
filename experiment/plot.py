@@ -219,11 +219,11 @@ def _plot_line(df, excel_path, category, name, ylabel, argv):
         plt.plot(row.index[1:], row.values[1:], linestyle='--', marker=line_markers[i], color=line_colors[i], label=row[display["exp_name"]])
 
     # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
-    numeric_df = df.select_dtypes(include=[np.number])
-    max_value = numeric_df.max().max()
-    min_value = numeric_df.min().min()
-    if filename in YLIM and max_value <= YLIM[filename][1] and min_value >= YLIM[filename][0]:
-        plt.ylim(YLIM[filename])
+    # numeric_df = df.select_dtypes(include=[np.number])
+    # max_value = numeric_df.max().max()
+    # min_value = numeric_df.min().min()
+    # if filename in YLIM and max_value <= YLIM[filename][1] and min_value >= YLIM[filename][0]:
+    #     plt.ylim(YLIM[filename])
     # 设置图表标题和坐标轴标签
     plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
     plt.xlabel('Adversarial Methods')
@@ -344,10 +344,16 @@ def _plot_train_line(dfs, tag_name, ylabel, weight, argv):
 
         # 画trick曲线
         for i, column_name in enumerate(column_names):
+            # 从data中挑出step和column_name两列
+            clean_data = data[["step", column_name]]
+            # 去除data中column_name列为NaN的行
+            clean_data = clean_data.dropna(subset=[column_name])
+            clean_data = clean_data.reset_index(drop=True)
+            
             # Apply TensorBoard-style smoothing
-            smoothed_values = tensorboard_smoothing(data[column_name], weight=weight)   
-            plt.plot(data["step"], smoothed_values, color=line_colors[i+1], label=column_name)
-            plt.fill_between(data["step"], smoothed_values, data[column_name], color=line_colors[i+1], alpha=0.2)
+            smoothed_values = tensorboard_smoothing(clean_data[column_name], weight=weight)   
+            plt.plot(clean_data["step"], smoothed_values, color=line_colors[i+1], label=column_name)
+            plt.fill_between(clean_data["step"], smoothed_values, clean_data[column_name], color=line_colors[i+1], alpha=0.2)
 
         plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
         plt.xlabel('Step')
