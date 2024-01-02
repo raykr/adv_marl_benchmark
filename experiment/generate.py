@@ -1,9 +1,6 @@
 import argparse
 import json
 import os
-from click import command
-
-from cv2 import exp
 
 ATTACK_CONF = {
     "random_noise": "--run perturbation --algo.num_env_steps 0 --algo.perturb_iters 0 --algo.adaptive_alpha False --algo.targeted_attack False",

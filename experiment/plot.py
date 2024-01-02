@@ -80,11 +80,8 @@ i18n = {
 }
 
 YLIM = {
-    "smac_2s3z_mappo": [0, 35],
-    "smac_2s3z_qmix": [0, 35],
-    "smac_3m_mappo": [0, 25],
-    "smac_3m_qmix": [0, 25],
-    "mamujoco_HalfCheetah-6x1_mappo": [-10000, 25000],
+    "pettingzoo_mpe_simple_speaker_listener_v4-continuous_maddpg": [-110, -10],
+    "pettingzoo_mpe_simple_spread_v3-continuous_maddpg": [-120, -20],
 }
 
 # 读取scheme.json
@@ -221,6 +218,12 @@ def _plot_line(df, excel_path, category, name, ylabel, argv):
     for i, row in df.iterrows():
         plt.plot(row.index[1:], row.values[1:], linestyle='--', marker=line_markers[i], color=line_colors[i], label=row[display["exp_name"]])
 
+    # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
+    numeric_df = df.select_dtypes(include=[np.number])
+    max_value = numeric_df.max().max()
+    min_value = numeric_df.min().min()
+    if filename in YLIM and max_value <= YLIM[filename][1] and min_value >= YLIM[filename][0]:
+        plt.ylim(YLIM[filename])
     # 设置图表标题和坐标轴标签
     plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
     plt.xlabel('Adversarial Methods')

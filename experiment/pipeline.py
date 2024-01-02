@@ -96,13 +96,13 @@ if __name__ == "__main__":
     parser.add_argument("--fast", action="store_true", help="use fast mode for eval (stage 1 -> stage 2)")
     parser.add_argument("--stage", type=int, default=0, choices=[0, 1, 2], help="stage_0: eval all; stage_one: only eval default model in adaptive_action and traitor; stage_two:load adv model to eval.")
     parser.add_argument("-c", "--config_path", type=str, default=None, help="default config path")
-    parser.add_argument("-f", "--trick", type=str, default=None, help="only generate the specified trick scripts")
+    parser.add_argument("-t", "--trick", type=str, default=None, help="only generate the specified trick scripts")
     parser.add_argument("-m", "--method", type=str, default=None, help="only generate the specified attack algo scripts")
     parser.add_argument('--rsync', action='store_true', help='Whether to rsync the output dir to remote server')
     args, _ = parser.parse_known_args()
 
     # 校验
-    if args.phase not in ("export", "plot"):
+    if args.phase not in ("export", "plot", "rsync"):
         if args.env is None:
             raise ValueError("env cannot be None")
         if args.scenario is None:
