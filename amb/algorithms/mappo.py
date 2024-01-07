@@ -109,7 +109,7 @@ class MAPPO:
                 ).sum() / active_masks.sum()
             else:
                 dist_entropy = (
-                    action_dist.entropy() * active_masks
+                    action_dist.entropy() * active_masks.squeeze(-1)
                 ).sum() / active_masks.sum()
         else:
             dist_entropy = action_dist.entropy().mean()
