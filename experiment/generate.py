@@ -114,13 +114,16 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
         victim_tuples = []
         # 遍历victims_dirs
         for victim_dir in victims_dirs:
-            # 查看victim_dir是否是目录，如果是看子目录有几个
+            # 查看victim_dir是否是目录，如果是，看子目录有几个
             if os.path.isdir(os.path.join(models_dir, victim_dir)):
-                # 读取子目录列表
-                sub_victims_dirs = os.listdir(os.path.join(models_dir, victim_dir))
-                # 遍历子目录列表
-                for sub_victim_dir in sub_victims_dirs:
-                    victim_tuples.append((victim_dir, sub_victim_dir))
+                # 获取最新的目录
+                latest_victim_dir = sorted(os.listdir(os.path.join(models_dir, victim_dir)))[-1]
+                victim_tuples.append((victim_dir, latest_victim_dir))
+                # # 读取子目录列表
+                # sub_victims_dirs = os.listdir(os.path.join(models_dir, victim_dir))
+                # # 遍历子目录列表
+                # for sub_victim_dir in sub_victims_dirs:
+                #     victim_tuples.append((victim_dir, sub_victim_dir))
 
         for attack_method, attack_cfg in ATTACK_CONF.items() if stage != 2 else ATTACK_CONF_STAGE_2.items():
             if method is not None and method != attack_method:

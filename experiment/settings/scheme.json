@@ -32,8 +32,6 @@
         "entropy_coef_0.0001": "A1",
         "entropy_coef_0.001": "A1",
         "entropy_coef_0.1": "A1",
-        "entropy_coef_0.5": "A1",
-        "entropy_coef_1.0": "A1",
         "expl_noise_0.001": "A2",
         "expl_noise_0.01": "A2",
         "expl_noise_0.5": "A2",
@@ -44,8 +42,8 @@
         "epsilon_finish_0.1": "A4",
         "eps_delta_l": "A5",
         "eps_delta_r": "A6",
+        "gamma_0.9": "A7",
         "gamma_0.95": "A7",
-        "gamma_1.0": "A7",
         "hidden_sizes_64_64": "B1",
         "hidden_sizes_256_256": "B1",
         "activation_func_leaky_relu": "B2",
@@ -61,8 +59,10 @@
         "critic_lr_0.005": "C2",
         "use_gae_False": "D1",
         "use_popart_False": "D2",
+        "n_step_1": "D3",
         "n_step_5": "D3",
-        "n_step_50": "D3",
+        "n_step_10": "D3",
+        "n_step_25": "D3",
         "share_param_False": "E1"
     }
 }
