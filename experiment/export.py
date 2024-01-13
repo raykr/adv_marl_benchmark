@@ -25,7 +25,7 @@ def export_results(env, scenario, algo, attack, out_dir):
         os.makedirs(os.path.dirname(csv_file))
 
     # 使用dataframe来存储数据
-    df = pd.DataFrame(columns=["env", "scenario", "algo", "attack", "exp_name", "vanilla_reward", "adv_reward", "vanilla_win_rate", "adv_win_rate"])
+    df = pd.DataFrame(columns=["env", "scenario", "algo", "attack", "exp_name", "before_reward", "vanilla_reward", "adv_reward", "vanilla_win_rate", "adv_win_rate"])
     # 先导出默认配置的实验结果
     _record_row(df, env, scenario, algo, attack, "default")
         # tricks配置文件
@@ -84,7 +84,7 @@ def _record_row(df, env, scenario, algo, attack, exp_name):
     # 判断log_dir是否存在，如果不存在，则插入一条空数据
     if not os.path.exists(log_dir) or len(os.listdir(log_dir)) == 0:
         # df增加一行
-        df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None]
+        df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None, None]
         return
     
     # 默认导出log_dir下最新的实验结果
@@ -92,7 +92,17 @@ def _record_row(df, env, scenario, algo, attack, exp_name):
     # 读取date_dir下的result.txt
     with open(os.path.join(log_dir, date_dir, "result.txt"), "r") as f:
         # df增加一行
-        df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None]
+        df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None, None]
+        # before_reward的值去查询训练日志，取timestep=0的reward，即训练前的reward
+        train_log = os.path.join("results", env, scenario, "single", algo, f"{exp_name}")
+        latest_log = sorted(os.listdir(train_log))[-1]
+        with open(os.path.join(train_log, latest_log, "progress.txt"), "r") as f2:
+            for line in f2.readlines():
+                arr = line.replace("\n", "").split(",")
+                if arr[0] == "0":
+                    df.loc[len(df) -1, "before_reward"] = float(arr[1])
+                    break
+
         for line in f.readlines():
             # 如果为空行，则跳过
             if line == "\n":
@@ -109,14 +119,21 @@ def _calculate_metrics(df):
     baseline_r = df_default["vanilla_reward"].values[0] 
     baseline_ra = df_default["adv_reward"].values[0]
     baseline_w = df_default["vanilla_win_rate"].values[0]
+    baseline_range = df_default["vanilla_reward"].values[0] - df_default["before_reward"].values[0]
 
-    df["srr"] = (df["adv_reward"] - df["vanilla_reward"]) / df["vanilla_reward"] 
-    df["tpr"] = (df["vanilla_reward"] - baseline_r) / baseline_r
-    df["trr"] = (df["adv_reward"] - baseline_ra) / baseline_r
+    # 模型自身reward变化率，符号代表方向，数值代表变化率
+    df["SRR"] = (df["adv_reward"] - df["vanilla_reward"]) / (df["vanilla_reward"] - df["before_reward"])
+    df["rSRR"] = df["SRR"] - df[df["exp_name"] == "default"]["SRR"].values[0]
 
-    df["w-srr"] = df["adv_win_rate"] - df["vanilla_win_rate"]
-    df["w-tpr"] = df["vanilla_win_rate"] - baseline_w
-    df["w-trr"] = df["adv_win_rate"] - baseline_w
+    # 采用Trick后模型，对比default模型，在性能上的变化率
+    df["TP"] = df["vanilla_reward"] - baseline_r
+
+    df["TPR"] = (df["vanilla_reward"] - baseline_r) / baseline_range
+    df["TRR"] = (df["adv_reward"] - baseline_ra) / baseline_range
+
+    df["wr-SRR"] = df["adv_win_rate"] - df["vanilla_win_rate"]
+    df["wr-TPR"] = df["vanilla_win_rate"] - baseline_w
+    df["wr-TRR"] = df["adv_win_rate"] - baseline_w
 
     print(df)
 

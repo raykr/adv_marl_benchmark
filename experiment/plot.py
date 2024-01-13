@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib
 import os
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+from matplotlib.ticker import PercentFormatter
 
 # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # macos font
 plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP']  # linux
@@ -200,6 +201,67 @@ def _plot_bar(df, excel_path, category, name, argv):
     # 展示图表
     if argv["show"]:
         plt.show()
+
+
+def plot_metrics(excel_path, argv):
+    # 读取Excel文件
+    xlsx = pd.ExcelFile(excel_path)
+
+    # 遍历所有工作表，依次画图
+    for i, sheet_name in enumerate(xlsx.sheet_names):
+        # 读取每个工作表中的特定列数据
+        df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
+        # 画图
+        _plot_metrics(df, excel_path, "metrics", sheet_name, argv)
+
+def _plot_metrics(df, excel_path, category, name, argv):
+    filename = os.path.basename(excel_path).split(".")[0]
+    display = i18n[argv["i18n"]]
+
+    # 新画布
+    golden_ratio = 1.618
+    width = 15  # 假设宽度为10单位
+    height = width / golden_ratio  # 根据黄金比例计算高度
+    fig, ax = plt.subplots(figsize=(width, height))
+    
+    n_categories = len(df)
+    bar_width = 0.25
+    r1 = np.arange(n_categories)
+    r2 = [x + bar_width for x in r1]
+    r3 = [x + 2 * bar_width for x in r1]
+
+    # 绘制 SRR 的折线图
+    ax.plot(r3, df["SRR"], color='grey', label='SRR', marker='o', linestyle='--', linewidth=1.5)
+
+    # 绘制其他柱状图
+    ax.bar(r3, df["rSRR"], color=macaron_colors_1[1], width=bar_width, edgecolor='grey', label='rSRR')
+    ax.bar(r1, df["TPR"], color=macaron_colors_1[0], width=bar_width, edgecolor='grey', label='TPR')
+    ax.bar(r2, df["TRR"], color=macaron_colors_1[3], width=bar_width, edgecolor='grey', label='TRR')
+
+    # 在y=0处添加一条水平线
+    ax.axhline(y=0, color='black', linewidth=0.5)
+
+    # 设置Y轴为百分比格式
+    ax.yaxis.set_major_formatter(PercentFormatter(1))
+
+    # ax.set_xlabel('实现细节')
+    ax.set_ylabel('Reward change rate')
+    ax.set_title(f'{name}')
+    ax.set_xticks([r + bar_width for r in range(n_categories)])
+    ax.set_xticklabels(df["exp_name"], rotation=25, ha="right")
+    ax.legend()
+    plt.tight_layout()
+  
+
+    # 保存图表到文件
+    # ./out/figures/en/png/smac/3m/mappo/smac_3m_mappo_A1.png
+    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category)
+    os.makedirs(save_dir, exist_ok=True)
+    figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{name}.{argv["type"]}')
+    plt.savefig(figure_name, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Saved to {figure_name}")
+
 
 
 def _plot_line(df, excel_path, category, name, ylabel, argv):
@@ -401,13 +463,16 @@ if __name__ == "__main__":
 
     # 评一个trick方案下所有攻击的reward
     # x轴为trick，y轴为reward，每个trick方案一张图
-    plot_trick_reward(excel_path, argv)
-    if argv["env"] == "smac":
-        plot_trick_reward(excel_path, argv, ylabel="Win Rate")
+    # plot_trick_reward(excel_path, argv)
+    # if argv["env"] == "smac":
+    #     plot_trick_reward(excel_path, argv, ylabel="Win Rate")
 
     # 评一个攻击下所有trick的reward
     # x轴为trick，y轴为reward，每个攻击方法一张图
-    plot_attack_reward(excel_path, argv)
+    # plot_attack_reward(excel_path, argv)
 
     # 画训练对比曲线图
-    plot_train_reward(argv)
+    # plot_train_reward(argv)
+        
+    # 画metrics
+    plot_metrics(excel_path, argv)
