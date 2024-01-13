@@ -248,7 +248,7 @@ def _plot_metrics(df, excel_path, category, name, argv):
     ax.set_ylabel('Reward change rate')
     ax.set_title(f'{name}')
     ax.set_xticks([r + bar_width for r in range(n_categories)])
-    ax.set_xticklabels(df["exp_name"], rotation=25, ha="right")
+    ax.set_xticklabels(df["exp_name"], rotation=30, ha="right")
     ax.legend()
     plt.tight_layout()
   
@@ -463,16 +463,16 @@ if __name__ == "__main__":
 
     # 评一个trick方案下所有攻击的reward
     # x轴为trick，y轴为reward，每个trick方案一张图
-    # plot_trick_reward(excel_path, argv)
-    # if argv["env"] == "smac":
-    #     plot_trick_reward(excel_path, argv, ylabel="Win Rate")
+    plot_trick_reward(excel_path, argv)
+    if argv["env"] == "smac":
+        plot_trick_reward(excel_path, argv, ylabel="Win Rate")
 
     # 评一个攻击下所有trick的reward
     # x轴为trick，y轴为reward，每个攻击方法一张图
-    # plot_attack_reward(excel_path, argv)
+    plot_attack_reward(excel_path, argv)
 
     # 画训练对比曲线图
-    # plot_train_reward(argv)
+    plot_train_reward(argv)
         
     # 画metrics
     plot_metrics(excel_path, argv)
