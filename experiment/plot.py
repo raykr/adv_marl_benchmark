@@ -433,6 +433,8 @@ def _plot_train_line(dfs, tag_name, ylabel, weight, argv):
 
 
 def tensorboard_smoothing(values, weight):
+    if len(values) == 0:
+        return []
     last = values[0]
     smoothed = []
     for point in values:

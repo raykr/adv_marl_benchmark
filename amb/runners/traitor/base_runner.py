@@ -158,8 +158,12 @@ class BaseRunner:
     
     def get_adv_rewards(self, data):
         if self.args["env"] == "mamujoco":
-            rewards = np.array([data["infos"][i][0]["reward_run"] for i in range(len(data["infos"]))])
-            rewards = rewards.reshape(data["rewards"].shape)
+            if "reward_run" not in data["infos"][0][0]:
+                rewards = np.array([data["infos"][i][0]["reward_forward"] for i in range(len(data["infos"]))])
+                rewards = rewards.reshape(data["rewards"].shape)
+            else:
+                rewards = np.array([data["infos"][i][0]["reward_run"] for i in range(len(data["infos"]))])
+                rewards = rewards.reshape(data["rewards"].shape)
         else:
             rewards = data["rewards"]
         return -rewards

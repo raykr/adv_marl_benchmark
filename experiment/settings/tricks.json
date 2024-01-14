@@ -23,7 +23,7 @@
         "use_feature_normalization": [false],
         "lr": [0.00005, 0.005],
         "critic_lr": [0.00005, 0.005],
-        "n_step": [1, 5, 10, 25],
+        "n_step": [5, 25],
         "share_param": [false]
     },
     "qmix": {
@@ -38,7 +38,7 @@
         "use_recurrent_policy": [true],
         "use_feature_normalization": [false],
         "lr": [0.00005, 0.005],
-        "n_step": [1, 5, 10, 25],
+        "n_step": [5, 25],
         "share_param": [false]
     }
 }
