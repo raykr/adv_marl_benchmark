@@ -44,7 +44,7 @@ class MetaDriveEnv:
         return (
             self.unwrap(obs),
             self.unwrap(obs),
-            self.unwrap(rew),
+            self.corp_reward(self.unwrap(rew)),
             self.unwrap(dones),
             self.unwrap(info),
             self.get_avail_actions(),
@@ -82,6 +82,9 @@ class MetaDriveEnv:
             else:
                 l.append(d[agent])
         return l
+    
+    def corp_reward(self, rew):
+        return self.repeat(np.mean(rew))
 
     def repeat(self, a):
         return [a for _ in range(self.n_agents)]

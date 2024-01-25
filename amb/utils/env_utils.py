@@ -58,7 +58,7 @@ def get_onehot_shape_from_act_space(act_space):
 def make_train_env(env_name, seed, n_threads, env_args):
     """Make env for training."""
     if env_name == "dexhands":
-        from harl.envs.dexhands.dexhands_env import DexHandsEnv
+        from amb.envs.dexhands.dexhands_env import DexHandsEnv
 
         return DexHandsEnv({"n_threads": n_threads, **env_args})
 
@@ -143,8 +143,10 @@ def make_train_env(env_name, seed, n_threads, env_args):
 
 def make_eval_env(env_name, seed, n_threads, env_args):
     """Make env for evaluation."""
-    if env_name == "dexhands":  # dexhands does not support running multiple instances
-        raise NotImplementedError
+    if env_name == "dexhands":
+        from amb.envs.dexhands.dexhands_env import DexHandsEnv
+
+        return DexHandsEnv({"n_threads": n_threads, **env_args})
 
     def get_env_fn(rank):
         def init_env():
@@ -223,6 +225,7 @@ def make_eval_env(env_name, seed, n_threads, env_args):
 def make_render_env(env_name, seed, env_args):
     """Make env for rendering."""
     manual_render = True  # manually call the render() function
+    manual_expand_dims = True  # manually expand the num_of_parallel_envs dimension
     manual_delay = True  # manually delay the rendering by time.sleep()
     env_num = 1  # number of parallel envs
     if env_name == "smac":
@@ -269,10 +272,11 @@ def make_render_env(env_name, seed, env_args):
         manual_render = False
         manual_delay = False
     elif env_name == "dexhands":
-        from harl.envs.dexhands.dexhands_env import DexHandsEnv
+        from amb.envs.dexhands.dexhands_env import DexHandsEnv
 
         env = DexHandsEnv({"n_threads": 64, **env_args})
         manual_render = False  # dexhands renders automatically
+        manual_expand_dims = False  # dexhands uses parallel envs, thus dimension is already expanded
         manual_delay = False
         env_num = 64
     elif env_name == "network":
@@ -283,7 +287,7 @@ def make_render_env(env_name, seed, env_args):
         print("Can not support the " + env_name + "environment.")
         raise NotImplementedError
     env.seed(seed * 60000)
-    return env, manual_render, manual_delay, env_num
+    return env, manual_render, manual_expand_dims, manual_delay, env_num
 
 
 def set_seed(args):
