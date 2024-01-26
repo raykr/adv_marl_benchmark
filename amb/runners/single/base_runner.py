@@ -65,22 +65,35 @@ class BaseRunner:
                 self.env_num,
             ) = make_render_env(args["env"], algo_args["train"]["seed"], env_args)
         else:  # make envs for training and evaluation
-            self.envs = make_train_env(
-                args["env"],
-                algo_args["train"]["seed"],
-                algo_args["train"]["n_rollout_threads"],
-                env_args,
-            )
-            self.eval_envs = (
-                make_eval_env(
+            if self.algo_args["train"]["num_env_steps"] == 0:  # only evaluate not train
+                self.envs = self.eval_envs = (
+                    make_eval_env(
+                        args["env"],
+                        algo_args["train"]["seed"],
+                        algo_args["train"]["n_eval_rollout_threads"],
+                        env_args,
+                    )
+                    if algo_args["train"]["use_eval"]
+                    else None
+                )
+                print("self.envs: ", self.envs)
+            else: # train and evaluate
+                self.envs = make_train_env(
                     args["env"],
                     algo_args["train"]["seed"],
-                    algo_args["train"]["n_eval_rollout_threads"],
+                    algo_args["train"]["n_rollout_threads"],
                     env_args,
                 )
-                if algo_args["train"]["use_eval"]
-                else None
-            )
+                self.eval_envs = (
+                    make_eval_env(
+                        args["env"],
+                        algo_args["train"]["seed"],
+                        algo_args["train"]["n_eval_rollout_threads"],
+                        env_args,
+                    )
+                    if algo_args["train"]["use_eval"]
+                    else None
+                )
         self.num_agents = self.envs.n_agents
         self.action_type = self.envs.action_space[0].__class__.__name__
 

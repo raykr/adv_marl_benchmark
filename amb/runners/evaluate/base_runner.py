@@ -28,13 +28,13 @@ class BaseRunner:
 
         self.rnn_hidden_size = algo_args["train"]["hidden_sizes"][-1]
         self.recurrent_n = algo_args["train"]["recurrent_n"]
-        self.n_eval_rollout_threads = algo_args['train']['n_eval_rollout_threads']
-        self.share_param = algo_args["train"]['share_param']
+        self.n_eval_rollout_threads = algo_args["train"]["n_eval_rollout_threads"]
+        self.share_param = algo_args["train"]["share_param"]
 
         set_seed(algo_args["train"])
         self.device = init_device(algo_args["train"])
         self.task_name = get_task_name(args["env"], env_args)
-        if not self.algo_args['train']['use_render']:
+        if not self.algo_args["train"]["use_render"]:
             self.run_dir, self.log_dir, self.save_dir, self.writter = init_dir(
                 args["env"],
                 env_args,
@@ -49,7 +49,7 @@ class BaseRunner:
         setproctitle.setproctitle(str(args["algo"]) + "-" + str(args["env"]) + "-" + str(args["exp_name"]))
 
         # set the config of env
-        if self.algo_args['train']['use_render']:  # make envs for rendering
+        if self.algo_args["train"]["use_render"]:  # make envs for rendering
             (
                 self.envs,
                 self.manual_render,
@@ -59,11 +59,11 @@ class BaseRunner:
             ) = make_render_env(args["env"], algo_args["train"]["seed"], env_args)
         else:  # make envs for training and evaluation
             self.envs = make_eval_env(
-                    args["env"],
-                    algo_args["train"]["seed"],
-                    algo_args["train"]["n_eval_rollout_threads"],
-                    env_args,
-                )
+                args["env"],
+                algo_args["train"]["seed"],
+                algo_args["train"]["n_eval_rollout_threads"],
+                env_args,
+            )
             self.eval_envs = self.envs
         self.num_agents = self.envs.n_agents
         self.action_type = self.envs.action_space[0].__class__.__name__
@@ -72,7 +72,7 @@ class BaseRunner:
         print("observation_space: ", self.envs.observation_space)
         print("action_space: ", self.envs.action_space, self.action_type)
 
-        if self.algo_args['train']['use_render'] is False:
+        if self.algo_args["train"]["use_render"] is False:
             self.logger = LOGGER_REGISTRY[args["env"]](
                 args, algo_args, env_args, self.num_agents, self.writter, self.run_dir
             )
@@ -102,7 +102,7 @@ class BaseRunner:
 
     def run(self):
         self.logger.init()
-        self.logger.episode_init(0) 
+        self.logger.episode_init(0)
         self.eval()
 
     @torch.no_grad()
@@ -181,7 +181,7 @@ class BaseRunner:
         if self.args["env"] == "dexhands":
             # this env does not need manual expansion of the num_of_parallel_envs dimension
             # such as dexhands, which instantiates a parallel env of 64 pair of hands
-            for _ in range(self.algo_args['train']["render_episodes"]):
+            for _ in range(self.algo_args["train"]["render_episodes"]):
                 eval_obs, _, eval_available_actions = self.envs.reset()
                 eval_rnn_states = np.zeros(
                     (
@@ -192,9 +192,7 @@ class BaseRunner:
                     ),
                     dtype=np.float32,
                 )
-                eval_masks = np.ones(
-                    (self.env_num, self.num_agents, 1), dtype=np.float32
-                )
+                eval_masks = np.ones((self.env_num, self.num_agents, 1), dtype=np.float32)
                 rewards = 0
                 while True:
                     eval_actions_collector = []
@@ -203,9 +201,7 @@ class BaseRunner:
                             eval_obs[:, agent_id],
                             eval_rnn_states[:, agent_id],
                             eval_masks[:, agent_id],
-                            eval_available_actions[:, agent_id]
-                            if eval_available_actions[0] is not None
-                            else None,
+                            eval_available_actions[:, agent_id] if eval_available_actions[0] is not None else None,
                             deterministic=True,
                         )
                         eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
@@ -229,7 +225,7 @@ class BaseRunner:
                         break
         else:
             # this env needs manual expansion of the num_of_parallel_envs dimension
-            for _ in range(self.algo_args['train']["render_episodes"]):
+            for _ in range(self.algo_args["train"]["render_episodes"]):
                 eval_obs, _, eval_available_actions = self.envs.reset()
                 eval_obs = np.expand_dims(np.array(eval_obs), axis=0)
                 eval_available_actions = (
@@ -246,9 +242,7 @@ class BaseRunner:
                     ),
                     dtype=np.float32,
                 )
-                eval_masks = np.ones(
-                    (self.env_num, self.num_agents, 1), dtype=np.float32
-                )
+                eval_masks = np.ones((self.env_num, self.num_agents, 1), dtype=np.float32)
                 rewards = 0
                 while True:
                     eval_actions_collector = []
@@ -257,9 +251,7 @@ class BaseRunner:
                             eval_obs[:, agent_id],
                             eval_rnn_states[:, agent_id],
                             eval_masks[:, agent_id],
-                            eval_available_actions[:, agent_id]
-                            if eval_available_actions is not None
-                            else None,
+                            eval_available_actions[:, agent_id] if eval_available_actions is not None else None,
                             deterministic=True,
                         )
                         eval_rnn_states[:, agent_id] = _t2n(temp_rnn_state)
@@ -296,9 +288,9 @@ class BaseRunner:
 
     def restore(self):
         """Restore the model"""
-        if self.algo_args['train']['model_dir'] is not None:  # restore model
-            print("Restore model from", self.algo_args['train']['model_dir'])
-            self.algo.restore(str(self.algo_args['train']['model_dir']))
+        if self.algo_args["train"]["model_dir"] is not None:  # restore model
+            print("Restore model from", self.algo_args["train"]["model_dir"])
+            self.algo.restore(str(self.algo_args["train"]["model_dir"]))
 
     def save(self):
         """Save the model"""
@@ -306,7 +298,7 @@ class BaseRunner:
 
     def close(self):
         """Close environment, writter, and log file."""
-        if self.algo_args['train']['use_render']:
+        if self.algo_args["train"]["use_render"]:
             self.envs.close()
         else:
             self.envs.close()
@@ -314,4 +306,3 @@ class BaseRunner:
                 self.eval_envs.close()
             self.writter.close()
             self.logger.close()
-
