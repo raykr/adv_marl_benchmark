@@ -70,6 +70,13 @@ if __name__ == "__main__":
         help="Attack method name. Choose from: random_noise, iterative_perturbation, adaptive_action, random_policy, traitor.",
     )
     parser.add_argument(
+        "--attack_algo",
+        type=str,
+        default="mappo",
+        choices=["mappo", "maddpg", "qmix"],
+        help="Attack method name. Choose from: random_noise, iterative_perturbation, adaptive_action, random_policy, traitor.",
+    )
+    parser.add_argument(
         "--victim",
         type=str,
         default="",
@@ -81,6 +88,12 @@ if __name__ == "__main__":
         type=str,
         default="",
         help="If set, load existing victim config file and checkpoint file instead of reading from yaml config file.",
+    )
+    parser.add_argument(
+        "--load_external",
+        type=str,
+        default="",
+        help="If set, load external agent with checkpoint.",
     )
 
     args, unparsed_args = parser.parse_known_args()
@@ -99,10 +112,10 @@ if __name__ == "__main__":
     if args["mode"] == "train":
         if args["attack"] != "":
             raise ValueError("You should not use attack method in train mode.")
-    
+
     if args["mode"] == "eval" or args["mode"] == "render":
-        if args["load_victim"] == "":
-            raise ValueError("You should specify victim algorithm or load_victim when use attack method.")
+        if args["load_victim"] == "" and args["load_external"] == "":
+            raise ValueError("You should specify load_victim or load_external when use eval.")
 
     if args["load_config"] != "":  # load config from existing config file
         with open(args["load_config"], encoding="utf-8") as file:
@@ -132,17 +145,22 @@ if __name__ == "__main__":
                 victim_args = victim_config["algo_args"]["train"]
                 env_args = victim_config["env_args"]
 
-                if args["attack"] == "": # 有load_victim，但是没有attack，说明是eval vanilla
+                if args["attack"] == "":  # 有load_victim，但是没有attack，说明是eval vanilla
                     algo_args = victim_config["algo_args"]["train"]
 
-                else: # 有load_victim，也有attack，说明是eval attack
+                else:  # 有load_victim，也有attack，说明是eval attack
                     # attack algo的配置从默认文件中读取
-                    algo_args = get_one_yaml_args(args["algo"] + "_traitor")
+                    algo_args = get_one_yaml_args(args["attack_algo"] + "_traitor")
 
-            else: # 没有load_victim，提示错误
-                raise ValueError("You should load victim when eval or render.")
+            elif args["load_external"] != "":
+                algo_args = get_one_yaml_args(args["algo"])
+                env_args = get_one_yaml_args(args["env"], type="env")
+                victim_args = algo_args
 
-        else: # train, 没有load_config的情况下，从默认文件中读取
+                if args["attack"] != "":
+                    algo_args = get_one_yaml_args(args["attack_algo"] + "_traitor")
+
+        else:  # train, 没有load_config的情况下，从默认文件中读取
             algo_args = get_one_yaml_args(args["algo"])
             env_args = get_one_yaml_args(args["env"], type="env")
             victim_args = {}
@@ -175,7 +193,9 @@ if __name__ == "__main__":
         # --run perturbation --algo.num_env_steps 0  --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack False
         args["run"] = "perturbation"
         algo_args["train"]["num_env_steps"] = 0
-        algo_args["train"]["perturb_iters"] = algo_args["train"]["perturb_iters"] if algo_args["train"]["perturb_iters"] else 10
+        algo_args["train"]["perturb_iters"] = (
+            algo_args["train"]["perturb_iters"] if algo_args["train"]["perturb_iters"] else 10
+        )
         algo_args["train"]["adaptive_alpha"] = True
         algo_args["train"]["targeted_attack"] = False
         args["exp_name"] += "_iterative_perturbation"
@@ -183,8 +203,12 @@ if __name__ == "__main__":
     elif args["attack"] == "adaptive_action":
         # --run perturbation --algo.num_env_steps 5000000 --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True
         args["run"] = "perturbation"
-        algo_args["train"]["num_env_steps"] = algo_args["train"]["num_env_steps"] if algo_args["train"]["num_env_steps"] else 5000000
-        algo_args["train"]["perturb_iters"] = algo_args["train"]["perturb_iters"] if algo_args["train"]["perturb_iters"] else 10
+        algo_args["train"]["num_env_steps"] = (
+            algo_args["train"]["num_env_steps"] if algo_args["train"]["num_env_steps"] else 5000000
+        )
+        algo_args["train"]["perturb_iters"] = (
+            algo_args["train"]["perturb_iters"] if algo_args["train"]["perturb_iters"] else 10
+        )
         algo_args["train"]["adaptive_alpha"] = True
         algo_args["train"]["targeted_attack"] = True
         args["exp_name"] += "_adaptive_action"
@@ -198,13 +222,15 @@ if __name__ == "__main__":
     elif args["attack"] == "traitor":
         # --run traitor --algo.num_env_steps 5000000
         args["run"] = "traitor"
-        algo_args["train"]["num_env_steps"] = algo_args["train"]["num_env_steps"] if algo_args["train"]["num_env_steps"] else 5000000
+        algo_args["train"]["num_env_steps"] = (
+            algo_args["train"]["num_env_steps"] if algo_args["train"]["num_env_steps"] else 5000000
+        )
         args["exp_name"] += "_traitor"
 
     # mode
     if args["mode"] == "train":
         args["run"] = "single"
-        algo_args["train"]['use_render'] = False
+        algo_args["train"]["use_render"] = False
         if args["env"] == "dexhands" or args["env"] == "metadrive":
             algo_args["train"]["use_eval"] = False
 
@@ -216,17 +242,20 @@ if __name__ == "__main__":
 
     elif args["mode"] == "render":
         algo_args["train"]["use_eval"] = True
-        algo_args["train"]['use_render'] = True
+        algo_args["train"]["use_render"] = True
 
+    if args["load_external"] != "":
+        from amb.runners.evaluate.external_runner import ExternalRunner
 
-    from amb.runners import get_single_runner
+        runner = ExternalRunner(args, algo_args, env_args)
+    else:
+        from amb.runners import get_single_runner
 
-    runner = get_single_runner(args["run"], args["algo"])(args, algo_args, env_args)
+        runner = get_single_runner(args["run"], args["algo"])(args, algo_args, env_args)
 
-    if algo_args["train"]['use_render']:  # render, not train
+    if algo_args["train"]["use_render"]:  # render, not train
         runner.render()
     else:
         runner.run()
-    
-    runner.close()
 
+    runner.close()
