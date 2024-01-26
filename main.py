@@ -119,26 +119,33 @@ if __name__ == "__main__":
         algo_args = all_config["algo_args"]["train"]
         victim_args = all_config["algo_args"]["victim"]
         env_args = all_config["env_args"]
+
     else:  # load config from corresponding yaml file
-        algo_args = get_one_yaml_args(args["algo"])
-        env_args = get_one_yaml_args(args["env"], type="env")
+        if args["mode"] == "eval" or args["mode"] == "render":
+            if args["load_victim"] != "":
+                with open(os.path.join(args["load_victim"], "config.json"), encoding="utf-8") as file:
+                    victim_config = json.load(file)
+                args["victim"] = victim_config["main_args"]["algo"]
+                args["env"] = victim_config["main_args"]["env"]
+                victim_config["algo_args"]["train"]["model_dir"] = os.path.join(args["load_victim"], "models")
 
-        if args["attack"] != "":
-            algo_args = get_one_yaml_args(args["algo"] + "_traitor")
+                victim_args = victim_config["algo_args"]["train"]
+                env_args = victim_config["env_args"]
 
-        if args["load_victim"] != "":
-            with open(os.path.join(args["load_victim"], "config.json"), encoding="utf-8") as file:
-                victim_config = json.load(file)
-            args["victim"] = victim_config["main_args"]["algo"]
-            args["env"] = victim_config["main_args"]["env"]
-            victim_config["algo_args"]["train"]["model_dir"] = os.path.join(args["load_victim"], "models")
+                if args["attack"] == "": # 有load_victim，但是没有attack，说明是eval vanilla
+                    algo_args = victim_config["algo_args"]["train"]
 
-            victim_args = victim_config["algo_args"]["train"]
-            env_args = victim_config["env_args"]
-        else:
+                else: # 有load_victim，也有attack，说明是eval attack
+                    # attack algo的配置从默认文件中读取
+                    algo_args = get_one_yaml_args(args["algo"] + "_traitor")
+
+            else: # 没有load_victim，提示错误
+                raise ValueError("You should load victim when eval or render.")
+
+        else: # train, 没有load_config的情况下，从默认文件中读取
+            algo_args = get_one_yaml_args(args["algo"])
+            env_args = get_one_yaml_args(args["env"], type="env")
             victim_args = {}
-            if args["victim"] != "":
-                victim_args = get_one_yaml_args(args["victim"])
 
     update_args(unparsed_dict, algo=algo_args, env=env_args, victim=victim_args)  # update args from command line
     algo_args = {"train": algo_args, "victim": victim_args}
@@ -154,45 +161,45 @@ if __name__ == "__main__":
         algo_args["train"]["perturb_timesteps"] = parse_timestep(
             algo_args["train"]["perturb_timesteps"], algo_args["train"]["episode_length"]
         )
-    if args["attack"] != "":
-        if args["attack"] == "random_noise":
-            # --run perturbation --algo.num_env_steps 0 --algo.perturb_iters 0 --algo.adaptive_alpha False --algo.targeted_attack False
-            args["run"] = "perturbation"
-            algo_args["train"]["num_env_steps"] = 0
-            algo_args["train"]["perturb_iters"] = 0
-            algo_args["train"]["adaptive_alpha"] = False
-            algo_args["train"]["targeted_attack"] = False
-            args["exp_name"] += "_random_noise"
 
-        elif args["attack"] == "iterative_perturbation":
-            # --run perturbation --algo.num_env_steps 0  --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack False
-            args["run"] = "perturbation"
-            algo_args["train"]["num_env_steps"] = 0
-            algo_args["train"]["perturb_iters"] = algo_args["train"]["perturb_iters"] if algo_args["train"]["perturb_iters"] else 10
-            algo_args["train"]["adaptive_alpha"] = True
-            algo_args["train"]["targeted_attack"] = False
-            args["exp_name"] += "_iterative_perturbation"
+    if args["attack"] == "random_noise":
+        # --run perturbation --algo.num_env_steps 0 --algo.perturb_iters 0 --algo.adaptive_alpha False --algo.targeted_attack False
+        args["run"] = "perturbation"
+        algo_args["train"]["num_env_steps"] = 0
+        algo_args["train"]["perturb_iters"] = 0
+        algo_args["train"]["adaptive_alpha"] = False
+        algo_args["train"]["targeted_attack"] = False
+        args["exp_name"] += "_random_noise"
 
-        elif args["attack"] == "adaptive_action":
-            # --run perturbation --algo.num_env_steps 5000000 --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True
-            args["run"] = "perturbation"
-            algo_args["train"]["num_env_steps"] = algo_args["train"]["num_env_steps"] if algo_args["train"]["num_env_steps"] else 5000000
-            algo_args["train"]["perturb_iters"] = algo_args["train"]["perturb_iters"] if algo_args["train"]["perturb_iters"] else 10
-            algo_args["train"]["adaptive_alpha"] = True
-            algo_args["train"]["targeted_attack"] = True
-            args["exp_name"] += "_adaptive_action"
+    elif args["attack"] == "iterative_perturbation":
+        # --run perturbation --algo.num_env_steps 0  --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack False
+        args["run"] = "perturbation"
+        algo_args["train"]["num_env_steps"] = 0
+        algo_args["train"]["perturb_iters"] = algo_args["train"]["perturb_iters"] if algo_args["train"]["perturb_iters"] else 10
+        algo_args["train"]["adaptive_alpha"] = True
+        algo_args["train"]["targeted_attack"] = False
+        args["exp_name"] += "_iterative_perturbation"
 
-        elif args["attack"] == "random_policy":
-            # --run traitor --algo.num_env_steps 0
-            args["run"] = "traitor"
-            algo_args["train"]["num_env_steps"] = 0
-            args["exp_name"] += "_random_policy"
+    elif args["attack"] == "adaptive_action":
+        # --run perturbation --algo.num_env_steps 5000000 --algo.perturb_iters 10 --algo.adaptive_alpha True --algo.targeted_attack True
+        args["run"] = "perturbation"
+        algo_args["train"]["num_env_steps"] = algo_args["train"]["num_env_steps"] if algo_args["train"]["num_env_steps"] else 5000000
+        algo_args["train"]["perturb_iters"] = algo_args["train"]["perturb_iters"] if algo_args["train"]["perturb_iters"] else 10
+        algo_args["train"]["adaptive_alpha"] = True
+        algo_args["train"]["targeted_attack"] = True
+        args["exp_name"] += "_adaptive_action"
 
-        elif args["attack"] == "traitor":
-            # --run traitor --algo.num_env_steps 5000000
-            args["run"] = "traitor"
-            algo_args["train"]["num_env_steps"] = algo_args["train"]["num_env_steps"] if algo_args["train"]["num_env_steps"] else 5000000
-            args["exp_name"] += "_traitor"
+    elif args["attack"] == "random_policy":
+        # --run traitor --algo.num_env_steps 0
+        args["run"] = "traitor"
+        algo_args["train"]["num_env_steps"] = 0
+        args["exp_name"] += "_random_policy"
+
+    elif args["attack"] == "traitor":
+        # --run traitor --algo.num_env_steps 5000000
+        args["run"] = "traitor"
+        algo_args["train"]["num_env_steps"] = algo_args["train"]["num_env_steps"] if algo_args["train"]["num_env_steps"] else 5000000
+        args["exp_name"] += "_traitor"
 
     # mode
     if args["mode"] == "train":
