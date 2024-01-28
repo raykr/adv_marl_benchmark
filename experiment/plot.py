@@ -9,21 +9,137 @@ from tensorboard.backend.event_processing.event_accumulator import EventAccumula
 from matplotlib.ticker import PercentFormatter
 
 # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # macos font
-plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP']  # linux
-plt.rc('font',family='Times New Roman')
-matplotlib.rcParams['font.size'] = 14
-matplotlib.rcParams['axes.unicode_minus'] = False  # 解决负号无法显示的问题
+plt.rcParams["font.sans-serif"] = ["Noto Sans CJK JP"]  # linux
+plt.rc("font", family="Times New Roman")
+matplotlib.rcParams["font.size"] = 14
+matplotlib.rcParams["axes.unicode_minus"] = False  # 解决负号无法显示的问题
 # 定义马卡龙配色方案的颜色
-macaron_colors_1 = ['#83C5BE', '#FFDDD2', '#FFBCBC', '#FFAAA5', '#F8BBD0', '#FF8C94']
+macaron_colors_1 = ["#83C5BE", "#FFDDD2", "#FFBCBC", "#FFAAA5", "#F8BBD0", "#FF8C94"]
 # 柔和粉红色 (Soft Pink), 天空蓝色 (Sky Blue),淡紫罗兰色 (Lavender),薄荷绿色 (Mint Green),淡黄色 (Light Yellow),杏色 (Apricot),淡橙色 (Light Orange),淡绿色 (Pale Green),淡蓝色 (Pale Blue),淡紫色 (Pale Purple)
-macaron_colors_2 = ['#F8BBD0', '#81D4FA', '#B39DDB', '#C8E6C9', '#FFF59D', '#FFCC80', '#FFAB91', '#C5E1A5', '#80DEEA', '#CE93D8']
+macaron_colors_2 = [
+    "#F8BBD0",
+    "#81D4FA",
+    "#B39DDB",
+    "#C8E6C9",
+    "#FFF59D",
+    "#FFCC80",
+    "#FFAB91",
+    "#C5E1A5",
+    "#80DEEA",
+    "#CE93D8",
+]
 # https://blog.csdn.net/slandarer/article/details/114157177
-macaron_colors_3 = ['#8ECFC9', '#FFBE7A', '#FA7F6F', '#82B0D2', '#BEB8DC', '#E7DAD2', '#999999']
-ray_colors = ["#83C5BE", "#FFDDD2", "#FFAB91", "#FFAB40", "#FFE0B2", "#FF8C94", '#999999']
+macaron_colors_3 = ["#8ECFC9", "#FFBE7A", "#FA7F6F", "#82B0D2", "#BEB8DC", "#E7DAD2", "#999999"]
+# ray_colors = ["#83C5BE", "#FFDDD2", "#FFAB91", "#FFAB40", "#FFE0B2", "#FF8C94", '#999999']
+# 柔和粉红色 (Soft Pink), 天空蓝色 (Sky Blue),淡紫罗兰色 (Lavender), 淡黄色 (Light Yellow),杏色 (Apricot),淡橙色 (Light Orange),淡绿色 (Pale Green),淡蓝色 (Pale Blue),淡紫色 (Pale Purple)
+ray_colors = ["#F8BBD0", "#81D4FA", "#B39DDB", "#FFBCBC", "#FFAB91", "#C5E1A5", "#80DEEA", "#CE93D8"]
+# 蓝色, 橙色, 绿色, 红色, 紫色, 棕色, 粉红色, 黄绿色, 青色
+sci_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#17becf"]
 # 定义不同的点形状和颜色
-line_markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', 'h', 'x', '*', '+', '1', '2', '3', '4']
-line_colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k', 'orange', 'pink', 'brown', 'gray', 'purple', 'olive', 'cyan', 'navy', 'teal']
-
+line_markers = ["o", "s", "D", "^", "v", "<", ">", "p", "h", "x", "*", "+", "1", "2", "3", "4"]
+line_colors = [
+    "b",
+    "r",
+    "g",
+    "c",
+    "m",
+    "y",
+    "k",
+    "orange",
+    "pink",
+    "brown",
+    "gray",
+    "purple",
+    "olive",
+    "cyan",
+    "navy",
+    "teal",
+]
+# 彩虹马卡龙
+rainbow_colors = [
+    "#FA7F6F",  # 红色系
+    "#FFAAA5",  # 橙色系
+    "#FFF59D",  # 黄色系
+    "#C5E1A5",  # 绿色系
+    "#8ECFC9",  # 青色系
+    "#81D4FA",  # 蓝色系
+    "#B39DDB",  # 紫色系
+]
+macaron_rainbow_colors = [
+    # 红色系
+    "#ff9999",
+    "#ff7f7f",
+    "#ff6666",
+    "#ff4c4c",
+    "#ff3232",
+    # 橙色系
+    "#ffcc99",
+    "#ffb57f",
+    "#ff9f66",
+    "#ff8a4c",
+    "#ff7432",
+    # 黄色系
+    "#ffff99",
+    "#ffff7f",
+    "#ffff66",
+    "#ffff4c",
+    "#ffff32",
+    # 绿色系
+    "#99ff99",
+    "#7fff7f",
+    "#66ff66",
+    "#4cff4c",
+    "#32ff32",
+    # 青色系
+    "#99ffff",
+    "#7fffff",
+    "#66ffff",
+    "#4cffff",
+    "#32ffff",
+    # 蓝色系
+    "#9999ff",
+    "#7f7fff",
+    "#6666ff",
+    "#4c4cff",
+    "#3232ff",
+    # 紫色系
+    "#ff99ff",
+    "#ff7fff",
+    "#ff66ff",
+    "#ff4cff",
+    "#ff32ff",
+]
+rainbow_colors_2 = [
+    "#EEA1AB",
+    "#EEA29B",
+    "#EEA385",
+    "#EEA45C",
+    "#E3AB58",
+    "#D8B059",
+    "#CFB359",
+    "#C7B758",
+    "#B5BC58",
+    "#A9BF58",
+    "#98C158",
+    "#7FC558",
+    "#6AC578",
+    "#6AC493",
+    "#6BC3AE",
+    "#6BC3B7",
+    "#6BC2BF",
+    "#6CC2C5",
+    "#6CC1D5",
+    "#6DC0DE",
+    "#6DBFE9",
+    "#99B9F3",
+    "#BCB1F3",
+    "#C9ABF3",
+    "#D6A5F3",
+    "#EC9DDC",
+    "#ED9ED0",
+    "#EE9FC4",
+    "#EEA0B9",
+]
 
 i18n = {
     "zh": {
@@ -50,7 +166,7 @@ i18n = {
         "B": "网络架构",
         "C": "优化器",
         "D": "优势估计",
-        "E": "多智能体特性"
+        "E": "多智能体特性",
     },
     "en": {
         "exp_name": "Trick",
@@ -76,7 +192,7 @@ i18n = {
         "B": "Network Architecture",
         "C": "Optimizer",
         "D": "Advantage Estimation",
-        "E": "Multi-Agent Feature"
+        "E": "Multi-Agent Feature",
     },
 }
 
@@ -86,12 +202,13 @@ YLIM = {
 }
 
 # 读取scheme.json
-SCHEME_CFG = json.load(open("settings/scheme.json", "r"))
+SCHEME_CFG = json.load(open(os.path.abspath(os.path.join(os.path.dirname(__file__), "settings/scheme.json")), "r"))
+
 
 def plot_trick_reward(excel_path, argv, ylabel="Episode Reward"):
     # 读取Excel文件
     xlsx = pd.ExcelFile(excel_path)
-    
+
     # 遍历所有工作表，合并df
     combined_df = pd.DataFrame()
     for i, sheet in enumerate(xlsx.sheet_names):
@@ -113,7 +230,7 @@ def plot_trick_reward(excel_path, argv, ylabel="Episode Reward"):
                 combined_df["vanilla_win_rate"] = df["vanilla_win_rate"]
             else:
                 combined_df["vanilla_reward"] = df["vanilla_reward"]
-        
+
         # 对combined_df增加一列，以sheet作为列名，值为df中的adv_reward
         if ylabel == "Win Rate":
             combined_df[sheet] = df["adv_win_rate"]
@@ -149,7 +266,6 @@ def plot_attack_reward(excel_path, argv):
 
 
 def _plot_bar(df, excel_path, category, name, argv):
-
     filename = os.path.basename(excel_path).split(".")[0]
     display = i18n[argv["i18n"]]
 
@@ -175,27 +291,33 @@ def _plot_bar(df, excel_path, category, name, argv):
 
     # 创建柱状图
     for i, column in enumerate(df.columns[1:]):
-        plt.bar(bar_positions[i], df[column], color=ray_colors[i], width=bar_width, edgecolor='grey', label=display[column])
+        plt.bar(
+            bar_positions[i], df[column], color=ray_colors[i], width=bar_width, edgecolor="grey", label=display[column]
+        )
 
     # 添加图表细节
     # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
     if filename in YLIM:
         plt.ylim(YLIM[filename])
     # plt.xlabel(display[scheme[0]])
-    plt.xticks(positions + total_bar_space / 2, df['exp_name'], rotation=0 if len(df) < 10 else 45, ha="right")
+    plt.xticks(positions + total_bar_space / 2, df["exp_name"], rotation=0 if len(df) < 10 else 45, ha="right")
     plt.ylabel(display["reward"])
     # 在y=0处添加一条水平线
-    plt.axhline(y=0, color='grey', linestyle='--', linewidth=1)
+    plt.axhline(y=0, color="grey", linestyle="--", linewidth=1)
     # plt.title(scheme_name)
-    plt.legend(ncol=10, frameon=True, loc='upper center', bbox_to_anchor=(0.5, 1))
+    plt.legend(ncol=10, frameon=True, loc="upper center", bbox_to_anchor=(0.5, 1))
     plt.tight_layout()
 
     # 保存图表到文件
     # ./out/figures/en/png/smac/3m/mappo/smac_3m_mappo_A1.png
-    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category)
+    save_dir = os.path.join(
+        argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category
+    )
     os.makedirs(save_dir, exist_ok=True)
-    figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{name}.{argv["type"]}')
-    plt.savefig(figure_name, dpi=300, bbox_inches='tight')
+    figure_name = os.path.join(
+        save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{name}.{argv["type"]}'
+    )
+    plt.savefig(figure_name, dpi=300, bbox_inches="tight")
     print(f"Saved to {figure_name}")
 
     # 展示图表
@@ -214,6 +336,7 @@ def plot_metrics(excel_path, argv):
         # 画图
         _plot_metrics(df, excel_path, "metrics", sheet_name, argv)
 
+
 def _plot_metrics(df, excel_path, category, name, argv):
     filename = os.path.basename(excel_path).split(".")[0]
     display = i18n[argv["i18n"]]
@@ -223,7 +346,7 @@ def _plot_metrics(df, excel_path, category, name, argv):
     width = 15  # 假设宽度为10单位
     height = width / golden_ratio  # 根据黄金比例计算高度
     fig, ax = plt.subplots(figsize=(width, height))
-    
+
     n_categories = len(df)
     bar_width = 0.25
     r1 = np.arange(n_categories)
@@ -231,37 +354,148 @@ def _plot_metrics(df, excel_path, category, name, argv):
     r3 = [x + 2 * bar_width for x in r1]
 
     # 绘制 SRR 的折线图
-    ax.plot(r3, df["SRR"], color='grey', label='SRR', marker='o', linestyle='--', linewidth=1.5)
+    ax.plot(r3, df["SRR"], color="grey", label="SRR", marker="o", linestyle="--", linewidth=1.5)
 
     # 绘制其他柱状图
-    ax.bar(r3, df["rSRR"], color=macaron_colors_1[1], width=bar_width, edgecolor='grey', label='rSRR')
-    ax.bar(r1, df["TPR"], color=macaron_colors_1[0], width=bar_width, edgecolor='grey', label='TPR')
-    ax.bar(r2, df["TRR"], color=macaron_colors_1[3], width=bar_width, edgecolor='grey', label='TRR')
+    ax.bar(r3, df["rSRR"], color=macaron_colors_1[1], width=bar_width, edgecolor="grey", label="rSRR")
+    ax.bar(r1, df["TPR"], color=macaron_colors_1[0], width=bar_width, edgecolor="grey", label="TPR")
+    ax.bar(r2, df["TRR"], color=macaron_colors_1[3], width=bar_width, edgecolor="grey", label="TRR")
 
     # 在y=0处添加一条水平线
-    ax.axhline(y=0, color='black', linewidth=0.5)
+    ax.axhline(y=0, color="black", linewidth=0.5)
 
     # 设置Y轴为百分比格式
     ax.yaxis.set_major_formatter(PercentFormatter(1))
 
     # ax.set_xlabel('实现细节')
-    ax.set_ylabel('Reward change rate')
-    ax.set_title(f'{name}')
+    ax.set_ylabel("Reward change rate")
+    ax.set_title(f"{name}")
     ax.set_xticks([r + bar_width for r in range(n_categories)])
     ax.set_xticklabels(df["exp_name"], rotation=30, ha="right")
     ax.legend()
     plt.tight_layout()
-  
 
     # 保存图表到文件
     # ./out/figures/en/png/smac/3m/mappo/smac_3m_mappo_A1.png
-    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category)
+    save_dir = os.path.join(
+        argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category
+    )
     os.makedirs(save_dir, exist_ok=True)
-    figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{name}.{argv["type"]}')
-    plt.savefig(figure_name, dpi=300, bbox_inches='tight')
+    figure_name = os.path.join(
+        save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{name}.{argv["type"]}'
+    )
+    plt.savefig(figure_name, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved to {figure_name}")
 
+
+def boxplot_mean_attack_metric(excel_path, argv):
+    row_wise_results = _read_one_excel_cr(excel_path)
+    _boxplot_cr(row_wise_results, os.path.basename(excel_path).split(".")[0], argv)
+
+def boxplot_mean_attack_metric_env(argv):
+    # 遍历argv["out"]/data下的所有excel，按最后的算法分组
+    excel_paths = {"mappo": [], "maddpg": [], "qmix": []}
+    for root, _, files in os.walk(os.path.join(os.path.dirname(__file__), argv["out"], "data")):
+        for file in files:
+            if file.endswith(".xlsx"):
+                algo_name = file.split("_")[-1].split(".")[0]
+                excel_paths[algo_name].append(os.path.join(root, file))
+
+    # 依次遍历每个算法下的所有excel，合并列名相同的数据
+    for algo_name, paths in excel_paths.items():
+        row_wise_results = {}
+        # 遍历这个算法下所有的excel，数据合并到row_wise_results
+        for i, path in enumerate(paths):
+            one_results = _read_one_excel_cr(path)
+
+            if i == 0:
+                row_wise_results = one_results
+            else:
+                for exp_name, metrics in one_results.items():
+                    for metric, values in metrics.items():
+                        row_wise_results[exp_name][metric].extend(values)
+
+        _boxplot_cr(row_wise_results, algo_name, argv)
+
+
+def _read_one_excel_cr(path):
+    # 读取Excel文件
+    xlsx = pd.ExcelFile(path)
+    sheet_names = xlsx.sheet_names
+
+    # Loading data from all sheets
+    sheets_data = {sheet: pd.read_excel(path, sheet_name=sheet) for sheet in sheet_names}
+
+    # 取出第一个sheet的exp_name列
+    exp_names = sheets_data[sheet_names[0]]["exp_name"]
+    # Metrics to calculate mean and std
+    origin_metrics = ["TPR", "TRR"]
+    metrics = ["CR"]
+
+    # Calculating mean and std for each metric, for each row across all sheets
+    row_wise_results = {}
+    for i, exp_name in enumerate(exp_names):
+        row_metrics = {metric: [] for metric in origin_metrics}
+
+        for sheet in sheet_names:
+            for metric in origin_metrics:
+                row_metrics[metric].append(sheets_data[sheet].iloc[i][metric])
+
+        # 再把一行的rSRR、TPR、TRR三个指标合并成一个list
+        row_metrics["CR"] = [row_metrics[metric] for metric in origin_metrics]
+        row_metrics["CR"] = np.array(row_metrics["CR"]).flatten().tolist()
+
+        row_wise_results[exp_name] = {metric: row_metrics["CR"] for metric in metrics}
+
+    return row_wise_results
+
+
+def _boxplot_cr(row_wise_results, filename, argv):
+    # 获取row_wise_results中的所有keys
+    exp_names = list(row_wise_results.keys())
+    # 设置每个箱线图的位置
+    positions = range(1, len(exp_names) + 1)
+
+    # Plotting the line chart with std as the shaded area
+    golden_ratio = 1.618
+    width = 15  # 假设宽度为10单位
+    height = width / golden_ratio  # 根据黄金比例计算高度
+    plt.figure(figsize=(width, height))
+
+    for exp_name, pos in zip(exp_names, positions):
+        plt.boxplot(
+            row_wise_results[exp_name]["CR"],
+            positions=[pos],
+            widths=0.3,
+            patch_artist=True,
+            showmeans=True,
+            showfliers=False,
+            boxprops=dict(facecolor=rainbow_colors_2[pos]),
+            meanprops=dict(marker="o", markerfacecolor="black", markeredgecolor="black", markersize=4),
+            medianprops=dict(marker=None, color="black", linewidth=1.5),
+            flierprops=dict(marker="o", markerfacecolor=rainbow_colors_2[pos], markeredgecolor=rainbow_colors_2[pos]),
+        )
+
+    # 在y=0处添加一条水平线
+    plt.axhline(y=0, color="black", linewidth=0.5, linestyle="--")
+    # 设置Y轴为百分比格式
+    plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+    # plt.grid(True, axis='both', linestyle='--')
+    plt.xticks(positions, exp_names, rotation=45, ha="right")
+    plt.xlabel("Tricks")
+    plt.ylabel("Comprehensive Robustness Change Rate")
+    plt.title(filename)
+    plt.tight_layout()
+
+    # 保存图表到文件
+    category = "boxplot"
+    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], category)
+    os.makedirs(save_dir, exist_ok=True)
+    figure_name = os.path.join(save_dir, f'{category}_{filename}.{argv["type"]}')
+    plt.savefig(figure_name, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved to {figure_name}")
 
 
 def _plot_line(df, excel_path, category, name, ylabel, argv):
@@ -278,7 +512,14 @@ def _plot_line(df, excel_path, category, name, ylabel, argv):
     # 将df列名按照i18n进行替换
     df.columns = [display[col] if col in display else col for col in df.columns]
     for i, row in df.iterrows():
-        plt.plot(row.index[1:], row.values[1:], linestyle='--', marker=line_markers[i], color=line_colors[i], label=row[display["exp_name"]])
+        plt.plot(
+            row.index[1:],
+            row.values[1:],
+            linestyle="--",
+            marker=line_markers[i],
+            color=line_colors[i],
+            label=row[display["exp_name"]],
+        )
 
     # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
     # numeric_df = df.select_dtypes(include=[np.number])
@@ -288,7 +529,7 @@ def _plot_line(df, excel_path, category, name, ylabel, argv):
     #     plt.ylim(YLIM[filename])
     # 设置图表标题和坐标轴标签
     plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
-    plt.xlabel('Adversarial Methods')
+    plt.xlabel("Adversarial Methods")
     plt.ylabel(ylabel)
 
     # 判断YLIM是否有该filename的key，如果有，则设置Y轴范围
@@ -296,17 +537,22 @@ def _plot_line(df, excel_path, category, name, ylabel, argv):
     #     plt.ylim(YLIM[filename])
 
     # 添加网格虚线
-    plt.grid(True, linestyle='--')
+    plt.grid(True, linestyle="--")
 
     # 显示图例
     plt.legend()
 
     # 保存图表到文件
     # ./out/figures/en/png/smac/3m/mappo/smac_3m_mappo_A1.png
-    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category)
+    save_dir = os.path.join(
+        argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category
+    )
     os.makedirs(save_dir, exist_ok=True)
-    figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}{"_winrate" if ylabel == "Win Rate" else ""}_{category}_{name}.{argv["type"]}')
-    plt.savefig(figure_name, dpi=300, bbox_inches='tight')
+    figure_name = os.path.join(
+        save_dir,
+        f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}{"_winrate" if ylabel == "Win Rate" else ""}_{category}_{name}.{argv["type"]}',
+    )
+    plt.savefig(figure_name, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved to {figure_name}")
 
@@ -328,14 +574,14 @@ def plot_train_reward(argv):
 def _plot_tb_data(groupby, trail_dir, tag_name, ylabel, weight, argv):
     skip_tag = False
     dfs = {}
-    
+
     listdir = os.listdir(trail_dir)
     # 先遍历SCHEME_CFG["tricks"]，再去check目录更好，因为可以保证顺序
     for trick_name, trick_tag in SCHEME_CFG["tricks"].items():
         # 如果目录中没有这一项trick，跳过
         if trick_name not in listdir:
             continue
-        
+
         # 同时支持scheme和trick两种分组方式，因此需要替换trick_tag
         trick_tag = trick_tag if groupby == "trick" else trick_tag[0]
 
@@ -375,7 +621,7 @@ def _plot_tb_data(groupby, trail_dir, tag_name, ylabel, weight, argv):
                 # 填充列
                 dfs[trick_tag].loc[len(dfs[trick_tag]) - 1, "step"] = value.step
                 dfs[trick_tag].loc[len(dfs[trick_tag]) - 1, trick_name] = value.value
-    
+
     # 画图
     if not skip_tag:
         _plot_train_line(dfs, tag_name.split("/")[1], ylabel, weight, argv)
@@ -397,10 +643,10 @@ def _plot_train_line(dfs, tag_name, ylabel, weight, argv):
         column_names = data.columns.values.tolist()
         # 去除step列
         column_names.remove("step")
-        
+
         # 画默认曲线
         default_df = dfs[SCHEME_CFG["tricks"]["default"]]
-        smoothed_values = tensorboard_smoothing(default_df["default"], weight=weight)   
+        smoothed_values = tensorboard_smoothing(default_df["default"], weight=weight)
         plt.plot(default_df["step"], smoothed_values, color=line_colors[0], label="default")
         plt.fill_between(default_df["step"], smoothed_values, default_df["default"], color=line_colors[0], alpha=0.2)
 
@@ -411,23 +657,29 @@ def _plot_train_line(dfs, tag_name, ylabel, weight, argv):
             # 去除data中column_name列为NaN的行
             clean_data = clean_data.dropna(subset=[column_name])
             clean_data = clean_data.reset_index(drop=True)
-            
+
             # Apply TensorBoard-style smoothing
-            smoothed_values = tensorboard_smoothing(clean_data[column_name], weight=weight)   
-            plt.plot(clean_data["step"], smoothed_values, color=line_colors[i+1], label=column_name)
-            plt.fill_between(clean_data["step"], smoothed_values, clean_data[column_name], color=line_colors[i+1], alpha=0.2)
+            smoothed_values = tensorboard_smoothing(clean_data[column_name], weight=weight)
+            plt.plot(clean_data["step"], smoothed_values, color=line_colors[i + 1], label=column_name)
+            plt.fill_between(
+                clean_data["step"], smoothed_values, clean_data[column_name], color=line_colors[i + 1], alpha=0.2
+            )
 
         plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
-        plt.xlabel('Step')
+        plt.xlabel("Step")
         plt.ylabel(ylabel)
         plt.legend()
-        plt.grid(True, linestyle='--')
+        plt.grid(True, linestyle="--")
         plt.tight_layout()
-        
-        save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], tag_name)
+
+        save_dir = os.path.join(
+            argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], tag_name
+        )
         os.makedirs(save_dir, exist_ok=True)
-        figure_name = os.path.join(save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{tag_name}_{tag}.{argv["type"]}')
-        plt.savefig(figure_name, dpi=300, bbox_inches='tight')
+        figure_name = os.path.join(
+            save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{tag_name}_{tag}.{argv["type"]}'
+        )
+        plt.savefig(figure_name, dpi=300, bbox_inches="tight")
         plt.close()
         print(f"Saved to {figure_name}")
 
@@ -450,18 +702,27 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
     parser.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
     parser.add_argument("-o", "--out", type=str, default="out", help="output dir")
-    parser.add_argument('-f', '--file', type=str, default=None, help='Excel file path')
-    parser.add_argument('-i', '--i18n', type=str, default='en', choices=["en", "zh"], help='Choose the language')
-    parser.add_argument("-t", "--type", type=str, default='png', choices=["png", "pdf"], help='save figure type')
-    parser.add_argument('-g', '--groupby', type=str, default='trick', choices=["trick", "scheme"], help='Group by trick or scheme')
-    parser.add_argument('--show', action='store_true', help='Whether to show the plot')
+    parser.add_argument("-f", "--file", type=str, default=None, help="Excel file path")
+    parser.add_argument("-i", "--i18n", type=str, default="en", choices=["en", "zh"], help="Choose the language")
+    parser.add_argument("-t", "--type", type=str, default="png", choices=["png", "pdf"], help="save figure type")
+    parser.add_argument(
+        "-g", "--groupby", type=str, default="trick", choices=["trick", "scheme"], help="Group by trick or scheme"
+    )
+    parser.add_argument("--show", action="store_true", help="Whether to show the plot")
     args, _ = parser.parse_known_args()
     argv = vars(args)
-    
+
     if argv["file"] is not None:
         excel_path = argv["file"]
     else:
-        excel_path = os.path.join(argv["out"], "data", argv["env"], argv["scenario"], argv["algo"], f"{argv['env']}_{argv['scenario']}_{argv['algo']}.xlsx")
+        excel_path = os.path.join(
+            argv["out"],
+            "data",
+            argv["env"],
+            argv["scenario"],
+            argv["algo"],
+            f"{argv['env']}_{argv['scenario']}_{argv['algo']}.xlsx",
+        )
 
     # 评一个trick方案下所有攻击的reward
     # x轴为trick，y轴为reward，每个trick方案一张图
@@ -475,6 +736,12 @@ if __name__ == "__main__":
 
     # 画训练对比曲线图
     plot_train_reward(argv)
-        
+
     # 画metrics
     plot_metrics(excel_path, argv)
+
+    # 合并attack、metrics的箱线图，每个（环境+算法）一张图，共12张，看的是算法在特定环境上的不同trick的表现
+    boxplot_mean_attack_metric(excel_path, argv)
+
+    # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
+    boxplot_mean_attack_metric_env(argv)
