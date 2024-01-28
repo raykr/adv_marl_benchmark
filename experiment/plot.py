@@ -14,7 +14,7 @@ plt.rc("font", family="Times New Roman")
 matplotlib.rcParams["font.size"] = 14
 matplotlib.rcParams["axes.unicode_minus"] = False  # 解决负号无法显示的问题
 # 定义马卡龙配色方案的颜色
-macaron_colors_1 = ["#83C5BE", "#FFDDD2", "#FFBCBC", "#FFAAA5", "#F8BBD0", "#FF8C94"]
+macaron_colors_1 = ["#83C5BE", "#FFAAA5", "#FFDDD2", "#FFBCBC", "#F8BBD0", "#FF8C94"]
 # 柔和粉红色 (Soft Pink), 天空蓝色 (Sky Blue),淡紫罗兰色 (Lavender),薄荷绿色 (Mint Green),淡黄色 (Light Yellow),杏色 (Apricot),淡橙色 (Light Orange),淡绿色 (Pale Green),淡蓝色 (Pale Blue),淡紫色 (Pale Purple)
 macaron_colors_2 = [
     "#F8BBD0",
@@ -30,7 +30,7 @@ macaron_colors_2 = [
 ]
 # https://blog.csdn.net/slandarer/article/details/114157177
 macaron_colors_3 = ["#8ECFC9", "#FFBE7A", "#FA7F6F", "#82B0D2", "#BEB8DC", "#E7DAD2", "#999999"]
-# ray_colors = ["#83C5BE", "#FFDDD2", "#FFAB91", "#FFAB40", "#FFE0B2", "#FF8C94", '#999999']
+# ray_colors = ["#83C5BE", "#FFDDD2", "#FFAB91", "#FFAB40", "#FFE0B2", "#FF8C94", '#cccccc']
 # 柔和粉红色 (Soft Pink), 天空蓝色 (Sky Blue),淡紫罗兰色 (Lavender), 淡黄色 (Light Yellow),杏色 (Apricot),淡橙色 (Light Orange),淡绿色 (Pale Green),淡蓝色 (Pale Blue),淡紫色 (Pale Purple)
 ray_colors = ["#F8BBD0", "#81D4FA", "#B39DDB", "#FFBCBC", "#FFAB91", "#C5E1A5", "#80DEEA", "#CE93D8"]
 # 蓝色, 橙色, 绿色, 红色, 紫色, 棕色, 粉红色, 黄绿色, 青色
@@ -357,9 +357,9 @@ def _plot_metrics(df, excel_path, category, name, argv):
     ax.plot(r3, df["SRR"], color="grey", label="SRR", marker="o", linestyle="--", linewidth=1.5)
 
     # 绘制其他柱状图
-    ax.bar(r3, df["rSRR"], color=macaron_colors_1[1], width=bar_width, edgecolor="grey", label="rSRR")
     ax.bar(r1, df["TPR"], color=macaron_colors_1[0], width=bar_width, edgecolor="grey", label="TPR")
-    ax.bar(r2, df["TRR"], color=macaron_colors_1[3], width=bar_width, edgecolor="grey", label="TRR")
+    ax.bar(r2, df["TRR"], color=macaron_colors_1[1], width=bar_width, edgecolor="grey", label="TRR")
+    ax.bar(r3, df["rSRR"], color=macaron_colors_1[2], width=bar_width, edgecolor="grey", label="rSRR")
 
     # 在y=0处添加一条水平线
     ax.axhline(y=0, color="black", linewidth=0.5)
@@ -785,6 +785,59 @@ def tensorboard_smoothing(values, weight):
     return smoothed
 
 
+def bar_mean_attack_metric(excel_path, argv):
+    row_wise_results = _read_one_excel_metrics(excel_path)
+    _barstd_metrics(row_wise_results, "mean_attack", argv)
+
+
+def _barstd_metrics(row_wise_results, filename, argv):
+    # 获取row_wise_results中的所有keys
+    exp_names = list(row_wise_results.keys())
+    # 位置
+    positions = range(len(exp_names))
+
+    # Plotting the line chart with std as the shaded area
+    golden_ratio = 1.618
+    width = 18  # 假设宽度为10单位
+    height = width / golden_ratio  # 根据黄金比例计算高度
+    plt.figure(figsize=(width, height))
+
+    # 对每个x坐标的点进行轻微的水平偏移
+    offset = 0.2  # 偏移量
+    num_points_per_x = len(row_wise_results[exp_names[0]].keys())
+    for idx, cat in enumerate(positions):
+        for point, metric in enumerate(row_wise_results[exp_names[idx]].keys()):
+            x_val = cat + (point - num_points_per_x / 2) * offset  # 计算偏移后的x值
+            if idx == 0:
+                plt.bar(x_val, row_wise_results[exp_names[idx]][metric]["mean"], yerr=row_wise_results[exp_names[idx]][metric]["std"], edgecolor="grey", width=0.2, capsize=3, ecolor="#aaa", color=macaron_colors_1[point], label=metric)
+            else:
+                plt.bar(x_val, row_wise_results[exp_names[idx]][metric]["mean"], yerr=row_wise_results[exp_names[idx]][metric]["std"], edgecolor="grey", width=0.2, capsize=3, ecolor="#aaa", color=macaron_colors_1[point])
+
+    # 在y=0处添加一条水平线
+    plt.axhline(y=0, color="black", linewidth=0.5, linestyle="--")
+    # 设置Y轴为百分比格式
+    plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+    # plt.grid(True, axis='both', linestyle='--')
+    plt.xticks(positions, exp_names, rotation=35, ha="right")
+    plt.xlabel("Tricks")
+    plt.ylabel("Robustness Change Rate")
+    plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
+    plt.legend()
+    plt.tight_layout()
+
+    # 保存图表到文件
+    category = "barstd"
+    save_dir = os.path.join(
+        argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category
+    )
+    os.makedirs(save_dir, exist_ok=True)
+    figure_name = os.path.join(
+        save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{filename}.{argv["type"]}'
+    )
+    plt.savefig(figure_name, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved to {figure_name}")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--env", type=str, default="smac", help="env name")
@@ -837,3 +890,5 @@ if __name__ == "__main__":
     
     # 合并attack，画metrics的errorbar图
     errorbar_mean_attack_metric(excel_path, argv)
+    # 合并attack，画metrics的bar图，带着std
+    bar_mean_attack_metric(excel_path, argv)
