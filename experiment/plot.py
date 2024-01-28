@@ -393,6 +393,7 @@ def boxplot_mean_attack_metric(excel_path, argv):
     row_wise_results = _read_one_excel_cr(excel_path)
     _boxplot_cr(row_wise_results, os.path.basename(excel_path).split(".")[0], argv)
 
+
 def boxplot_mean_attack_metric_env(argv):
     # 遍历argv["out"]/data下的所有excel，按最后的算法分组
     excel_paths = {"mappo": [], "maddpg": [], "qmix": []}
@@ -431,7 +432,6 @@ def _read_one_excel_cr(path):
     exp_names = sheets_data[sheet_names[0]]["exp_name"]
     # Metrics to calculate mean and std
     origin_metrics = ["TPR", "TRR"]
-    metrics = ["CR"]
 
     # Calculating mean and std for each metric, for each row across all sheets
     row_wise_results = {}
@@ -446,7 +446,7 @@ def _read_one_excel_cr(path):
         row_metrics["CR"] = [row_metrics[metric] for metric in origin_metrics]
         row_metrics["CR"] = np.array(row_metrics["CR"]).flatten().tolist()
 
-        row_wise_results[exp_name] = {metric: row_metrics["CR"] for metric in metrics}
+        row_wise_results[exp_name] = {"CR": row_metrics["CR"]}
 
     return row_wise_results
 
@@ -458,7 +458,7 @@ def _boxplot_cr(row_wise_results, filename, argv):
     positions = range(1, len(exp_names) + 1)
 
     # Plotting the line chart with std as the shaded area
-    golden_ratio = 1.618
+    golden_ratio = 1.4
     width = 15  # 假设宽度为10单位
     height = width / golden_ratio  # 根据黄金比例计算高度
     plt.figure(figsize=(width, height))
@@ -467,7 +467,8 @@ def _boxplot_cr(row_wise_results, filename, argv):
         plt.boxplot(
             row_wise_results[exp_name]["CR"],
             positions=[pos],
-            widths=0.3,
+            widths=0.5,
+            capwidths=0.4,
             patch_artist=True,
             showmeans=True,
             showfliers=False,
@@ -482,7 +483,7 @@ def _boxplot_cr(row_wise_results, filename, argv):
     # 设置Y轴为百分比格式
     plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
     # plt.grid(True, axis='both', linestyle='--')
-    plt.xticks(positions, exp_names, rotation=45, ha="right")
+    plt.xticks(positions, exp_names, rotation=35, ha="right")
     plt.xlabel("Tricks")
     plt.ylabel("Comprehensive Robustness Change Rate")
     plt.title(filename)
@@ -493,6 +494,94 @@ def _boxplot_cr(row_wise_results, filename, argv):
     save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], category)
     os.makedirs(save_dir, exist_ok=True)
     figure_name = os.path.join(save_dir, f'{category}_{filename}.{argv["type"]}')
+    plt.savefig(figure_name, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved to {figure_name}")
+
+
+def errorbar_mean_attack_metric(excel_path, argv):
+    row_wise_results = _read_one_excel_metrics(excel_path)
+    _errbar_metrics(row_wise_results, "mean_attack", argv)
+
+
+def _read_one_excel_metrics(path):
+    # 读取Excel文件
+    xlsx = pd.ExcelFile(path)
+    sheet_names = xlsx.sheet_names
+
+    # Loading data from all sheets
+    sheets_data = {sheet: pd.read_excel(path, sheet_name=sheet) for sheet in sheet_names}
+
+    # 取出第一个sheet的exp_name列
+    exp_names = sheets_data[sheet_names[0]]["exp_name"]
+    # Metrics to calculate mean and std
+    origin_metrics = ["TPR", "TRR", "rSRR"]
+
+    # Calculating mean and std for each metric, for each row across all sheets
+    row_wise_results = {}
+    for i, exp_name in enumerate(exp_names):
+        row_metrics = {metric: [] for metric in origin_metrics}
+
+        for sheet in sheet_names:
+            for metric in origin_metrics:
+                row_metrics[metric].append(sheets_data[sheet].iloc[i][metric])
+
+        row_wise_results[exp_name] = {
+            metric: {"mean": np.array(row_metrics[metric]).mean(), "std": np.array(row_metrics[metric]).std()}
+            for metric in origin_metrics
+        }
+
+    return row_wise_results
+
+
+def _errbar_metrics(row_wise_results, filename, argv):
+    # 获取row_wise_results中的所有keys
+    exp_names = list(row_wise_results.keys())
+    # 位置
+    positions = range(len(exp_names))
+
+    # Plotting the line chart with std as the shaded area
+    golden_ratio = 1.618
+    width = 18  # 假设宽度为10单位
+    height = width / golden_ratio  # 根据黄金比例计算高度
+    plt.figure(figsize=(width, height))
+
+    # 对每个x坐标的点进行轻微的水平偏移
+    offset = 0.1  # 偏移量
+    num_points_per_x = len(row_wise_results[exp_names[0]].keys())
+    for idx, cat in enumerate(positions):
+        for point, metric in enumerate(row_wise_results[exp_names[idx]].keys()):
+            x_val = cat + (point - num_points_per_x / 2) * offset  # 计算偏移后的x值
+            plt.errorbar(x_val, row_wise_results[exp_names[idx]][metric]["mean"], yerr=row_wise_results[exp_names[idx]][metric]["std"], fmt=line_markers[point], color=sci_colors[point], capsize=0, ecolor=sci_colors[point], alpha=0.4)
+
+    # 将errorbar的点按照metric连接起来，形成折线图
+    for point, metric in enumerate(row_wise_results[exp_names[0]].keys()):
+        x_vals = [cat + (point - num_points_per_x / 2) * offset for cat in positions]
+        y_vals = [row_wise_results[exp_name][metric]["mean"] for exp_name in exp_names]
+        plt.plot(x_vals, y_vals, linestyle="--", marker=line_markers[point], color=sci_colors[point], label=metric)
+
+
+    # 在y=0处添加一条水平线
+    plt.axhline(y=0, color="black", linewidth=0.5, linestyle="--")
+    # 设置Y轴为百分比格式
+    plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+    # plt.grid(True, axis='both', linestyle='--')
+    plt.xticks(positions, exp_names, rotation=35, ha="right")
+    plt.xlabel("Tricks")
+    plt.ylabel("Robustness Change Rate")
+    plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
+    plt.legend()
+    plt.tight_layout()
+
+    # 保存图表到文件
+    category = "errorbar"
+    save_dir = os.path.join(
+        argv["out"], "figures", argv["i18n"], argv["type"], argv["env"], argv["scenario"], argv["algo"], category
+    )
+    os.makedirs(save_dir, exist_ok=True)
+    figure_name = os.path.join(
+        save_dir, f'{argv["env"]}_{argv["scenario"]}_{argv["algo"]}_{category}_{filename}.{argv["type"]}'
+    )
     plt.savefig(figure_name, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved to {figure_name}")
@@ -745,3 +834,6 @@ if __name__ == "__main__":
 
     # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
     boxplot_mean_attack_metric_env(argv)
+    
+    # 合并attack，画metrics的errorbar图
+    errorbar_mean_attack_metric(excel_path, argv)
