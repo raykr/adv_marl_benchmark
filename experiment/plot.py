@@ -201,6 +201,12 @@ YLIM = {
     "pettingzoo_mpe_simple_spread_v3-continuous_maddpg": [-120, -20],
 }
 
+BOXPLOT_YLIM = {
+    "mappo": [-1, 1],
+    "maddpg": [-5, 5],
+    "qmix": [-1, 1],
+}
+
 # 读取scheme.json
 SCHEME_CFG = json.load(open(os.path.abspath(os.path.join(os.path.dirname(__file__), "settings/scheme.json")), "r"))
 
@@ -458,7 +464,7 @@ def _boxplot_cr(row_wise_results, filename, argv):
     positions = range(1, len(exp_names) + 1)
 
     # Plotting the line chart with std as the shaded area
-    golden_ratio = 1.4
+    golden_ratio = 1.618
     width = 15  # 假设宽度为10单位
     height = width / golden_ratio  # 根据黄金比例计算高度
     plt.figure(figsize=(width, height))
@@ -471,13 +477,16 @@ def _boxplot_cr(row_wise_results, filename, argv):
             capwidths=0.4,
             patch_artist=True,
             showmeans=True,
-            showfliers=False,
+            showfliers=True,
             boxprops=dict(facecolor=rainbow_colors_2[pos]),
             meanprops=dict(marker="o", markerfacecolor="black", markeredgecolor="black", markersize=4),
             medianprops=dict(marker=None, color="black", linewidth=1.5),
             flierprops=dict(marker="o", markerfacecolor=rainbow_colors_2[pos], markeredgecolor=rainbow_colors_2[pos]),
         )
 
+    algo_name = filename.split("_")[-1]
+    if filename in BOXPLOT_YLIM:
+        plt.ylim(BOXPLOT_YLIM[algo_name])
     # 在y=0处添加一条水平线
     plt.axhline(y=0, color="black", linewidth=0.5, linestyle="--")
     # 设置Y轴为百分比格式
@@ -552,14 +561,22 @@ def _errbar_metrics(row_wise_results, filename, argv):
     for idx, cat in enumerate(positions):
         for point, metric in enumerate(row_wise_results[exp_names[idx]].keys()):
             x_val = cat + (point - num_points_per_x / 2) * offset  # 计算偏移后的x值
-            plt.errorbar(x_val, row_wise_results[exp_names[idx]][metric]["mean"], yerr=row_wise_results[exp_names[idx]][metric]["std"], fmt=line_markers[point], color=sci_colors[point], capsize=0, ecolor=sci_colors[point], alpha=0.4)
+            plt.errorbar(
+                x_val,
+                row_wise_results[exp_names[idx]][metric]["mean"],
+                yerr=row_wise_results[exp_names[idx]][metric]["std"],
+                fmt=line_markers[point],
+                color=sci_colors[point],
+                capsize=0,
+                ecolor=sci_colors[point],
+                alpha=0.4,
+            )
 
     # 将errorbar的点按照metric连接起来，形成折线图
     for point, metric in enumerate(row_wise_results[exp_names[0]].keys()):
         x_vals = [cat + (point - num_points_per_x / 2) * offset for cat in positions]
         y_vals = [row_wise_results[exp_name][metric]["mean"] for exp_name in exp_names]
         plt.plot(x_vals, y_vals, linestyle="--", marker=line_markers[point], color=sci_colors[point], label=metric)
-
 
     # 在y=0处添加一条水平线
     plt.axhline(y=0, color="black", linewidth=0.5, linestyle="--")
@@ -809,9 +826,28 @@ def _barstd_metrics(row_wise_results, filename, argv):
         for point, metric in enumerate(row_wise_results[exp_names[idx]].keys()):
             x_val = cat + (point - num_points_per_x / 2) * offset  # 计算偏移后的x值
             if idx == 0:
-                plt.bar(x_val, row_wise_results[exp_names[idx]][metric]["mean"], yerr=row_wise_results[exp_names[idx]][metric]["std"], edgecolor="grey", width=0.2, capsize=3, ecolor="#aaa", color=macaron_colors_1[point], label=metric)
+                plt.bar(
+                    x_val,
+                    row_wise_results[exp_names[idx]][metric]["mean"],
+                    yerr=row_wise_results[exp_names[idx]][metric]["std"],
+                    edgecolor="grey",
+                    width=0.2,
+                    capsize=3,
+                    ecolor="#aaa",
+                    color=macaron_colors_1[point],
+                    label=metric,
+                )
             else:
-                plt.bar(x_val, row_wise_results[exp_names[idx]][metric]["mean"], yerr=row_wise_results[exp_names[idx]][metric]["std"], edgecolor="grey", width=0.2, capsize=3, ecolor="#aaa", color=macaron_colors_1[point])
+                plt.bar(
+                    x_val,
+                    row_wise_results[exp_names[idx]][metric]["mean"],
+                    yerr=row_wise_results[exp_names[idx]][metric]["std"],
+                    edgecolor="grey",
+                    width=0.2,
+                    capsize=3,
+                    ecolor="#aaa",
+                    color=macaron_colors_1[point],
+                )
 
     # 在y=0处添加一条水平线
     plt.axhline(y=0, color="black", linewidth=0.5, linestyle="--")
@@ -838,6 +874,286 @@ def _barstd_metrics(row_wise_results, filename, argv):
     plt.close()
     print(f"Saved to {figure_name}")
 
+
+def plot_necessity(argv):
+    selected_trick = "entropy_coef_0.0001"
+    # 组织数据
+    # 遍历argv["out"]/data下的所有excel，按最后的算法分组
+    excel_paths = {"mappo": [], "maddpg": [], "qmix": []}
+    for root, _, files in os.walk(os.path.join(os.path.dirname(__file__), argv["out"], "data")):
+        for file in files:
+            if file.endswith(".xlsx"):
+                algo_name = file.split("_")[-1].split(".")[0]
+                excel_paths[algo_name].append(os.path.join(root, file))
+
+    # 取mappo算法下的所有excel
+    combined_df = pd.DataFrame()
+    for path in excel_paths["mappo"]:
+        if "mamujoco" in path:
+            continue
+        # 读取iterative_perturbation sheet的数据
+        df = pd.read_excel(path, sheet_name="iterative_perturbation", header=0)
+        # 取出exp_name为default和gamma_0.9两行，合并到combined_df
+        combined_df = pd.concat([combined_df, df[df["exp_name"].isin(["default", selected_trick])]])
+    print(combined_df)
+
+    # 画原始hat图
+    draw_origin_hat(combined_df, selected_trick, argv)
+
+    # 画新指标的hat图
+    draw_self_metrics_hat(combined_df, selected_trick, argv)
+    draw_trick_metrics_hat(combined_df, selected_trick, argv)
+
+
+def draw_origin_hat(combined_df, trick_name, argv):
+    # xlabels为combined_df的scenario列，去重
+    xlabels = combined_df["scenario"].unique().tolist()
+    # 取exp_name为default的before_reward列
+    before_reward = combined_df[combined_df["exp_name"] == "default"]["before_reward"].tolist()
+    vanilla_reward = combined_df[combined_df["exp_name"] == "default"]["vanilla_reward"].tolist()
+    adv_reward = combined_df[combined_df["exp_name"] == "default"]["adv_reward"].tolist()
+    trick_vanilla_reward = combined_df[combined_df["exp_name"] == trick_name]["vanilla_reward"].tolist()
+    trick_adv_reward = combined_df[combined_df["exp_name"] == trick_name]["adv_reward"].tolist()
+
+    # Plotting the line chart with std as the shaded area
+    golden_ratio = 1.618
+    width = 15  # 假设宽度为10单位
+    height = width / golden_ratio  # 根据黄金比例计算高度
+    plt.figure(figsize=(width, height))
+    fig, ax = plt.subplots(figsize=(width, height))
+    hat_graph(
+        ax,
+        xlabels,
+        [before_reward, vanilla_reward, adv_reward, trick_vanilla_reward, trick_adv_reward],
+        [
+            "Before Reward",
+            "Vanilla Reward",
+            "Adversarial Attack Reward",
+            f"Vanilla Reward with {trick_name}",
+            f"Adversarial Attack Reward with {trick_name}",
+        ],
+    )
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_xlabel("Environments")
+    ax.set_ylabel("Reward")
+    ax.set_title("Rewards in different environments of MAPPO")
+    ax.set_ylim(-70, 70)
+    ax.legend()
+
+    fig.tight_layout()
+
+    # 保存图表到文件
+    category = "necessity"
+    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], category)
+    os.makedirs(save_dir, exist_ok=True)
+    figure_name = os.path.join(save_dir, f'{trick_name}_origin.{argv["type"]}')
+    plt.savefig(figure_name, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved to {figure_name}")
+
+
+def draw_self_metrics_hat(combined_df, trick_name, argv):
+    # xlabels为combined_df的scenario列，去重
+    xlabels = combined_df["scenario"].unique().tolist()
+    start = [0, 0, 0, 0]
+    # 取exp_name为default的before_reward列
+    srr_default = combined_df[combined_df["exp_name"] == "default"]["SRR"].tolist()
+    srr_trick = combined_df[combined_df["exp_name"] == trick_name]["SRR"].tolist()
+
+    # Plotting the line chart with std as the shaded area
+    golden_ratio = 1.618
+    width = 14  # 假设宽度为10单位
+    height = width / golden_ratio  # 根据黄金比例计算高度
+    plt.figure(figsize=(width, height))
+    fig, ax = plt.subplots(figsize=(width, height))
+    metrics_hat_graph(
+        ax,
+        xlabels,
+        [start, srr_default, srr_trick],
+        ["default", f"SRR with default setting", f"SRR with {trick_name}"],
+    )
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_xlabel("Environments")
+    ax.set_ylabel("Change Rate")
+    ax.set_title("Self-robustness realated metrics in different environments of MAPPO")
+    ax.set_ylim(-1, 0.2)
+    # 设置Y轴为百分比格式
+    ax.yaxis.set_major_formatter(PercentFormatter(1))
+    ax.legend()
+
+    fig.tight_layout()
+
+    # 保存图表到文件
+    category = "necessity"
+    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], category)
+    os.makedirs(save_dir, exist_ok=True)
+    figure_name = os.path.join(save_dir, f'{trick_name}_self_metrics.{argv["type"]}')
+    plt.savefig(figure_name, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved to {figure_name}")
+
+
+def draw_trick_metrics_hat(combined_df, trick_name, argv):
+    # xlabels为combined_df的scenario列，去重
+    xlabels = combined_df["scenario"].unique().tolist()
+    start = [0, 0, 0, 0]
+    # 取exp_name为default的before_reward列
+    rsrr = combined_df[combined_df["exp_name"] == trick_name]["rSRR"].tolist()
+    tpr = combined_df[combined_df["exp_name"] == trick_name]["TPR"].tolist()
+    trr = combined_df[combined_df["exp_name"] == trick_name]["TRR"].tolist()
+
+    # Plotting the line chart with std as the shaded area
+    golden_ratio = 1.618
+    width = 14  # 假设宽度为10单位
+    height = width / golden_ratio  # 根据黄金比例计算高度
+    plt.figure(figsize=(width, height))
+    fig, ax = plt.subplots(figsize=(width, height))
+    metrics_hat_graph(
+        ax,
+        xlabels,
+        [start, rsrr, tpr, trr],
+        ["default", f"rSRR with {trick_name}", f"TPR with {trick_name}", f"TRR with {trick_name}"],
+    )
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_xlabel("Environments")
+    ax.set_ylabel("Change Rate")
+    ax.set_title("Trick-robustness realated metrics in different environments of MAPPO")
+    # ax.set_ylim(-0.25, 0.25)
+    # 设置Y轴为百分比格式
+    ax.yaxis.set_major_formatter(PercentFormatter(1))
+    ax.legend()
+
+    fig.tight_layout()
+
+    # 保存图表到文件
+    category = "necessity"
+    save_dir = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], category)
+    os.makedirs(save_dir, exist_ok=True)
+    figure_name = os.path.join(save_dir, f'{trick_name}_trick_metrics.{argv["type"]}')
+    plt.savefig(figure_name, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved to {figure_name}")
+
+
+def hat_graph(ax, xlabels, values, group_labels):
+    """
+    Create a hat graph.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The Axes to plot into.
+    xlabels : list of str
+        The category names to be displayed on the x-axis.
+    values : (M, N) array-like
+        The data values.
+        Rows are the groups (len(group_labels) == M).
+        Columns are the categories (len(xlabels) == N).
+    group_labels : list of str
+        The group labels displayed in the legend.
+    """
+
+    def label_bars(heights, rects):
+        """Attach a text label on top of each bar."""
+        for height, rect in zip(heights, rects):
+            # 保留两位小数
+            height = round(height, 2)
+            ax.annotate(
+                f"{height}",
+                xy=(rect.get_x() + rect.get_width() / 2, height),
+                xytext=(0, 4),  # 4 points vertical offset.
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+            )
+
+    values = np.asarray(values)
+    x = np.arange(values.shape[1])
+    ax.set_xticks(x, labels=xlabels)
+    spacing = 0.3  # spacing between hat groups
+    width = (1 - spacing) / values.shape[0]
+    heights0 = values[0]
+    for i, (heights, group_label) in enumerate(zip(values, group_labels)):
+        style = {"fill": False} if i == 0 else {"edgecolor": "black"}
+        rects = ax.bar(
+            x - spacing / 2 + i * width, heights - heights0, width, bottom=heights0, label=group_label, **style
+        )
+        label_bars(heights, rects)
+
+def metrics_hat_graph(ax, xlabels, values, group_labels):
+    """
+    Create a hat graph.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The Axes to plot into.
+    xlabels : list of str
+        The category names to be displayed on the x-axis.
+    values : (M, N) array-like
+        The data values.
+        Rows are the groups (len(group_labels) == M).
+        Columns are the categories (len(xlabels) == N).
+    group_labels : list of str
+        The group labels displayed in the legend.
+    """
+
+    def label_bars(heights, rects):
+        """Attach a text label on top of each bar."""
+        for height, rect in zip(heights, rects):
+            # 保留两位小数
+            height = round(height, 4)
+            ax.annotate(
+                f"{height:.2%}",
+                xy=(rect.get_x() + rect.get_width() / 2, height),
+                xytext=(0, 4),  # 4 points vertical offset.
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+            )
+
+    values = np.asarray(values)
+    x = np.arange(values.shape[1])
+    ax.set_xticks(x, labels=xlabels)
+    spacing = 0.3  # spacing between hat groups
+    width = (1 - spacing) / values.shape[0]
+    heights0 = values[0]
+    for i, (heights, group_label) in enumerate(zip(values, group_labels)):
+        style = {"fill": False} if i == 0 else {"edgecolor": "black"}
+        rects = ax.bar(
+            x - spacing / 2 + i * width, heights - heights0, width, bottom=heights0, label=group_label, **style
+        )
+        label_bars(heights, rects)
+
+
+def get_paths(args):
+    # 往下walk三级目录，返回一个(env, scenario, algo)三元组的列表
+    envs = []
+    for env_name in os.listdir(os.path.join(args.out, "data")):
+        if not os.path.isdir(os.path.join(args.out, "data", env_name)):
+            continue
+        if args.env is not None and args.env != "None" and args.env != env_name:
+            continue
+
+        for scenario_name in os.listdir(os.path.join(args.out, "data", env_name)):
+            if not os.path.isdir(os.path.join(args.out, "data", env_name, scenario_name)):
+                continue
+            if args.scenario is not None and args.scenario != "None" and args.scenario != scenario_name:
+                continue
+
+            for algo_name in os.listdir(os.path.join(args.out, "data", env_name, scenario_name)):
+                if not os.path.isdir(os.path.join(args.out, "data", env_name, scenario_name, algo_name)):
+                    continue
+                if args.algo is not None and args.algo != "None" and args.algo != algo_name:
+                    continue
+
+                envs.append((env_name, scenario_name, algo_name))
+    return envs
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--env", type=str, default="smac", help="env name")
@@ -854,41 +1170,49 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
     argv = vars(args)
 
-    if argv["file"] is not None:
-        excel_path = argv["file"]
-    else:
-        excel_path = os.path.join(
-            argv["out"],
-            "data",
-            argv["env"],
-            argv["scenario"],
-            argv["algo"],
-            f"{argv['env']}_{argv['scenario']}_{argv['algo']}.xlsx",
-        )
+    for env_name, scenario_name, algo_name in get_paths(args):
+        argv["env"] = env_name
+        argv["scenario"] = scenario_name
+        argv["algo"] = algo_name
 
-    # 评一个trick方案下所有攻击的reward
-    # x轴为trick，y轴为reward，每个trick方案一张图
-    plot_trick_reward(excel_path, argv)
-    if argv["env"] == "smac":
-        plot_trick_reward(excel_path, argv, ylabel="Win Rate")
+        if argv["file"] is not None:
+            excel_path = argv["file"]
+        else:
+            excel_path = os.path.join(
+                argv["out"],
+                "data",
+                argv["env"],
+                argv["scenario"],
+                argv["algo"],
+                f"{argv['env']}_{argv['scenario']}_{argv['algo']}.xlsx",
+            )
 
-    # 评一个攻击下所有trick的reward
-    # x轴为trick，y轴为reward，每个攻击方法一张图
-    plot_attack_reward(excel_path, argv)
+        # # 评一个trick方案下所有攻击的reward
+        # # x轴为trick，y轴为reward，每个trick方案一张图
+        # plot_trick_reward(excel_path, argv)
+        # if argv["env"] == "smac":
+        #     plot_trick_reward(excel_path, argv, ylabel="Win Rate")
 
-    # 画训练对比曲线图
-    plot_train_reward(argv)
+        # # 评一个攻击下所有trick的reward
+        # # x轴为trick，y轴为reward，每个攻击方法一张图
+        # plot_attack_reward(excel_path, argv)
 
-    # 画metrics
-    plot_metrics(excel_path, argv)
+        # # 画metrics
+        # plot_metrics(excel_path, argv)
 
-    # 合并attack、metrics的箱线图，每个（环境+算法）一张图，共12张，看的是算法在特定环境上的不同trick的表现
-    boxplot_mean_attack_metric(excel_path, argv)
+        # # 合并attack、metrics的箱线图，每个（环境+算法）一张图，共12张，看的是算法在特定环境上的不同trick的表现
+        # boxplot_mean_attack_metric(excel_path, argv)
 
-    # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
-    boxplot_mean_attack_metric_env(argv)
-    
-    # 合并attack，画metrics的errorbar图
-    errorbar_mean_attack_metric(excel_path, argv)
-    # 合并attack，画metrics的bar图，带着std
-    bar_mean_attack_metric(excel_path, argv)
+        # # 合并attack，画metrics的errorbar图
+        # errorbar_mean_attack_metric(excel_path, argv)
+        # # 合并attack，画metrics的bar图，带着std
+        # bar_mean_attack_metric(excel_path, argv)
+
+    # # 画训练对比曲线图
+    # plot_train_reward(argv)
+
+    # # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
+    # boxplot_mean_attack_metric_env(argv)
+
+    # 画metric必要性分析图
+    plot_necessity(argv)

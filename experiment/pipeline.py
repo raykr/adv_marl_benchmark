@@ -169,14 +169,8 @@ if __name__ == "__main__":
             plot(args)
 
     elif args.phase == "plot":
-
-        for env_name, scenario_name, algo_name in get_paths(args):
-            args.env = env_name
-            args.scenario = scenario_name
-            args.algo = algo_name
-            
-            # plot
-            plot(args)
+        # plot
+        plot(args)
     
 
     elif args.phase == "rsync":
