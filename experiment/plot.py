@@ -1187,32 +1187,32 @@ if __name__ == "__main__":
                 f"{argv['env']}_{argv['scenario']}_{argv['algo']}.xlsx",
             )
 
-        # # 评一个trick方案下所有攻击的reward
-        # # x轴为trick，y轴为reward，每个trick方案一张图
-        # plot_trick_reward(excel_path, argv)
-        # if argv["env"] == "smac":
-        #     plot_trick_reward(excel_path, argv, ylabel="Win Rate")
+        # 评一个trick方案下所有攻击的reward
+        # x轴为trick，y轴为reward，每个trick方案一张图
+        plot_trick_reward(excel_path, argv)
+        if argv["env"] == "smac":
+            plot_trick_reward(excel_path, argv, ylabel="Win Rate")
 
-        # # 评一个攻击下所有trick的reward
-        # # x轴为trick，y轴为reward，每个攻击方法一张图
-        # plot_attack_reward(excel_path, argv)
+        # 评一个攻击下所有trick的reward
+        # x轴为trick，y轴为reward，每个攻击方法一张图
+        plot_attack_reward(excel_path, argv)
 
-        # # 画metrics
-        # plot_metrics(excel_path, argv)
+        # 画metrics
+        plot_metrics(excel_path, argv)
 
-        # # 合并attack、metrics的箱线图，每个（环境+算法）一张图，共12张，看的是算法在特定环境上的不同trick的表现
-        # boxplot_mean_attack_metric(excel_path, argv)
+        # 合并attack、metrics的箱线图，每个（环境+算法）一张图，共12张，看的是算法在特定环境上的不同trick的表现
+        boxplot_mean_attack_metric(excel_path, argv)
 
-        # # 合并attack，画metrics的errorbar图
-        # errorbar_mean_attack_metric(excel_path, argv)
-        # # 合并attack，画metrics的bar图，带着std
-        # bar_mean_attack_metric(excel_path, argv)
+        # 合并attack，画metrics的errorbar图
+        errorbar_mean_attack_metric(excel_path, argv)
+        # 合并attack，画metrics的bar图，带着std
+        bar_mean_attack_metric(excel_path, argv)
 
-    # # 画训练对比曲线图
-    # plot_train_reward(argv)
+    # 画训练对比曲线图
+    plot_train_reward(argv)
 
-    # # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
-    # boxplot_mean_attack_metric_env(argv)
+    # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
+    boxplot_mean_attack_metric_env(argv)
 
     # 画metric必要性分析图
     plot_necessity(argv)
