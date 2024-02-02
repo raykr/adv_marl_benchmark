@@ -28,7 +28,7 @@ def export_results(env, scenario, algo, attack, out_dir):
     df = pd.DataFrame(columns=["env", "scenario", "algo", "attack", "exp_name", "before_reward", "vanilla_reward", "adv_reward", "vanilla_win_rate", "adv_win_rate"])
     # 先导出默认配置的实验结果
     _record_row(df, env, scenario, algo, attack, "default")
-        # tricks配置文件
+    # tricks配置文件
     tricks_path = os.path.join("settings", "tricks.json")
     # 读取tricks.json
     with open(tricks_path, "r") as f:
@@ -61,7 +61,24 @@ def export_results(env, scenario, algo, attack, out_dir):
     # print("Experiments results exported to", csv_file)
     print("\n")
 
-def _record_row(df, env, scenario, algo, attack, exp_name):
+def export_early_stopping_results(env, scenario, algo, attack, out_dir):
+    # 构建数据输出目录，如果没有则创建
+    csv_file = os.path.join(out_dir, env, scenario, algo, "earlystopping", f"{attack}.csv")
+    if not os.path.exists(os.path.dirname(csv_file)):
+        os.makedirs(os.path.dirname(csv_file))
+    # 使用dataframe来存储数据
+    df = pd.DataFrame(columns=["env", "scenario", "algo", "attack", "exp_name", "before_reward", "vanilla_reward", "adv_reward", "vanilla_win_rate", "adv_win_rate"])
+    # 导出early stopping结果
+    _record_row(df, env, scenario, algo, attack, "default", type="earlystopping")
+    print(df)
+    # 计算指标
+    _calculate_metrics(df)
+    # 保存到csv文件的sheet2中
+    df.to_csv(csv_file, index=False)
+    # print("Experiments results exported to", csv_file)
+    print("\n")
+
+def _record_row(df, env, scenario, algo, attack, exp_name, type="tricks"):
     #  如果trail_name中含有["random_noise", "iterative_perturbation", "adaptive_action"]
     #  则从perturbation目录中导出
     #  否则从traitor目录中导出
@@ -91,28 +108,55 @@ def _record_row(df, env, scenario, algo, attack, exp_name):
     date_dir = sorted(os.listdir(log_dir))[-1]
     # 读取date_dir下的result.txt
     with open(os.path.join(log_dir, date_dir, "result.txt"), "r") as f:
-        # df增加一行
-        df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None, None]
-        # before_reward的值去查询训练日志，取timestep=0的reward，即训练前的reward
-        train_log = os.path.join("results", env, scenario, "single", algo, f"{exp_name}")
-        latest_log = sorted(os.listdir(train_log))[-1]
-        with open(os.path.join(train_log, latest_log, "progress.txt"), "r") as f2:
-            for line in f2.readlines():
-                arr = line.replace("\n", "").split(",")
-                if arr[0] == "0":
-                    df.loc[len(df) -1, "before_reward"] = float(arr[1])
-                    break
+        if type == "tricks":
+            # df增加一行
+            df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None, None]
+            # before_reward的值去查询训练日志，取timestep=0的reward，即训练前的reward
+            train_log = os.path.join("results", env, scenario, "single", algo, f"{exp_name}")
+            latest_log = sorted(os.listdir(train_log))[-1]
+            with open(os.path.join(train_log, latest_log, "progress.txt"), "r") as f2:
+                for line in f2.readlines():
+                    arr = line.replace("\n", "").split(",")
+                    if arr[0] == "0":
+                        df.loc[len(df) -1, "before_reward"] = float(arr[1])
+                        break
 
-        for line in f.readlines():
-            # 如果为空行，则跳过
-            if line == "\n":
-                continue
-            arr = line.replace("\n", "").split(",")
-            if arr[2] == "final":
+            for line in f.readlines():
+                # 如果为空行，则跳过
+                if line == "\n":
+                    continue
+                arr = line.replace("\n", "").split(",")
+                if arr[2] == "final":
+                    df.loc[len(df) -1, arr[1] + "_reward"] = float(arr[3])
+                    if len(arr) == 5:
+                        df.loc[len(df) -1, arr[1] + "_win_rate"] = float(arr[4])
+
+        elif type == "earlystopping":
+            for line in f.readlines():
+                # 如果为空行，则跳过
+                if line == "\n":
+                    continue
+                arr = line.replace("\n", "").split(",")
+                if arr[1] == "vanilla":
+                    # df增加一行
+                    if arr[2] == "final":
+                        df.loc[len(df)] = [env, scenario, algo, attack, "default", None, None, None, None, None]
+                    else:
+                        df.loc[len(df)] = [env, scenario, algo, attack, f"timestep_{arr[2]}", None, None, None, None, None]
+                    # before_reward的值去查询训练日志，取timestep=0的reward，即训练前的reward
+                    train_log = os.path.join("results", env, scenario, "single", algo, f"{exp_name}")
+                    latest_log = sorted(os.listdir(train_log))[-1]
+                    with open(os.path.join(train_log, latest_log, "progress.txt"), "r") as f2:
+                        for line in f2.readlines():
+                            ar = line.replace("\n", "").split(",")
+                            if ar[0] == "0":
+                                df.loc[len(df) -1, "before_reward"] = float(ar[1])
+                                break
+
                 df.loc[len(df) -1, arr[1] + "_reward"] = float(arr[3])
                 if len(arr) == 5:
                     df.loc[len(df) -1, arr[1] + "_win_rate"] = float(arr[4])
-                        
+
 def _calculate_metrics(df):
     # 先抓出default行的数据
     df_default = df[df["exp_name"] == "default"]
@@ -141,7 +185,18 @@ def _calculate_metrics(df):
 def combine_exported_csv(env, scenario, algo, out_dir):
     dir_path = os.path.join(out_dir, env, scenario, algo)
     # 先将多个csv文件合并成一个，每个csv文件对应一个sheet
-    excel_path = os.path.join(dir_path, f"{env}_{scenario}_{algo}.xlsx")
+    excel_path = os.path.join(dir_path, f"{env}_{scenario}_{algo}_tricks.xlsx")
+    
+    # 合并tricks
+    _combine_csvs(dir_path, excel_path)
+    
+    # 遍历dir_path下的所有文件夹，将文件加内的csv合并成一个excel
+    for f in os.listdir(dir_path):
+        if os.path.isdir(os.path.join(dir_path, f)):
+            _combine_csvs(os.path.join(dir_path, f), os.path.join(dir_path, f"{env}_{scenario}_{algo}_{f}.xlsx"))
+
+
+def _combine_csvs(dir_path, excel_path):
     file_names = [file for file in os.listdir(dir_path) if file.endswith(".csv")]
     # file_names按照 random_noise， iterative_perturbation， adaptive_action， random_policy， traitor 排序
     file_names.sort(key=lambda x: ATTACKS.index(x.split(".")[0]))
@@ -154,9 +209,12 @@ def combine_exported_csv(env, scenario, algo, out_dir):
             print(df)
             # 将DataFrame写入不同的sheet
             df.to_excel(writer, sheet_name=f'{attack}', index=True)
+            print("Experiments results exported to", excel_path)
             # 删除原来的csv文件
             os.remove(os.path.join(dir_path, file_name))
-    return excel_path
+            # 判断原来的csv文件所在的目录是否为空，如果为空，则删除该目录
+            if len(os.listdir(dir_path)) == 0:
+                os.rmdir(dir_path)
 
 
 if __name__ == "__main__":
@@ -170,8 +228,10 @@ if __name__ == "__main__":
     data_dir = os.path.join(args.out, "data")
     for method in ATTACKS:
         export_results(args.env, args.scenario, args.algo, method, data_dir)
+        # early stopping的实验结果单独导出
+        export_early_stopping_results(args.env, args.scenario, args.algo, method, data_dir)
 
     # combine all csv files
     excel_path = combine_exported_csv(args.env, args.scenario, args.algo, data_dir)
-    print("Experiments results exported to", excel_path)
+    
 
