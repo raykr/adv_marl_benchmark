@@ -11,7 +11,7 @@ from utils.plot.errorbar import errorbar_metrics
 from utils.plot.bar import bar_metrics, barstd_metrics
 from utils.plot.tensorboard import plot_train_reward
 from utils.plot.necessity import plot_necessity
-from utils.plot.line import line_tricks
+from utils.plot.line import line_tricks, line_earlystopping
 
 # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # macos font
 plt.rcParams["font.sans-serif"] = ["Noto Sans CJK JP"]  # linux
@@ -280,6 +280,9 @@ def plot_early_stopping(env_name, scenario_name, algo_name, argv):
         aw = aw[1:]
         adv_winrate[sheet_name] = aw
 
+    # 对于exp_name[:-1]的数据，替换为从10开始的等差数列，差值为10
+    exp_name[:-1] = np.arange(10, (len(exp_name) - 1) * 10 + 10, 10)
+
     title = f"{env_name}_{scenario_name}_{algo_name}"
     dirname = os.path.join(
         argv["out"],
@@ -291,32 +294,18 @@ def plot_early_stopping(env_name, scenario_name, algo_name, argv):
         argv["algo"],
         "earlystopping",
     )
-    plot_es(exp_name, vanilla_reward, adv_reward, title, "Reward", os.path.join(dirname, f"es_reward.{argv['type']}"))
+    line_earlystopping(
+        exp_name, vanilla_reward, adv_reward, title, "Reward", os.path.join(dirname, f"es_reward.{argv['type']}")
+    )
     if env_name == "smac":
-        plot_es(exp_name, vanilla_winrate, adv_winrate, title, "Win Rate", os.path.join(dirname, f"es_winrate.{argv['type']}"))
-
-
-def plot_es(exp_name, vanilla_value, adv_values, title, ylabel, figurename):
-    golden_ratio = 1.618
-    width = 12  # 假设宽度为10单位
-    height = width / golden_ratio  # 根据黄金比例计算高度
-    plt.figure(figsize=(width, height))
-    # 绘制以exp_name为横轴，vanilla_reward为纵轴的折线图
-    plt.plot(exp_name, vanilla_value, color="grey", label="vanilla", marker="o", linestyle="-", linewidth=1.5)
-    for name, value in adv_values.items():
-        plt.plot(exp_name, value, label=name, marker="o", linestyle="-", linewidth=1.5)
-
-    plt.title(title)
-    plt.xlabel("Timestep")
-    plt.ylabel(ylabel)
-    plt.legend()
-
-    # 保存图表到文件
-    save_dir = os.path.dirname(figurename)
-    os.makedirs(save_dir, exist_ok=True)
-    plt.savefig(figurename, dpi=300, bbox_inches="tight")
-    plt.close()
-    print(f"Saved to {figurename}")
+        line_earlystopping(
+            exp_name,
+            vanilla_winrate,
+            adv_winrate,
+            title,
+            "Win Rate",
+            os.path.join(dirname, f"es_winrate.{argv['type']}"),
+        )
 
 
 def get_paths(args):
@@ -377,31 +366,31 @@ if __name__ == "__main__":
                 f"{argv['env']}_{argv['scenario']}_{argv['algo']}_tricks.xlsx",
             )
 
-        # 画训练对比曲线图
-        plot_train_reward(argv, SCHEME_CFG)
+        # # 画训练对比曲线图
+        # plot_train_reward(argv, SCHEME_CFG)
 
-        # 评一个trick方案下所有攻击的reward
-        # x轴为trick，y轴为reward，每个trick方案一张图
-        plot_tricks(excel_path, argv)
-        if argv["env"] == "smac":
-            plot_tricks(excel_path, argv, ylabel="Win Rate")
+        # # 评一个trick方案下所有攻击的reward
+        # # x轴为trick，y轴为reward，每个trick方案一张图
+        # plot_tricks(excel_path, argv)
+        # if argv["env"] == "smac":
+        #     plot_tricks(excel_path, argv, ylabel="Win Rate")
 
-        # 画metrics
-        plot_metrics(excel_path, argv)
+        # # 画metrics
+        # plot_metrics(excel_path, argv)
 
-        # 合并attack、metrics的箱线图，每个（环境+算法）一张图，共12张，看的是算法在特定环境上的不同trick的表现
-        boxplot_envalgo(excel_path, argv)
+        # # 合并attack、metrics的箱线图，每个（环境+算法）一张图，共12张，看的是算法在特定环境上的不同trick的表现
+        # boxplot_envalgo(excel_path, argv)
 
-        # 合并attack，画metrics的errorbar图
-        errorbar_mean_attack_metric(excel_path, argv)
-        # 合并attack，画metrics的bar图，带着std
-        barstd_metric(excel_path, argv)
+        # # 合并attack，画metrics的errorbar图
+        # errorbar_mean_attack_metric(excel_path, argv)
+        # # 合并attack，画metrics的bar图，带着std
+        # barstd_metric(excel_path, argv)
 
         # 画early stopping图
         plot_early_stopping(env_name, scenario_name, algo_name, argv)
 
-    # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
-    boxplot_algo(argv)
+    # # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
+    # boxplot_algo(argv)
 
-    # 画metric必要性分析图
-    plot_necessity(argv)
+    # # 画metric必要性分析图
+    # plot_necessity(argv)

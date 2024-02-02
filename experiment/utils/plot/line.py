@@ -59,3 +59,26 @@ def line_tricks(df, title, ylabel, figurename, argv):
     # 展示图表
     if argv["show"]:
         plt.show()
+
+
+def line_earlystopping(exp_name, vanilla_value, adv_values, title, ylabel, figurename):
+    golden_ratio = 1.618
+    width = 12  # 假设宽度为10单位
+    height = width / golden_ratio  # 根据黄金比例计算高度
+    plt.figure(figsize=(width, height))
+    # 绘制以exp_name为横轴，vanilla_reward为纵轴的折线图
+    plt.plot(exp_name, vanilla_value, color="grey", label="vanilla", marker=line_markers[0], linestyle="-", linewidth=1.5)
+    for i, (name, value) in enumerate(adv_values.items()):
+        plt.plot(exp_name, value, label=name, marker=line_markers[i+1], linestyle="-", linewidth=1.5)
+
+    plt.title(title)
+    plt.xlabel("Episode")
+    plt.ylabel(ylabel)
+    plt.legend()
+
+    # 保存图表到文件
+    save_dir = os.path.dirname(figurename)
+    os.makedirs(save_dir, exist_ok=True)
+    plt.savefig(figurename, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved to {figurename}")
