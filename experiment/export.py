@@ -226,14 +226,14 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--out", type=str, default="out", help="out dir")
     args, _ = parser.parse_known_args()
 
-    # data_dir = os.path.join(args.out, "data")
-    # for method in ATTACKS:
-    #     export_results(args.env, args.scenario, args.algo, method, data_dir)
-    #     # early stopping的实验结果单独导出
-    #     export_early_stopping_results(args.env, args.scenario, args.algo, method, data_dir)
+    data_dir = os.path.join(args.out, "data")
+    for method in ATTACKS:
+        export_results(args.env, args.scenario, args.algo, method, data_dir)
+        # early stopping的实验结果单独导出
+        export_early_stopping_results(args.env, args.scenario, args.algo, method, data_dir)
 
-    # # combine all csv files
-    # excel_path = combine_exported_csv(args.env, args.scenario, args.algo, data_dir)
+    # combine all csv files
+    excel_path = combine_exported_csv(args.env, args.scenario, args.algo, data_dir)
 
     # 计算early stopping的Kendall Tau相关系数
     excel_path = os.path.join(
@@ -245,7 +245,8 @@ if __name__ == "__main__":
         args.algo,
         f"{args.env}_{args.scenario}_{args.algo}_earlystopping.xlsx",
     )
-    print(excel_path)
+    
+    # 导出early stopping的Kendall Tau相关系数
     cal_kendalltau_correlation(excel_path, args)
     
 
