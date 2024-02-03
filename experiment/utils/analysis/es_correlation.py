@@ -62,7 +62,7 @@ def cal_kendalltau_correlation(excel_path, args):
         vanilla_reward[0] = vanilla_reward[0] - 1e-6
 
     # 计算Kendall Tau相关系数
-    kendall_results = {"env": [], "scenario": [], "algo": [], "attack": [], "tau": [], "p": []}
+    kendall_results = {"env": [], "scenario": [], "algo": [], "attack": [], "tau": [], "p": [], "direction": [], "level": [], "significance": []}
     for name, values in adv_reward.items():
         coef, p = kendalltau(vanilla_reward, values)
         kendall_results["env"].append(args.env)
@@ -71,6 +71,9 @@ def cal_kendalltau_correlation(excel_path, args):
         kendall_results["attack"].append(name)
         kendall_results["tau"].append(coef)
         kendall_results["p"].append(p)
+        kendall_results["direction"].append("正相关性" if coef > 0 else "负相关性" if coef < 0 else "无相关性")
+        kendall_results["level"].append("较强" if abs(coef) > 0.7 else "中等" if abs(coef) > 0.3 else "较弱" if abs(coef) > 0 else "无")
+        kendall_results["significance"].append("统计显著" if p < 0.05 else "显著性不强" if p < 0.5 else "显著性较低" if p < 1 else "无")
 
     # 将结果写入到excel文件中
     df = pd.DataFrame(kendall_results)
@@ -82,9 +85,11 @@ def cal_kendalltau_correlation(excel_path, args):
         # 读取已有的数据
         if mode == "a":
             df_old = pd.read_excel(output)
-            # 合并数据
-            df = pd.concat([df_old, df], ignore_index=True)
+            # 合并数据，如果有重复的数据则去重
+            df = pd.concat([df_old, df], ignore_index=True).drop_duplicates(subset=["env", "scenario", "algo", "attack"], keep="last")
+        
+        # 按attack列排序
+        df = df.sort_values(by="attack")
         # 追加数据，不附盖
         df.to_excel(writer, index=False)
-
-
+        

@@ -152,7 +152,7 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
                         # 生成命令
                         if trick is not None and trick != victim_dir:
                             continue
-                        command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --algo.model_dir {latest_models_dir} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {logs_dir}/{attack_method}.log 2>&1"
+                        command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice if victim_dir != 'default' else True} --algo.model_dir {latest_models_dir} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {logs_dir}/{attack_method}.log 2>&1"
                         if victim_dir == "default":
                             command = "# " + command
                         f.write(command + "\n")
@@ -160,7 +160,7 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
                 # 生成命令
                 if trick is not None and trick != victim_dir:
                     continue
-                command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {logs_dir}/{attack_method}.log 2>&1"
+                command = f"python -u ../single_train.py {base_cfg} --algo.slice {slice if victim_dir != 'default' else True} --load_victim {os.path.join(models_dir, victim_dir, sub_victim_dir)} --exp_name {attack_method}_{victim_dir} {attack_cfg} > {logs_dir}/{attack_method}.log 2>&1"
                 f.write(command + "\n")
             f.write("\n")
         f.write("\n")
