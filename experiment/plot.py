@@ -5,13 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
 import os
-
+from utils.path import get_env_scenario_algos
 from utils.plot.boxplot import boxplot_cr
 from utils.plot.errorbar import errorbar_metrics
 from utils.plot.bar import bar_metrics, barstd_metrics
 from utils.plot.tensorboard import plot_train_reward
 from utils.plot.necessity import plot_necessity
 from utils.plot.line import line_tricks, line_earlystopping
+from utils.plot.colors import line_markers
 
 # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # macos font
 plt.rcParams["font.sans-serif"] = ["Noto Sans CJK JP"]  # linux
@@ -254,6 +255,8 @@ def plot_early_stopping(env_name, scenario_name, algo_name, argv):
     for i, sheet_name in enumerate(xlsx.sheet_names):
         # 读取每个工作表中的特定列数据
         df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
+        # df去掉exp_name=default的行
+        df = df[df["exp_name"] != "default"]
         if i == 0:
             exp_name = df["exp_name"].tolist()
             exp_name.append(exp_name[0])
@@ -280,8 +283,8 @@ def plot_early_stopping(env_name, scenario_name, algo_name, argv):
         aw = aw[1:]
         adv_winrate[sheet_name] = aw
 
-    # 对于exp_name[:-1]的数据，替换为从10开始的等差数列，差值为10
-    exp_name[:-1] = np.arange(10, (len(exp_name) - 1) * 10 + 10, 10)
+    # 对于exp_name的数据，替换为从1e6开始的等差数列，差值为1e6
+    exp_name = np.arange(1e6, len(exp_name) * 1e6 + 1e6, 1e6)
 
     title = f"{env_name}_{scenario_name}_{algo_name}"
     dirname = os.path.join(
@@ -308,36 +311,95 @@ def plot_early_stopping(env_name, scenario_name, algo_name, argv):
         )
 
 
-def get_paths(args):
-    # 往下walk三级目录，返回一个(env, scenario, algo)三元组的列表
-    envs = []
-    for env_name in os.listdir(os.path.join(args.out, "data")):
-        if not os.path.isdir(os.path.join(args.out, "data", env_name)):
-            continue
-        if args.env is not None and args.env != "None" and args.env != env_name:
-            continue
+def plot_early_stopping_total(argv):
+    # 遍历argv["out"]/data下的所有excel，按最后的算法分组
+    excel_paths = {"mamujoco": [], "pettingzoo_mpe": [], "smac": []}
+    for root, _, files in os.walk(os.path.join(os.path.dirname(__file__), argv["out"], "data")):
+        for file in files:
+            if file.endswith("_earlystopping.xlsx"):
+                env_name = root.split("/")[-3]
+                # 获取file的文件名
+                excel_paths[env_name].append(os.path.join(root, file))
 
-        for scenario_name in os.listdir(os.path.join(args.out, "data", env_name)):
-            if not os.path.isdir(os.path.join(args.out, "data", env_name, scenario_name)):
-                continue
-            if args.scenario is not None and args.scenario != "None" and args.scenario != scenario_name:
-                continue
+    print(excel_paths)
 
-            for algo_name in os.listdir(os.path.join(args.out, "data", env_name, scenario_name)):
-                if not os.path.isdir(os.path.join(args.out, "data", env_name, scenario_name, algo_name)):
-                    continue
-                if args.algo is not None and args.algo != "None" and args.algo != algo_name:
-                    continue
+    golden_ratio = 2.0
+    width = 20  # 假设宽度为10单位
+    height = width / golden_ratio  # 根据黄金比例计算高度
+    # 创建2个子图，排列在3行4列
+    fig, axs = plt.subplots(3, 4, figsize=(width, height))
 
-                envs.append((env_name, scenario_name, algo_name))
-    return envs
+    # 依次遍历每个算法下的所有excel，合并列名相同的数据
+    for idx, (env_name, paths) in enumerate(excel_paths.items()):
+
+        order = ["mappo", "maddpg", "qmix"]
+        # 对paths重新按照algo符合order顺序排序
+        paths = sorted(paths, key=lambda x: order.index(x.split("/")[-2]))
+
+        for jdx, path in enumerate(paths):
+
+            xlsx = pd.ExcelFile(path)
+            env_name, scenario_name, algo_name = path.split("/")[-4:-1]
+            title = f"{scenario_name.replace('simple_', '').replace('-continuous', '').replace('_v4', '').replace('_v3', '')} {algo_name.upper()}"
+
+            exp_name, vanilla_reward = [], []
+            adv_reward = {name: [] for name in xlsx.sheet_names}
+
+            for i, sheet_name in enumerate(xlsx.sheet_names):
+                # 读取每个工作表中的特定列数据
+                df = pd.read_excel(path, sheet_name=sheet_name, header=0)
+                # df去掉exp_name=default的行
+                df = df[df["exp_name"] != "default"]
+                if i == 0:
+                    vanilla_reward = df["vanilla_reward"].tolist()
+
+                adv_reward[sheet_name] = df["adv_reward"].tolist()
+
+            exp_name = np.arange(1e6, len(vanilla_reward) * 1e6 + 1e6, 1e6)
+
+            # 绘制以exp_name为横轴，vanilla_reward为纵轴的折线图
+            axs[idx][jdx].plot(
+                exp_name,
+                vanilla_reward,
+                color="grey",
+                label="vanilla",
+                marker=line_markers[0],
+                linestyle="-",
+                linewidth=1.5,
+            )
+            for i, (name, value) in enumerate(adv_reward.items()):
+                axs[idx][jdx].plot(
+                    exp_name, value, label=name, marker=line_markers[i + 1], linestyle="-", linewidth=1.5
+                )
+
+            axs[idx][jdx].set_title(title)
+            axs[idx][jdx].set_xlabel("Timestep")
+            axs[idx][jdx].set_ylabel("Reward")
+            # 设置x轴范围
+            # axs[idx][jdx].set_xlim(0, 1.1e7)
+
+    # 在整个图形上方创建统一的图例
+    lines_labels = [axs[0][0].get_legend_handles_labels()]
+    lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+    fig.legend(lines, labels, loc="upper center", ncol=6, bbox_to_anchor=(0.5, 1.05))
+    plt.tight_layout()
+
+    # 保存图表到文件
+    figurename = os.path.join(
+        argv["out"], "figures", argv["i18n"], argv["type"], "earlystopping", f"earlystopping_total.{argv['type']}"
+    )
+    save_dir = os.path.dirname(figurename)
+    os.makedirs(save_dir, exist_ok=True)
+    plt.savefig(figurename, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved to {figurename}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--env", type=str, default="smac", help="env name")
-    parser.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
-    parser.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
+    parser.add_argument("-e", "--env", type=str, default=None, help="env name")
+    parser.add_argument("-s", "--scenario", type=str, default=None, help="scenario or map name")
+    parser.add_argument("-a", "--algo", type=str, default=None, help="algo name")
     parser.add_argument("-o", "--out", type=str, default="out", help="output dir")
     parser.add_argument("-f", "--file", type=str, default=None, help="Excel file path")
     parser.add_argument("-i", "--i18n", type=str, default="en", choices=["en", "zh"], help="Choose the language")
@@ -349,7 +411,7 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
     argv = vars(args)
 
-    for env_name, scenario_name, algo_name in get_paths(args):
+    for env_name, scenario_name, algo_name in get_env_scenario_algos(args):
         argv["env"] = env_name
         argv["scenario"] = scenario_name
         argv["algo"] = algo_name
@@ -387,10 +449,13 @@ if __name__ == "__main__":
         barstd_metric(excel_path, argv)
 
         # 画early stopping图
-        plot_early_stopping(env_name, scenario_name, algo_name, argv)
+        # plot_early_stopping(env_name, scenario_name, algo_name, argv)
 
     # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
     boxplot_algo(argv)
 
     # 画metric必要性分析图
     plot_necessity(argv)
+
+    # 画early stopping总图，3行4列
+    plot_early_stopping_total(argv)

@@ -113,7 +113,7 @@ def _plot_train_line(dfs, tag_name, ylabel, weight, argv, SCHEME_CFG):
             )
 
         plt.title(f"{argv['env']}_{argv['scenario']}_{argv['algo']}")
-        plt.xlabel("Step")
+        plt.xlabel("Timestep")
         plt.ylabel(ylabel)
         plt.legend()
         plt.grid(True, linestyle="--")

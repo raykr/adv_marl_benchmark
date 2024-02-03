@@ -6,9 +6,8 @@
 import argparse
 import json
 import os
-
 import pandas as pd
-
+from utils.path import get_env_scenario_algos
 from utils.analysis.es_correlation import cal_kendalltau_correlation
 
 ATTACKS = [
@@ -59,8 +58,6 @@ def export_results(env, scenario, algo, attack, out_dir):
     _calculate_metrics(df)
     # 保存到csv文件的sheet2中
     df.to_csv(csv_file, index=False)
-    # print("Experiments results exported to", csv_file)
-    print("\n")
 
 def export_early_stopping_results(env, scenario, algo, attack, out_dir):
     # 构建数据输出目录，如果没有则创建
@@ -71,13 +68,10 @@ def export_early_stopping_results(env, scenario, algo, attack, out_dir):
     df = pd.DataFrame(columns=["env", "scenario", "algo", "attack", "exp_name", "before_reward", "vanilla_reward", "adv_reward", "vanilla_win_rate", "adv_win_rate"])
     # 导出early stopping结果
     _record_row(df, env, scenario, algo, attack, "default", type="earlystopping")
-    print(df)
     # 计算指标
     _calculate_metrics(df)
     # 保存到csv文件的sheet2中
     df.to_csv(csv_file, index=False)
-    # print("Experiments results exported to", csv_file)
-    print("\n")
 
 def _record_row(df, env, scenario, algo, attack, exp_name, type="tricks"):
     #  如果trail_name中含有["random_noise", "iterative_perturbation", "adaptive_action"]
@@ -143,7 +137,7 @@ def _record_row(df, env, scenario, algo, attack, exp_name, type="tricks"):
                     if arr[2] == "final":
                         df.loc[len(df)] = [env, scenario, algo, attack, "default", None, None, None, None, None]
                     else:
-                        df.loc[len(df)] = [env, scenario, algo, attack, f"timestep_{arr[2]}", None, None, None, None, None]
+                        df.loc[len(df)] = [env, scenario, algo, attack, arr[2], None, None, None, None, None]
                     # before_reward的值去查询训练日志，取timestep=0的reward，即训练前的reward
                     train_log = os.path.join("results", env, scenario, "single", algo, f"{exp_name}")
                     latest_log = sorted(os.listdir(train_log))[-1]
@@ -180,8 +174,6 @@ def _calculate_metrics(df):
     df["wr-TPR"] = df["vanilla_win_rate"] - baseline_w
     df["wr-TRR"] = df["adv_win_rate"] - baseline_w
 
-    print(df)
-
 
 def combine_exported_csv(env, scenario, algo, out_dir):
     dir_path = os.path.join(out_dir, env, scenario, algo)
@@ -199,6 +191,8 @@ def combine_exported_csv(env, scenario, algo, out_dir):
 
 def _combine_csvs(dir_path, excel_path):
     file_names = [file for file in os.listdir(dir_path) if file.endswith(".csv")]
+    if len(file_names) == 0:
+        return
     # file_names按照 random_noise， iterative_perturbation， adaptive_action， random_policy， traitor 排序
     file_names.sort(key=lambda x: ATTACKS.index(x.split(".")[0]))
     # 使用xlsxwriter引擎，可以写入多个sheet
@@ -207,7 +201,6 @@ def _combine_csvs(dir_path, excel_path):
             attack = file_name.split(".")[0]
             # 读取CSV文件
             df = pd.read_csv(os.path.join(dir_path, file_name), header=0, index_col=0)
-            print(df)
             # 将DataFrame写入不同的sheet
             df.to_excel(writer, sheet_name=f'{attack}', index=True)
             print("Experiments results exported to", excel_path)
@@ -220,33 +213,38 @@ def _combine_csvs(dir_path, excel_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--env", type=str, default="smac", help="env name")
-    parser.add_argument("-s", "--scenario", type=str, default="3m", help="scenario or map name")
-    parser.add_argument("-a", "--algo", type=str, default="mappo", help="algo name")
+    parser.add_argument("-e", "--env", type=str, default=None, help="env name")
+    parser.add_argument("-s", "--scenario", type=str, default=None, help="scenario or map name")
+    parser.add_argument("-a", "--algo", type=str, default=None, help="algo name")
     parser.add_argument("-o", "--out", type=str, default="out", help="out dir")
     args, _ = parser.parse_known_args()
 
-    data_dir = os.path.join(args.out, "data")
-    for method in ATTACKS:
-        export_results(args.env, args.scenario, args.algo, method, data_dir)
-        # early stopping的实验结果单独导出
-        export_early_stopping_results(args.env, args.scenario, args.algo, method, data_dir)
+    for env, scenario, algo in get_env_scenario_algos(args):
+        args.env = env
+        args.scenario = scenario
+        args.algo = algo
 
-    # combine all csv files
-    excel_path = combine_exported_csv(args.env, args.scenario, args.algo, data_dir)
+        data_dir = os.path.join(args.out, "data")
+        for method in ATTACKS:
+            export_results(args.env, args.scenario, args.algo, method, data_dir)
+            # early stopping的实验结果单独导出
+            export_early_stopping_results(args.env, args.scenario, args.algo, method, data_dir)
 
-    # 计算early stopping的Kendall Tau相关系数
-    excel_path = os.path.join(
-        os.path.abspath(os.path.dirname(__file__)),
-        args.out,
-        "data",
-        args.env,
-        args.scenario,
-        args.algo,
-        f"{args.env}_{args.scenario}_{args.algo}_earlystopping.xlsx",
-    )
-    
-    # 导出early stopping的Kendall Tau相关系数
-    cal_kendalltau_correlation(excel_path, args)
+        # combine all csv files
+        excel_path = combine_exported_csv(args.env, args.scenario, args.algo, data_dir)
+
+        # 计算early stopping的Kendall Tau相关系数
+        excel_path = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            args.out,
+            "data",
+            args.env,
+            args.scenario,
+            args.algo,
+            f"{args.env}_{args.scenario}_{args.algo}_earlystopping.xlsx",
+        )
+        
+        # 导出early stopping的Kendall Tau相关系数
+        cal_kendalltau_correlation(excel_path, args)
     
 

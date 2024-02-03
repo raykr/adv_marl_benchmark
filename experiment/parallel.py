@@ -23,6 +23,5 @@ if __name__ == '__main__':
     
     # 执行command
     command = "cat " + args.script + " | parallel -j " + str(args.num_workers) + " 2>> " + args.out + "/logs/errors.txt"
-    print(command)
     subprocess.run(command, shell=True)
 

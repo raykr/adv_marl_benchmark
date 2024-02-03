@@ -18,7 +18,6 @@ def plot_necessity(argv):
                 algo_name = file.split("_")[-2]
                 excel_paths[algo_name].append(os.path.join(root, file))
 
-    print(excel_paths)
     # 取mappo算法下的所有excel
     combined_df = pd.DataFrame()
     for path in excel_paths["mappo"]:
@@ -28,7 +27,6 @@ def plot_necessity(argv):
         df = pd.read_excel(path, sheet_name="iterative_perturbation", header=0)
         # 取出exp_name为default和gamma_0.9两行，合并到combined_df
         combined_df = pd.concat([combined_df, df[df["exp_name"].isin(["default", selected_trick])]])
-    print(combined_df)
 
     # 画原始hat图
     draw_origin_hat(combined_df, selected_trick, argv)

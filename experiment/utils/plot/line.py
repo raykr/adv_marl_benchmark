@@ -72,9 +72,10 @@ def line_earlystopping(exp_name, vanilla_value, adv_values, title, ylabel, figur
         plt.plot(exp_name, value, label=name, marker=line_markers[i+1], linestyle="-", linewidth=1.5)
 
     plt.title(title)
-    plt.xlabel("Episode")
+    plt.xlabel("Timestep")
     plt.ylabel(ylabel)
     plt.legend()
+    plt.tight_layout()
 
     # 保存图表到文件
     save_dir = os.path.dirname(figurename)

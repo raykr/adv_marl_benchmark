@@ -70,8 +70,7 @@ def generate_train_scripts(env, scenario, algo, out_dir, config_path=None, trick
                     # 生成命令
                     _write_train_command(f, config_path, exp_name, logs_dir, trick_str=trick_str, trick=trick)
 
-    print(f"You can run the following command to train all experiments:")
-    print(f"\n    python parallel.py -s {file_name} -n 2 -o {out_dir} \n")
+    print(f"python parallel.py -s {file_name} -o {out_dir} -n 2")
 
 
 def _write_train_command(file, config_path, exp_name, logs_dir, trick_str="", trick=None):
@@ -165,12 +164,9 @@ def generate_eval_scripts(env, scenario, algo, out_dir, slice=False, stage=0, tr
             f.write("\n")
         f.write("\n")
 
-            
-    print(f"You can run the following command to eval experiments:")
-    print(f"\n    python parallel.py -s {file_name} -n 2 -o {out_dir} \n")
+    print(f"python parallel.py -s {file_name} -o {out_dir} -n 2")
     if stage == 1:
-        print(f"After all of the above experiments have been completed, you can generate stage 2 scripts with the following command: ")
-        print(f"\n    python generate.py eval -e {env} -s {scenario} -a {algo} --stage 2   \n")
+        print(f"python generate.py eval -e {env} -s {scenario} -a {algo} --stage 2")
 
 
 if __name__ == "__main__":
