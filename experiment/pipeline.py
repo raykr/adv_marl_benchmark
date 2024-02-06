@@ -40,31 +40,14 @@ def plot(args):
     execute_command(f"python plot.py {args.extra}")
 
 
-def rsync(args):
-    # 读取.env中的配置项
-    from dotenv import load_dotenv
-
-    # 加载.env文件
-    load_dotenv()
-
-    # 读取环境变量
-    remote_server = os.getenv('REMOTE_SERVER')
-    port = os.getenv('REMOTE_PORT')
-    user = os.getenv('REMOTE_USER')
-    remote_path = os.getenv('REMOTE_PATH')
-
-    # -a 递归传输文件，带信息
-    # -v 显示传输过程
-    # --delete 删除接收端没有的文件
-    # --exclude 排除文件
-    # -e 指定ssh端口
-    # -n 模拟传输过程
-    execute_command(f"rsync -av --delete -e 'ssh -p {port}' {args.out} {user}@{remote_server}:{remote_path}")
+def rsync(output_dir):
+    execute_command(f"python rsync.py {args.extra}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("phase", type=str, default="train", choices=["train", "eval", "export", "plot", "rsync"], help="start phase: train, eval, export, plot, rsync")
+    parser.add_argument("-o", "--out", type=str, default="out", help="output dir")
     parser.add_argument("--fast", action="store_true", help="use fast mode for eval (stage 1 -> stage 2)")
     parser.add_argument("--stage", type=int, default=0, choices=[0, 1, 2], help="stage_0: eval all; stage_one: only eval default model in adaptive_action and traitor; stage_two:load adv model to eval.")
     parser.add_argument('--rsync', action='store_true', help='Whether to rsync the output dir to remote server')
@@ -72,6 +55,7 @@ if __name__ == "__main__":
     args, unknown_args = parser.parse_known_args()
     # 将未知参数转换为字符串
     extra = " ".join(unknown_args)
+    extra += f" --out {args.out}"
     args.extra = extra
 
     if args.phase == "train":

@@ -7,7 +7,8 @@ import argparse
 import json
 import os
 import pandas as pd
-from utils.path import get_env_scenario_algos
+pd.options.mode.chained_assignment = None  # default='warn'
+from utils.path import get_esa_via_results
 from utils.analysis.es_correlation import cal_kendalltau_correlation
 
 ATTACKS = [
@@ -55,9 +56,26 @@ def export_results(env, scenario, algo, attack, out_dir):
                     exp_name = f"{key}_{v}"
                     _record_row(df, env, scenario, algo, attack, exp_name)
     # 计算指标
-    _calculate_metrics(df)
+    dfn = _calculate_metrics(df)
     # 保存到csv文件的sheet2中
-    df.to_csv(csv_file, index=False)
+    dfn.to_csv(csv_file, index=False)
+
+    # 再保存一份用于latex中显示的excel文件
+    display_path = os.path.join(out_dir, "latex", "metric", f"{env}_{scenario}_{algo}_{attack}.csv")
+    if not os.path.exists(os.path.dirname(display_path)):
+        os.makedirs(os.path.dirname(display_path))
+    # 只保留dfn的exp_name, vanilla_reward, adv_reward, SRR, rSRR, TPR, TRR列，并且针对SRR, rSRR, TPR, TRR列的数据乘100后保留两位小数
+    dfn_display = dfn[["exp_name", "vanilla_reward", "adv_reward", "SRR", "rSRR", "TPR", "TRR"]]
+    dfn_display["vanilla_reward"] = dfn_display["vanilla_reward"].apply(lambda x: round(x, 2))
+    dfn_display["adv_reward"] = dfn_display["adv_reward"].apply(lambda x: round(x, 2))
+    dfn_display["SRR"] = dfn_display["SRR"].apply(lambda x: round(x * 100, 2))
+    dfn_display["rSRR"] = dfn_display["rSRR"].apply(lambda x: round(x * 100, 2))
+    dfn_display["TPR"] = dfn_display["TPR"].apply(lambda x: round(x * 100, 2))
+    dfn_display["TRR"] = dfn_display["TRR"].apply(lambda x: round(x * 100, 2))
+    # 修改表头exp_name为实现细节，vanilla_reward为\(r\)，adv_reward为\(r^A\)，SRR为SRR(\%)，rSRR为rSRR(\%)，TPR为TPR(\%)，TRR为TRR(\%)
+    dfn_display.columns = ["实现细节", r"\(r\)", r"\(r^A\)", "SRR(\%)", "rSRR(\%)", "TPR(\%)", "TRR(\%)"]
+
+    dfn_display.to_csv(display_path, index=False)
 
 def export_early_stopping_results(env, scenario, algo, attack, out_dir):
     # 构建数据输出目录，如果没有则创建
@@ -69,9 +87,10 @@ def export_early_stopping_results(env, scenario, algo, attack, out_dir):
     # 导出early stopping结果
     _record_row(df, env, scenario, algo, attack, "default", type="earlystopping")
     # 计算指标
-    _calculate_metrics(df)
+    dfn = _calculate_metrics(df)
     # 保存到csv文件的sheet2中
-    df.to_csv(csv_file, index=False)
+    print(dfn)
+    dfn.to_csv(csv_file, index=False)
 
 def _record_row(df, env, scenario, algo, attack, exp_name, type="tricks"):
     #  如果trail_name中含有["random_noise", "iterative_perturbation", "adaptive_action"]
@@ -163,16 +182,19 @@ def _calculate_metrics(df):
     # 模型自身reward变化率，符号代表方向，数值代表变化率
     df["SRR"] = (df["adv_reward"] - df["vanilla_reward"]) / (df["vanilla_reward"] - df["before_reward"])
     df["rSRR"] = df["SRR"] - df[df["exp_name"] == "default"]["SRR"].values[0]
-
-    # 采用Trick后模型，对比default模型，在性能上的变化率
-    df["TP"] = df["vanilla_reward"] - baseline_r
-
     df["TPR"] = (df["vanilla_reward"] - baseline_r) / baseline_range
     df["TRR"] = (df["adv_reward"] - baseline_ra) / baseline_range
 
     df["wr-SRR"] = df["adv_win_rate"] - df["vanilla_win_rate"]
     df["wr-TPR"] = df["vanilla_win_rate"] - baseline_w
     df["wr-TRR"] = df["adv_win_rate"] - baseline_w
+
+    # 调整列顺序，将vanilla_win_rate和adv_win_rate列移动到TRR后面
+    columns = list(df.columns)
+    columns.remove("vanilla_win_rate")
+    columns.remove("adv_win_rate")
+    columns = columns[:-3] + ["vanilla_win_rate", "adv_win_rate"] + columns[-3:]
+    return df[columns]
 
 
 def combine_exported_csv(env, scenario, algo, out_dir):
@@ -181,7 +203,7 @@ def combine_exported_csv(env, scenario, algo, out_dir):
     excel_path = os.path.join(dir_path, f"{env}_{scenario}_{algo}_tricks.xlsx")
     
     # 合并tricks
-    _combine_csvs(dir_path, excel_path)
+    _combine_csvs(dir_path, excel_path, out_dir)
     
     # 遍历dir_path下的所有文件夹，将文件加内的csv合并成一个excel
     for f in os.listdir(dir_path):
@@ -189,7 +211,7 @@ def combine_exported_csv(env, scenario, algo, out_dir):
             _combine_csvs(os.path.join(dir_path, f), os.path.join(dir_path, f"{env}_{scenario}_{algo}_{f}.xlsx"))
 
 
-def _combine_csvs(dir_path, excel_path):
+def _combine_csvs(dir_path, excel_path, out_dir=None):
     file_names = [file for file in os.listdir(dir_path) if file.endswith(".csv")]
     if len(file_names) == 0:
         return
@@ -197,10 +219,22 @@ def _combine_csvs(dir_path, excel_path):
     file_names.sort(key=lambda x: ATTACKS.index(x.split(".")[0]))
     # 使用xlsxwriter引擎，可以写入多个sheet
     with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
-        for file_name in file_names:
+        # 初始化一个空的df
+        df_display = pd.DataFrame()
+        # 遍历file_names
+        for idx, file_name in enumerate(file_names):
             attack = file_name.split(".")[0]
             # 读取CSV文件
             df = pd.read_csv(os.path.join(dir_path, file_name), header=0, index_col=0)
+            
+            if idx == 0:
+                # df的exp_name, vanilla_reward列赋值给df_display的exp_name, vanilla_reward列
+                df_display["exp_name"] = df["exp_name"]
+                df_display["vanilla_reward"] = df["vanilla_reward"].apply(lambda x: round(x, 2))
+            
+            # df的adv_reward列赋值给df_display的adv_reward列
+            df_display[attack] = df["adv_reward"].apply(lambda x: round(x, 2))
+
             # 将DataFrame写入不同的sheet
             df.to_excel(writer, sheet_name=f'{attack}', index=True)
             print("Experiments results exported to", excel_path)
@@ -209,6 +243,15 @@ def _combine_csvs(dir_path, excel_path):
             # 判断原来的csv文件所在的目录是否为空，如果为空，则删除该目录
             if len(os.listdir(dir_path)) == 0:
                 os.rmdir(dir_path)
+
+        # 将df_display写入一个新的csv文件
+        if out_dir is not None:
+            df_display.columns = ["实现细节", "原始奖励", "随机噪声", "最优动作抑制", "自适应动作", "随机策略", "内鬼"]
+            display_path = os.path.join(out_dir, "latex", "algo", f"{env}_{scenario}_{algo}.csv")
+            if not os.path.exists(os.path.dirname(display_path)):
+                os.makedirs(os.path.dirname(display_path))
+            df_display.to_csv(display_path, index=False)
+            print("Experiments results exported to", display_path)
 
 
 if __name__ == "__main__":
@@ -219,7 +262,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--out", type=str, default="out", help="out dir")
     args, _ = parser.parse_known_args()
 
-    for env, scenario, algo in get_env_scenario_algos(args):
+    for env, scenario, algo in get_esa_via_results(args, "results"):
         args.env = env
         args.scenario = scenario
         args.algo = algo
