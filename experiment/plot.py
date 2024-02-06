@@ -445,7 +445,7 @@ def plot_early_stopping(env_name, scenario_name, algo_name, argv):
         )
 
 
-def plot_early_stopping_total(argv):
+def plot_early_stopping_total(argv, mean_attack=False):
     # 遍历argv["out"]/data下的所有excel，按最后的算法分组
     excel_paths = {"mamujoco": [], "pettingzoo_mpe": [], "smac": []}
     for root, _, files in os.walk(os.path.join(os.path.dirname(__file__), argv["out"], "data")):
@@ -454,8 +454,6 @@ def plot_early_stopping_total(argv):
                 env_name = root.split("/")[-3]
                 # 获取file的文件名
                 excel_paths[env_name].append(os.path.join(root, file))
-
-    print(excel_paths)
 
     golden_ratio = 2.0
     width = 20  # 假设宽度为10单位
@@ -488,6 +486,19 @@ def plot_early_stopping_total(argv):
                     vanilla_reward = df["vanilla_reward"].tolist()
 
                 adv_reward[sheet_name] = df["adv_reward"].tolist()
+
+            # 是否对5种攻击的reward求均值
+            if mean_attack:
+                # 对于adv_reward的数据，遍历每个item，将对应下标的数据求均值和标准差
+                attack_ts = [[] for _ in range(len(adv_reward["random_noise"]))]
+                for i in range(len(attack_ts)):
+                    for name, value in adv_reward.items():
+                        attack_ts[i].append(value[i])
+
+                # 对attack_ts的每个item求均值和标准差
+                attack_mean = [np.mean(item) for item in attack_ts]
+                # attack_std = [np.std(item) for item in attack_ts]
+                adv_reward = {"mean of five attacks": attack_mean}
 
             exp_name = np.arange(1e6, len(vanilla_reward) * 1e6 + 1e6, 1e6)
 
@@ -599,3 +610,4 @@ if __name__ == "__main__":
 
     # 画early stopping总图，3行4列
     plot_early_stopping_total(argv)
+    plot_early_stopping_total(argv, mean_attack=True)
