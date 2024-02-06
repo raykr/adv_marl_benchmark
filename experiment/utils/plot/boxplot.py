@@ -1,3 +1,4 @@
+import json
 import os
 from matplotlib import pyplot as plt
 from matplotlib.ticker import PercentFormatter
@@ -5,10 +6,13 @@ from matplotlib.ticker import PercentFormatter
 from utils.plot.config import BOXPLOT_YLIM
 from utils.plot.colors import rainbow_colors_2
 
+SCHEME_CFG = json.load(open(os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings/scheme.json")), "r"))
 
 def boxplot_cr(row_wise_results, title, figurename):
     # 获取row_wise_results中的所有keys
     exp_names = list(row_wise_results.keys())
+    # 排序，按照SCHEME_CFG["tricks"]的中的keys顺序
+    exp_names.sort(key=lambda x: SCHEME_CFG["tricks"][x])
     # 设置每个箱线图的位置
     positions = range(1, len(exp_names) + 1)
 
@@ -33,15 +37,15 @@ def boxplot_cr(row_wise_results, title, figurename):
             flierprops=dict(marker="o", markerfacecolor=rainbow_colors_2[pos], markeredgecolor=rainbow_colors_2[pos]),
         )
 
-    algo_name = title.split("_")[-1]
+    # algo_name = title.split("_")[-1]
     if title in BOXPLOT_YLIM:
-        plt.ylim(BOXPLOT_YLIM[algo_name])
+        plt.ylim(BOXPLOT_YLIM[title])
     # 在y=0处添加一条水平线
     plt.axhline(y=0, color="black", linewidth=0.5, linestyle="--")
     # 设置Y轴为百分比格式
     plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
     # plt.grid(True, axis='both', linestyle='--')
-    plt.xticks(positions, exp_names, rotation=35, ha="right")
+    plt.xticks(positions, exp_names, rotation=45, ha="right")
     plt.xlabel("Tricks")
     plt.ylabel("Comprehensive Robustness Change Rate")
     plt.title(title)

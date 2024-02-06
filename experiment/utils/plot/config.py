@@ -66,6 +66,15 @@ BOXPLOT_YLIM = {
     "mappo": [-1, 1],
     "maddpg": [-5, 5],
     "qmix": [-1, 1],
+    "all": [-2, 2],
+    "mamujoco": [-4, 4],
+    "pettingzoo_mpe": [-1, 1],
+    "smac": [-1, 1],
+    "random_noise": [-1, 1],
+    "random_policy": [-1, 1],
+    "traitor": [-1, 1],
+    "adaptive_action": [-1, 1],
+    "iterative_perturbation": [-1, 1],
 }
 
 # 读取scheme.json

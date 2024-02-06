@@ -56,6 +56,32 @@ def _read_one_excel_cr(path):
     return row_wise_results
 
 
+def _read_one_sheet_cr(path, sheet_name):
+    # Loading data from all sheets
+    sheet_data = pd.read_excel(path, sheet_name=sheet_name)
+
+    # 取出第一个sheet的exp_name列
+    exp_names = sheet_data["exp_name"]
+    # Metrics to calculate mean and std
+    origin_metrics = ["TPR", "TRR"]
+
+    # Calculating mean and std for each metric, for each row across all sheets
+    row_wise_results = {}
+    for i, exp_name in enumerate(exp_names):
+        row_metrics = {metric: [] for metric in origin_metrics}
+
+        for metric in origin_metrics:
+            row_metrics[metric].append(sheet_data.iloc[i][metric])
+
+        # 再把一行的rSRR、TPR、TRR三个指标合并成一个list
+        row_metrics["CR"] = [row_metrics[metric] for metric in origin_metrics]
+        row_metrics["CR"] = np.array(row_metrics["CR"]).flatten().tolist()
+
+        row_wise_results[exp_name] = {"CR": row_metrics["CR"]}
+
+    return row_wise_results
+
+
 def _read_one_excel_metrics(path):
     # 读取Excel文件
     xlsx = pd.ExcelFile(path)
@@ -199,12 +225,120 @@ def boxplot_algo(argv):
             else:
                 for exp_name, metrics in one_results.items():
                     for metric, values in metrics.items():
-                        row_wise_results[exp_name][metric].extend(values)
+                        if exp_name not in row_wise_results:
+                            row_wise_results[exp_name] = {metric: values}
+                        else:
+                            row_wise_results[exp_name][metric].extend(values)
 
         figurename = os.path.join(
-            argv["out"], "figures", argv["i18n"], argv["type"], "boxplot", f'{algo_name}.{argv["type"]}'
+            argv["out"], "figures", argv["i18n"], argv["type"], "boxplot", f'algo_{algo_name}.{argv["type"]}'
         )
         boxplot_cr(row_wise_results, algo_name, figurename)
+
+
+def boxplot_env(argv):
+    # 遍历argv["out"]/data下的所有excel，按最后的算法分组
+    excel_paths = {"mamujoco": [], "pettingzoo_mpe": [], "smac": []}
+    for root, _, files in os.walk(os.path.join(os.path.dirname(__file__), argv["out"], "data")):
+        for file in files:
+            if file.endswith("_tricks.xlsx"):
+                # 获取file的文件名
+                if "mamujoco" in file:
+                    env_name = "mamujoco"
+                elif "pettingzoo_mpe" in file:
+                    env_name = "pettingzoo_mpe"
+                elif "smac" in file:
+                    env_name = "smac"
+                excel_paths[env_name].append(os.path.join(root, file))
+
+    # 依次遍历每个算法下的所有excel，合并列名相同的数据
+    for env_name, paths in excel_paths.items():
+        row_wise_results = {}
+        # 遍历这个算法下所有的excel，数据合并到row_wise_results
+        for i, path in enumerate(paths):
+            one_results = _read_one_excel_cr(path)
+
+            if i == 0:
+                row_wise_results = one_results
+            else:
+                for exp_name, metrics in one_results.items():
+                    for metric, values in metrics.items():
+                        if exp_name not in row_wise_results:
+                            row_wise_results[exp_name] = {metric: values}
+                        else:
+                            row_wise_results[exp_name][metric].extend(values)
+
+        figurename = os.path.join(
+            argv["out"], "figures", argv["i18n"], argv["type"], "boxplot", f'env_{env_name}.{argv["type"]}'
+        )
+        boxplot_cr(row_wise_results, env_name, figurename)
+
+
+def boxplot_attack(argv):
+    # 遍历argv["out"]/data下的所有excel，按最后的算法分组
+    excel_paths = []
+    for root, _, files in os.walk(os.path.join(os.path.dirname(__file__), argv["out"], "data")):
+        for file in files:
+            if file.endswith("_tricks.xlsx"):
+                # 获取file的文件名
+                excel_paths.append(os.path.join(root, file))
+
+    
+    attack_methods = ["random_noise", "iterative_perturbation", "adaptive_action", "random_policy", "traitor"]
+
+    for attack_method in attack_methods:
+
+        row_wise_results = {}
+        for i, path in enumerate(excel_paths):
+            # 遍历这个算法下所有的excel，数据合并到row_wise_results
+            one_results = _read_one_sheet_cr(path, attack_method)
+
+            if i == 0:
+                row_wise_results = one_results
+            else:
+                for exp_name, metrics in one_results.items():
+                    for metric, values in metrics.items():
+                        if exp_name not in row_wise_results:
+                            row_wise_results[exp_name] = {metric: values}
+                        else:
+                            row_wise_results[exp_name][metric].extend(values)
+
+        figurename = os.path.join(
+            argv["out"], "figures", argv["i18n"], argv["type"], "boxplot", f'attack_{attack_method}.{argv["type"]}'
+        )
+        boxplot_cr(row_wise_results, attack_method, figurename)
+
+
+
+def boxplot_all(argv):
+    # 遍历argv["out"]/data下的所有excel，按最后的算法分组
+    excel_paths = []
+    for root, _, files in os.walk(os.path.join(os.path.dirname(__file__), argv["out"], "data")):
+        for file in files:
+            if file.endswith("_tricks.xlsx"):
+                # 获取file的文件名
+                excel_paths.append(os.path.join(root, file))
+
+    # 依次遍历每个算法下的所有excel，合并列名相同的数据
+    row_wise_results = {}
+    for i, path in enumerate(excel_paths):
+        # 遍历这个算法下所有的excel，数据合并到row_wise_results
+        one_results = _read_one_excel_cr(path)
+
+        if i == 0:
+            row_wise_results = one_results
+        else:
+            for exp_name, metrics in one_results.items():
+                for metric, values in metrics.items():
+                    if exp_name not in row_wise_results:
+                        row_wise_results[exp_name] = {metric: values}
+                    else:
+                        row_wise_results[exp_name][metric].extend(values)
+
+    figurename = os.path.join(
+        argv["out"], "figures", argv["i18n"], argv["type"], "boxplot", f'all.{argv["type"]}'
+    )
+    boxplot_cr(row_wise_results, "all", figurename)
 
 
 def errorbar_mean_attack_metric(excel_path, argv):
@@ -453,6 +587,12 @@ if __name__ == "__main__":
 
     # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
     boxplot_algo(argv)
+    # 合并algo、attack、metrics的箱线图，每个环境一张图，共3张，看的是环境在所有算法上的不同trick的表现
+    boxplot_env(argv)
+    # 合并algo、env、metrics的箱线图，每个环境一张图，共3张，看的是环境在所有算法上的不同trick的表现
+    boxplot_attack(argv)
+    # 全合并env,attack, metrics, algo的箱线图，需要在横坐标轴上合并所有的tricks
+    boxplot_all(argv)
 
     # 画metric必要性分析图
     plot_necessity(argv)
