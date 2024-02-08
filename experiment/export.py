@@ -19,6 +19,9 @@ ATTACKS = [
     "traitor",
 ]
 
+# 读取scheme.json
+SCHEME_CFG = json.load(open(os.path.abspath(os.path.join(os.path.dirname(__file__), "settings/scheme.json")), "r"))
+
 def export_results(env, scenario, algo, attack, out_dir):
     # 构建数据输出目录，如果没有则创建
     csv_file = os.path.join(out_dir, env, scenario, algo, f"{attack}.csv")
@@ -26,7 +29,7 @@ def export_results(env, scenario, algo, attack, out_dir):
         os.makedirs(os.path.dirname(csv_file))
 
     # 使用dataframe来存储数据
-    df = pd.DataFrame(columns=["env", "scenario", "algo", "attack", "exp_name", "before_reward", "vanilla_reward", "adv_reward", "vanilla_win_rate", "adv_win_rate"])
+    df = pd.DataFrame(columns=["env", "scenario", "algo", "attack", "scheme", "tag", "exp_name", "before_reward", "vanilla_reward", "adv_reward", "vanilla_win_rate", "adv_win_rate"])
     # 先导出默认配置的实验结果
     _record_row(df, env, scenario, algo, attack, "default")
     # tricks配置文件
@@ -83,7 +86,7 @@ def export_early_stopping_results(env, scenario, algo, attack, out_dir):
     if not os.path.exists(os.path.dirname(csv_file)):
         os.makedirs(os.path.dirname(csv_file))
     # 使用dataframe来存储数据
-    df = pd.DataFrame(columns=["env", "scenario", "algo", "attack", "exp_name", "before_reward", "vanilla_reward", "adv_reward", "vanilla_win_rate", "adv_win_rate"])
+    df = pd.DataFrame(columns=["env", "scenario", "algo", "attack", "scheme", "tag", "exp_name", "before_reward", "vanilla_reward", "adv_reward", "vanilla_win_rate", "adv_win_rate"])
     # 导出early stopping结果
     _record_row(df, env, scenario, algo, attack, "default", type="earlystopping")
     # 计算指标
@@ -112,10 +115,15 @@ def _record_row(df, env, scenario, algo, attack, exp_name, type="tricks"):
     else:
         return
 
+    # 从SCHEME_CFG的tricks得到exp_name对应的tag
+    tag = SCHEME_CFG["tricks"][exp_name]
+    scheme = tag[0]
+    print(tag, scheme)
+
     # 判断log_dir是否存在，如果不存在，则插入一条空数据
     if not os.path.exists(log_dir) or len(os.listdir(log_dir)) == 0:
         # df增加一行
-        df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None, None]
+        df.loc[len(df)] = [env, scenario, algo, attack, scheme, tag, exp_name, None, None, None, None, None]
         return
     
     # 默认导出log_dir下最新的实验结果
@@ -124,7 +132,8 @@ def _record_row(df, env, scenario, algo, attack, exp_name, type="tricks"):
     with open(os.path.join(log_dir, date_dir, "result.txt"), "r") as f:
         if type == "tricks":
             # df增加一行
-            df.loc[len(df)] = [env, scenario, algo, attack, exp_name, None, None, None, None, None]
+            print(df)
+            df.loc[len(df)] = [env, scenario, algo, attack, scheme, tag, exp_name, None, None, None, None, None]
             # before_reward的值去查询训练日志，取timestep=0的reward，即训练前的reward
             train_log = os.path.join("results", env, scenario, "single", algo, f"{exp_name}")
             latest_log = sorted(os.listdir(train_log))[-1]
@@ -154,9 +163,9 @@ def _record_row(df, env, scenario, algo, attack, exp_name, type="tricks"):
                 if arr[1] == "vanilla":
                     # df增加一行
                     if arr[2] == "final":
-                        df.loc[len(df)] = [env, scenario, algo, attack, "default", None, None, None, None, None]
+                        df.loc[len(df)] = [env, scenario, algo, attack, scheme, tag, "default", None, None, None, None, None]
                     else:
-                        df.loc[len(df)] = [env, scenario, algo, attack, arr[2], None, None, None, None, None]
+                        df.loc[len(df)] = [env, scenario, algo, attack, scheme, tag, arr[2], None, None, None, None, None]
                     # before_reward的值去查询训练日志，取timestep=0的reward，即训练前的reward
                     train_log = os.path.join("results", env, scenario, "single", algo, f"{exp_name}")
                     latest_log = sorted(os.listdir(train_log))[-1]
@@ -184,6 +193,7 @@ def _calculate_metrics(df):
     df["rSRR"] = df["SRR"] - df[df["exp_name"] == "default"]["SRR"].values[0]
     df["TPR"] = (df["vanilla_reward"] - baseline_r) / baseline_range
     df["TRR"] = (df["adv_reward"] - baseline_ra) / baseline_range
+    df["CR"] = 0.5 * (df["TPR"] + df["TRR"])
 
     df["wr-SRR"] = df["adv_win_rate"] - df["vanilla_win_rate"]
     df["wr-TPR"] = df["vanilla_win_rate"] - baseline_w
@@ -209,6 +219,31 @@ def combine_exported_csv(env, scenario, algo, out_dir):
     for f in os.listdir(dir_path):
         if os.path.isdir(os.path.join(dir_path, f)):
             _combine_csvs(os.path.join(dir_path, f), os.path.join(dir_path, f"{env}_{scenario}_{algo}_{f}.xlsx"))
+
+
+def merge_all_data(data_dir):
+    # 遍历argv["out"]/data下的所有excel，按最后的算法分组
+    excel_paths = []
+    for root, _, files in os.walk(data_dir):
+        for file in files:
+            if file.endswith("_tricks.xlsx"):
+                # 获取file的文件名
+                excel_paths.append(os.path.join(root, file))
+
+    # 输出文件
+    out_file = os.path.join(data_dir, "all.csv")
+    with open(out_file, "w") as out_f:
+        out_f.write("env,scenario,algo,attack,scheme,tag,trick,r0,r,ra,SRR,rSRR,TPR,TRR,CR,w,wa,wSRR,wTPR,wTRR\n")
+        for excel_path in excel_paths:
+            # 读取excel文件
+            df = pd.read_excel(excel_path, sheet_name=None)
+            for _, sheet in df.items():
+                # 将df["attack"]列的数据中的_替换为空格
+                sheet["attack"].replace("_", " ", regex=True, inplace=True)
+                # 将df["trick"]列的数据中的_替换为\_
+                sheet["exp_name"].replace("_", "\_", regex=True, inplace=True)
+                # 将sheet的数据追加写入out_file
+                sheet.to_csv(out_f, header=False, index=False)
 
 
 def _combine_csvs(dir_path, excel_path, out_dir=None):
@@ -262,12 +297,13 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--out", type=str, default="out", help="out dir")
     args, _ = parser.parse_known_args()
 
+    data_dir = os.path.join(args.out, "data")
+
     for env, scenario, algo in get_esa_via_results(args, "results"):
         args.env = env
         args.scenario = scenario
         args.algo = algo
 
-        data_dir = os.path.join(args.out, "data")
         for method in ATTACKS:
             export_results(args.env, args.scenario, args.algo, method, data_dir)
             # early stopping的实验结果单独导出
@@ -290,4 +326,5 @@ if __name__ == "__main__":
         # 导出early stopping的Kendall Tau相关系数
         cal_kendalltau_correlation(excel_path, args)
     
-
+    # 合并所有数据到一个csv中
+    merge_all_data(data_dir)
