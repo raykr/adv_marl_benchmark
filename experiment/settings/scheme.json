@@ -59,9 +59,7 @@
         "critic_lr_0.005": "C2",
         "use_gae_False": "D1",
         "use_popart_False": "D2",
-        "n_step_1": "D3",
         "n_step_5": "D3",
-        "n_step_10": "D3",
         "n_step_25": "D3",
         "share_param_False": "E1"
     }
