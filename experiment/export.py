@@ -71,10 +71,10 @@ def export_results(env, scenario, algo, attack, out_dir):
     dfn_display = dfn[["exp_name", "vanilla_reward", "adv_reward", "SRR", "rSRR", "TPR", "TRR"]]
     dfn_display["vanilla_reward"] = dfn_display["vanilla_reward"].apply(lambda x: round(x, 2))
     dfn_display["adv_reward"] = dfn_display["adv_reward"].apply(lambda x: round(x, 2))
-    dfn_display["SRR"] = dfn_display["SRR"].apply(lambda x: round(x * 100, 2))
-    dfn_display["rSRR"] = dfn_display["rSRR"].apply(lambda x: round(x * 100, 2))
-    dfn_display["TPR"] = dfn_display["TPR"].apply(lambda x: round(x * 100, 2))
-    dfn_display["TRR"] = dfn_display["TRR"].apply(lambda x: round(x * 100, 2))
+    dfn_display["SRR"] = dfn_display["SRR"].apply(lambda x: round(x * 100, 2) if x is not None else None)
+    dfn_display["rSRR"] = dfn_display["rSRR"].apply(lambda x: round(x * 100, 2) if x is not None else None)
+    dfn_display["TPR"] = dfn_display["TPR"].apply(lambda x: round(x * 100, 2) if x is not None else None)
+    dfn_display["TRR"] = dfn_display["TRR"].apply(lambda x: round(x * 100, 2) if x is not None else None)
     # 修改表头exp_name为实现细节，vanilla_reward为\(r\)，adv_reward为\(r^A\)，SRR为SRR(\%)，rSRR为rSRR(\%)，TPR为TPR(\%)，TRR为TRR(\%)
     dfn_display.columns = ["实现细节", r"\(r\)", r"\(r^A\)", "SRR(\%)", "rSRR(\%)", "TPR(\%)", "TRR(\%)"]
 
@@ -198,6 +198,17 @@ def _calculate_metrics(df):
     df["wr-SRR"] = df["adv_win_rate"] - df["vanilla_win_rate"]
     df["wr-TPR"] = df["vanilla_win_rate"] - baseline_w
     df["wr-TRR"] = df["adv_win_rate"] - baseline_w
+
+    # 处理异常数据，例如rnn完全没有训好的数据，应该置空
+    # 异常数据1. vanilla_reward < before_reward
+    df.loc[df["vanilla_reward"] < df["before_reward"], "SRR"] = 0
+    df.loc[df["vanilla_reward"] < df["before_reward"], "rSRR"] = 0
+    df.loc[df["vanilla_reward"] < df["before_reward"], "TPR"] = 0
+    df.loc[df["vanilla_reward"] < df["before_reward"], "TRR"] = 0
+    df.loc[df["vanilla_reward"] < df["before_reward"], "CR"] = 0
+    df.loc[df["vanilla_reward"] < df["before_reward"], "wr-SRR"] = 0
+    df.loc[df["vanilla_reward"] < df["before_reward"], "wr-TPR"] = 0
+    df.loc[df["vanilla_reward"] < df["before_reward"], "wr-TRR"] = 0
 
     # 调整列顺序，将vanilla_win_rate和adv_win_rate列移动到TRR后面
     columns = list(df.columns)
