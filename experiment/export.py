@@ -335,7 +335,7 @@ if __name__ == "__main__":
         )
         
         # 导出early stopping的Kendall Tau相关系数
-        cal_kendalltau_correlation(excel_path, args)
+        cal_kendalltau_correlation(excel_path, args, True)
     
     # 合并所有数据到一个csv中
     merge_all_data(data_dir)

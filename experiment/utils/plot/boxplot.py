@@ -1,14 +1,14 @@
 import json
 import os
-from matplotlib import pyplot as plt
+from matplotlib import patches, pyplot as plt
 from matplotlib.ticker import PercentFormatter
 
 from utils.plot.config import BOXPLOT_YLIM
-from utils.plot.colors import rainbow_colors_2
+from utils.plot.colors import macaron_colors_1
 
 SCHEME_CFG = json.load(open(os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "settings/scheme.json")), "r"))
 
-def boxplot_cr(row_wise_results, title, figurename):
+def boxplot_cr(row_wise_results, title, figurename, metrics=["CR"]):
     # 获取row_wise_results中的所有keys
     exp_names = list(row_wise_results.keys())
     # 排序，按照SCHEME_CFG["tricks"]的中的keys顺序
@@ -23,19 +23,20 @@ def boxplot_cr(row_wise_results, title, figurename):
     plt.figure(figsize=(width, height))
 
     for exp_name, pos in zip(exp_names, positions):
-        plt.boxplot(
-            row_wise_results[exp_name]["CR"],
-            positions=[pos],
-            widths=0.5,
-            capwidths=0.4,
-            patch_artist=True,
-            showmeans=True,
-            showfliers=True,
-            boxprops=dict(facecolor=rainbow_colors_2[pos]),
-            meanprops=dict(marker="o", markerfacecolor="black", markeredgecolor="black", markersize=4),
-            medianprops=dict(marker=None, color="black", linewidth=1.5),
-            flierprops=dict(marker="o", markerfacecolor=rainbow_colors_2[pos], markeredgecolor=rainbow_colors_2[pos]),
-        )
+        for idx, metric in enumerate(metrics):
+            plt.boxplot(
+                row_wise_results[exp_name][metric],
+                positions=[pos + idx * 0.2],
+                widths=0.2,
+                capwidths=0.15,
+                patch_artist=True,
+                showmeans=True,
+                showfliers=True,
+                boxprops=dict(facecolor=macaron_colors_1[idx]),
+                meanprops=dict(marker="o", markerfacecolor="black", markeredgecolor="black", markersize=4),
+                medianprops=dict(marker=None, color="black", linewidth=1.5),
+                flierprops=dict(marker="o", markerfacecolor=macaron_colors_1[idx], markeredgecolor=macaron_colors_1[idx]),
+            )
 
     # algo_name = title.split("_")[-1]
     if title in BOXPLOT_YLIM:
@@ -49,6 +50,11 @@ def boxplot_cr(row_wise_results, title, figurename):
     plt.xlabel("Tricks")
     plt.ylabel("Comprehensive Robustness Change Rate")
     plt.title(title)
+
+    # 创建图例
+    legend_elements = [patches.Patch(facecolor=macaron_colors_1[idx], label=metric) for idx, metric in enumerate(metrics)]
+    plt.legend(handles=legend_elements, loc='upper right')
+
     plt.tight_layout()
 
     # 保存图表到文件

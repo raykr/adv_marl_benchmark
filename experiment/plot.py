@@ -1,5 +1,6 @@
 import argparse
 import json
+from matplotlib.ticker import PercentFormatter
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +13,7 @@ from utils.plot.bar import bar_metrics, barstd_metrics
 from utils.plot.tensorboard import plot_train_reward
 from utils.plot.necessity import plot_necessity
 from utils.plot.line import line_tricks, line_earlystopping
-from utils.plot.colors import line_markers
+from utils.plot.colors import line_markers, macaron_colors_1
 
 # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # macos font
 plt.rcParams["font.sans-serif"] = ["Noto Sans CJK JP"]  # linux
@@ -51,7 +52,7 @@ def _read_one_excel_cr(path):
         row_metrics["CR"] = [row_metrics[metric] for metric in origin_metrics]
         row_metrics["CR"] = np.array(row_metrics["CR"]).flatten().tolist()
 
-        row_wise_results[exp_name] = {"CR": row_metrics["CR"]}
+        row_wise_results[exp_name] = row_metrics
 
     return row_wise_results
 
@@ -203,7 +204,7 @@ def boxplot_envalgo(excel_path, argv):
     boxplot_cr(row_wise_results, filename, figurename)
 
 
-def boxplot_algo(argv):
+def boxplot_algo(argv, metrics=["CR"]):
     # 遍历argv["out"]/data下的所有excel，按最后的算法分组
     excel_paths = {"mappo": [], "maddpg": [], "qmix": []}
     for root, _, files in os.walk(os.path.join(os.path.dirname(__file__), argv["out"], "data")):
@@ -223,20 +224,20 @@ def boxplot_algo(argv):
             if i == 0:
                 row_wise_results = one_results
             else:
-                for exp_name, metrics in one_results.items():
-                    for metric, values in metrics.items():
+                for exp_name, mts in one_results.items():
+                    for metric, values in mts.items():
                         if exp_name not in row_wise_results:
-                            row_wise_results[exp_name] = {metric: values}
+                            row_wise_results[exp_name] = one_results[exp_name]
                         else:
                             row_wise_results[exp_name][metric].extend(values)
 
         figurename = os.path.join(
             argv["out"], "figures", argv["i18n"], argv["type"], "boxplot", f'algo_{algo_name}.{argv["type"]}'
         )
-        boxplot_cr(row_wise_results, algo_name, figurename)
+        boxplot_cr(row_wise_results, algo_name, figurename, metrics)
 
 
-def boxplot_env(argv):
+def boxplot_env(argv, metrics=["CR"]):
     # 遍历argv["out"]/data下的所有excel，按最后的算法分组
     excel_paths = {"mamujoco": [], "pettingzoo_mpe": [], "smac": []}
     for root, _, files in os.walk(os.path.join(os.path.dirname(__file__), argv["out"], "data")):
@@ -261,17 +262,17 @@ def boxplot_env(argv):
             if i == 0:
                 row_wise_results = one_results
             else:
-                for exp_name, metrics in one_results.items():
-                    for metric, values in metrics.items():
+                for exp_name, mts in one_results.items():
+                    for metric, values in mts.items():
                         if exp_name not in row_wise_results:
-                            row_wise_results[exp_name] = {metric: values}
+                            row_wise_results[exp_name] = one_results[exp_name]
                         else:
                             row_wise_results[exp_name][metric].extend(values)
 
         figurename = os.path.join(
             argv["out"], "figures", argv["i18n"], argv["type"], "boxplot", f'env_{env_name}.{argv["type"]}'
         )
-        boxplot_cr(row_wise_results, env_name, figurename)
+        boxplot_cr(row_wise_results, env_name, figurename, metrics)
 
 
 def boxplot_attack(argv):
@@ -283,7 +284,6 @@ def boxplot_attack(argv):
                 # 获取file的文件名
                 excel_paths.append(os.path.join(root, file))
 
-    
     attack_methods = ["random_noise", "iterative_perturbation", "adaptive_action", "random_policy", "traitor"]
 
     for attack_method in attack_methods:
@@ -307,7 +307,6 @@ def boxplot_attack(argv):
             argv["out"], "figures", argv["i18n"], argv["type"], "boxplot", f'attack_{attack_method}.{argv["type"]}'
         )
         boxplot_cr(row_wise_results, attack_method, figurename)
-
 
 
 def boxplot_all(argv):
@@ -335,9 +334,7 @@ def boxplot_all(argv):
                     else:
                         row_wise_results[exp_name][metric].extend(values)
 
-    figurename = os.path.join(
-        argv["out"], "figures", argv["i18n"], argv["type"], "boxplot", f'all.{argv["type"]}'
-    )
+    figurename = os.path.join(argv["out"], "figures", argv["i18n"], argv["type"], "boxplot", f'all.{argv["type"]}')
     boxplot_cr(row_wise_results, "all", figurename)
 
 
@@ -540,6 +537,58 @@ def plot_early_stopping_total(argv, mean_attack=False):
     print(f"Saved to {figurename}")
 
 
+def plot_share_param(data_path, argv):
+    df = pd.read_csv(data_path, header=0)
+    # 保留trick=share_param=False的数据
+    df = df[df["trick"] == "share\_param\_False"]
+    print(df)
+    # 按照scenario和algo分组，计算每个scenarios下的TPR、TRR、rSRR的均值和标准差
+    df = df.groupby(["scenario", "algo"]).agg(
+        {
+            "TPR": ["mean", "std"],
+            "TRR": ["mean", "std"],
+            "rSRR": ["mean", "std"],
+        }
+    )
+    df.columns = ["_".join(col).strip() for col in df.columns.values]
+    # 以algo重新排序
+    df = df.reset_index().sort_values(by=["algo", "scenario"], ascending=[False, False])
+    # 将scenario列中的-continuous、_v4、_v3替换为空
+    df["scenario"] = df["scenario"].str.replace("-continuous", "").str.replace("_v4", "").str.replace("_v3", "")
+    
+    print(df)
+
+    # 画图
+    fig, ax = plt.subplots(figsize=(9, 6))
+    df.plot(
+        kind="bar",
+        x="scenario",
+        y=["TPR_mean", "TRR_mean", "rSRR_mean"],
+        ax=ax,
+        rot=0,
+        color=macaron_colors_1[:3],
+        edgecolor="grey",
+    )
+    # 在y=0处添加一条水平线
+    ax.set_ylabel("metrics")
+    ax.set_title("Metrics of share_param=False")
+    ax.legend(["TPR", "TRR", "rSRR"])
+    ax.set_ylim(-1, 1)
+    # 将x轴的标签旋转45度，显示为scenario_algo
+    ax.set_xticklabels(df["algo"] + "_" + df["scenario"], rotation=25, ha="right")
+    plt.axhline(y=0, color="grey", linestyle="-", linewidth=0.5)
+    plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+    plt.tight_layout()
+
+    # 保存图表到文件
+    figurename = os.path.join('out', 'figures', argv["i18n"], argv["type"], "extend", f"share_param.{argv['type']}")
+    save_dir = os.path.dirname(figurename)
+    os.makedirs(save_dir, exist_ok=True)
+    plt.savefig(figurename, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved to {figurename}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--env", type=str, default=None, help="env name")
@@ -596,10 +645,10 @@ if __name__ == "__main__":
         # 画early stopping图
         # plot_early_stopping(env_name, scenario_name, algo_name, argv)
 
-    # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
-    boxplot_algo(argv)
-    # 合并algo、attack、metrics的箱线图，每个环境一张图，共3张，看的是环境在所有算法上的不同trick的表现
-    boxplot_env(argv)
+    # # 合并env、attack、metrics的箱线图，每个算法一张图，共3张，看的是算法在所有环境上的不同trick的表现
+    boxplot_algo(argv, metrics=["TPR", "TRR"])
+    # # 合并algo、attack、metrics的箱线图，每个环境一张图，共3张，看的是环境在所有算法上的不同trick的表现
+    boxplot_env(argv, metrics=["TPR", "TRR"])
     # 合并algo、env、metrics的箱线图，每个环境一张图，共3张，看的是环境在所有算法上的不同trick的表现
     boxplot_attack(argv)
     # 全合并env,attack, metrics, algo的箱线图，需要在横坐标轴上合并所有的tricks
@@ -609,5 +658,8 @@ if __name__ == "__main__":
     plot_necessity(argv)
 
     # 画early stopping总图，3行4列
-    plot_early_stopping_total(argv)
+    # plot_early_stopping_total(argv)
     plot_early_stopping_total(argv, mean_attack=True)
+
+    # x轴为share_param_False下的所有环境，y轴为metrics，共一个图
+    plot_share_param("./out/data/all.csv", argv)

@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 
-def cal_kendalltau_correlation(excel_path, args):
+def cal_kendalltau_correlation(excel_path, args, mean_attack=False):
     xlsx = pd.ExcelFile(excel_path)
 
     exp_name, vanilla_reward = [], []
@@ -28,7 +28,20 @@ def cal_kendalltau_correlation(excel_path, args):
         ar.append(ar[0])
         ar = ar[1:]
         adv_reward[sheet_name] = ar
+    
+    # 是否对5种攻击的reward求均值
+    if mean_attack:
+        # 对于adv_reward的数据，遍历每个item，将对应下标的数据求均值和标准差
+        attack_ts = [[] for _ in range(len(adv_reward["random_noise"]))]
+        for i in range(len(attack_ts)):
+            for name, value in adv_reward.items():
+                attack_ts[i].append(value[i])
 
+        # 对attack_ts的每个item求均值和标准差
+        attack_mean = [np.mean(item) for item in attack_ts]
+        # attack_std = [np.std(item) for item in attack_ts]
+        adv_reward = {"mean of five attacks": attack_mean}
+    
     # 对于exp_name[:-1]的数据，替换为从10开始的等差数列，差值为10
     exp_name[:-1] = np.arange(10, (len(exp_name) - 1) * 10 + 10, 10)
 
