@@ -26,9 +26,9 @@ def boxplot_cr(row_wise_results, title, figurename, metrics=["CR"]):
         for idx, metric in enumerate(metrics):
             plt.boxplot(
                 row_wise_results[exp_name][metric],
-                positions=[pos + idx * 0.2],
-                widths=0.2,
-                capwidths=0.15,
+                positions=[pos + idx * 0.3],
+                widths=0.3,
+                capwidths=0.2,
                 patch_artist=True,
                 showmeans=True,
                 showfliers=True,
